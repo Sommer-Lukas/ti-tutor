@@ -2,6 +2,7 @@ import type { State, Transition, AutomatonProject } from './automaton'
 import type { AutomatonType } from './automatonTypes'
 
 export interface SimulationStep {
+  step: number
   currentState: string
   remainingInput: string
   consumedInput: string
@@ -11,12 +12,15 @@ export interface SimulationStep {
     symbol: string
   }
   isAccepting: boolean
+  possibleTransitions: string[]
+  isStuck?: boolean  // NEW!
 }
 
 export interface SimulationResult {
-  testCase: string
+  input: string
   steps: SimulationStep[]
   accepted: boolean
+  finalState: string | null
   error?: string
 }
 
@@ -38,25 +42,26 @@ export class AutomatonSimulator {
     
     if (startStates.length === 0) {
       return {
-        testCase: input,
+        input,
         steps: [],
         accepted: false,
+        finalState: null,
         error: 'Kein Startzustand definiert'
       }
     }
 
     if (startStates.length > 1 && this.type === 'DFA') {
       return {
-        testCase: input,
+        input,
         steps: [],
         accepted: false,
+        finalState: null,
         error: 'DFA darf nur einen Startzustand haben'
       }
     }
 
     // DFA Simulation
     if (this.type === 'DFA') {
-      // Non-null assertion: Wir wissen, dass startStates[0] existiert
       return this.simulateDFA(input, startStates[0]!, steps)
     }
 
@@ -66,9 +71,10 @@ export class AutomatonSimulator {
     }
 
     return {
-      testCase: input,
+      input,
       steps: [],
       accepted: false,
+      finalState: null,
       error: `Automatentyp ${this.type} noch nicht implementiert`
     }
   }
@@ -83,11 +89,14 @@ export class AutomatonSimulator {
     let consumedInput = ''
 
     // Initial Step
+    const initialPossible = this.getPossibleTransitions(currentState.id, input[0])
     steps.push({
+      step: 0,
       currentState: currentState.id,
       remainingInput,
       consumedInput,
-      isAccepting: currentState.isFinal
+      isAccepting: currentState.isFinal,
+      possibleTransitions: initialPossible
     })
 
     // Process each symbol
@@ -99,11 +108,23 @@ export class AutomatonSimulator {
         t => t.from === currentState.id && t.symbol === symbol
       )
 
+      // **STUCK CHECK: Keine Transition möglich!**
       if (!transition) {
+        steps.push({
+          step: i + 1,
+          currentState: currentState.id,
+          remainingInput: input.slice(i),
+          consumedInput: consumedInput,
+          isAccepting: false,  // STUCK = NOT ACCEPTING
+          possibleTransitions: [],
+          isStuck: true  // STUCK FLAG!
+        })
+
         return {
-          testCase: input,
+          input,
           steps,
-          accepted: false,
+          accepted: false,  // STUCK = REJECTED
+          finalState: currentState.id,
           error: `Keine Transition für Symbol '${symbol}' in Zustand ${currentState.id}`
         }
       }
@@ -113,9 +134,10 @@ export class AutomatonSimulator {
       
       if (!nextState) {
         return {
-          testCase: input,
+          input,
           steps,
           accepted: false,
+          finalState: null,
           error: `Zielzustand ${transition.to} nicht gefunden`
         }
       }
@@ -125,8 +147,13 @@ export class AutomatonSimulator {
       remainingInput = input.slice(i + 1)
       currentState = nextState
 
+      // Get possible next transitions
+      const nextSymbol = input[i + 1]
+      const possibleNext = nextSymbol ? this.getPossibleTransitions(currentState.id, nextSymbol) : []
+
       // Record step
       steps.push({
+        step: i + 1,
         currentState: currentState.id,
         remainingInput,
         consumedInput,
@@ -135,7 +162,8 @@ export class AutomatonSimulator {
           to: transition.to,
           symbol: transition.symbol
         },
-        isAccepting: currentState.isFinal
+        isAccepting: currentState.isFinal,
+        possibleTransitions: possibleNext
       })
     }
 
@@ -143,9 +171,10 @@ export class AutomatonSimulator {
     const accepted = currentState.isFinal
 
     return {
-      testCase: input,
+      input,
       steps,
       accepted,
+      finalState: currentState.id,
       error: accepted ? undefined : `Endzustand ${currentState.id} ist kein akzeptierender Zustand`
     }
   }
@@ -159,11 +188,23 @@ export class AutomatonSimulator {
     // Für später: Backtracking oder Breitensuche implementieren
     
     return {
-      testCase: input,
+      input,
       steps: [],
       accepted: false,
+      finalState: null,
       error: 'NFA-Simulation noch nicht vollständig implementiert'
     }
+  }
+
+  /**
+   * Helper: Get possible transitions from a state with a symbol
+   */
+  private getPossibleTransitions(stateId: string, symbol: string | undefined): string[] {
+    if (!symbol) return []
+    
+    return this.transitions
+      .filter(t => t.from === stateId && t.symbol === symbol)
+      .map(t => t.to)
   }
 
   /**

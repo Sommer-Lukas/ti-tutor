@@ -22,8 +22,8 @@ const getTestResult = (testCaseId: string) => {
   const testCase = testCases.value.find(tc => tc.id === testCaseId)
   if (!testCase) return null
   
-  // Find matching result by input
-  return props.simulationResults.find(r => r.testCase === testCase.input)
+  // FIXED: Search by 'input' instead of 'testCase'
+  return props.simulationResults.find(r => r.input === testCase.input)
 }
 
 // Get status for a test case

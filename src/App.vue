@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed} from 'vue'
 import { Play, StepForward, Square, Clock, Check, X, AlertTriangle, ShieldAlert } from 'lucide-vue-next'
 import Sidebar from '@/components/Sidebar.vue'
 import EditorCanvas from '@/components/EditorCanvas.vue'
@@ -67,15 +67,6 @@ const testSummary = computed(() => {
   return { passed, failed, total }
 })
 
-// --- WATCH: Auto-Stop at End ---
-watch([isAtEnd, isSimulating], ([atEnd, simulating]) => {
-  if (atEnd && simulating) {
-    setTimeout(() => {
-      stopSimulation()
-    }, 1500)
-  }
-})
-
 // --- ERROR TOAST ---
 const showErrorToastWithTimeout = () => {
   showErrorToast.value = true
@@ -113,11 +104,15 @@ const startSimulation = () => {
 const stepSimulation = () => {
   if (!isSimulating.value || !currentSimulation.value) return
   
-  if (currentStepIndex.value < currentSimulation.value.steps.length - 1) {
-    currentStepIndex.value++
-  } else {
+  // If at end, close simulation
+  if (currentStepIndex.value === currentSimulation.value.steps.length - 1) {
     console.log('✅ Simulation complete:', currentSimulation.value.accepted ? 'ACCEPTED' : 'REJECTED')
+    stopSimulation()
+    return
   }
+  
+  // Otherwise, step forward
+  currentStepIndex.value++
 }
 
 const stopSimulation = () => {
@@ -260,11 +255,20 @@ const closeValidationModal = () => {
 
             <button 
               @click="stepSimulation"
-              :disabled="!isSimulating || isAtEnd"
-              class="p-3 rounded-lg hover:bg-zinc-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              title="Step (F10)"
+              :disabled="!isSimulating"
+              class="p-3 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed relative group"
+              :class="isSimulating ? 'hover:bg-zinc-100' : ''"
+              :title="isAtEnd ? 'Step to close (F10)' : 'Step (F10)'"
             >
               <StepForward class="w-5 h-5 text-blue-600" />
+              
+              <!-- Tooltip when at end -->
+              <div 
+                v-if="isAtEnd && isSimulating"
+                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+              >
+                Press to close
+              </div>
             </button>
 
             <button 
@@ -333,8 +337,13 @@ const closeValidationModal = () => {
               {{ currentStep.currentState }}
             </div>
 
-            <!-- Accepting State Indicator -->
-            <div v-if="currentStep.isAccepting && isAtEnd" 
+            <!-- Accepting State Indicator (WITH STUCK DETECTION!) -->
+            <div v-if="currentStep.isStuck && isAtEnd" 
+                 class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-600 text-white text-xs font-bold animate-pulse">
+              <X class="w-4 h-4" />
+              STUCK
+            </div>
+            <div v-else-if="currentStep.isAccepting && isAtEnd" 
                  class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-600 text-white text-xs font-bold animate-pulse">
               <Check class="w-4 h-4" />
               ACCEPTED

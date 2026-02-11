@@ -90,22 +90,44 @@ const updateNodeStyles = () => {
     let borderColor = '#000'
     let bgColor = '#fff'
     let borderWidth = state.isFinal ? 6 : 2
+    let boxShadow = 'none'
     
-    // PRIORITY: Simulation > Error > Warning > Selected > Connecting
+    // BASE STYLE: Error/Warning (Base layer)
+    if (hasError) {
+      borderColor = '#dc2626'  // Red-600
+      bgColor = '#fee2e2'      // Red-100
+    } else if (hasWarning) {
+      borderColor = '#f59e0b'  // Amber-500
+      bgColor = '#fef3c7'      // Amber-100
+    }
+    
+    // OVERRIDE: Simulation (Highest priority)
     if (isSimulating) {
       borderColor = '#10b981'  // Green-500
       bgColor = '#d1fae5'      // Green-100
       borderWidth = 8
-    } else if (hasError) {
-      borderColor = '#dc2626'
-    } else if (hasWarning) {
-      borderColor = '#f59e0b'
-    } else if (isSelected) {
-      borderColor = '#3b82f6'
-      bgColor = '#dbeafe'
+      boxShadow = '0 0 0 4px rgba(16, 185, 129, 0.3)'
+    }
+    // OVERRIDE: Selected (Second highest - MUST be visible!)
+    else if (isSelected) {
+      // Keep error/warning background, but add blue border + shadow
+      borderColor = '#3b82f6'  // Blue-500
       borderWidth = state.isFinal ? 10 : 6
-    } else if (isConnecting) {
-      borderColor = '#06b6d4'
+      boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.4)'
+      
+      // If no error/warning, use blue background
+      if (!hasError && !hasWarning) {
+        bgColor = '#dbeafe'  // Blue-100
+      }
+    }
+    // OVERRIDE: Connecting
+    else if (isConnecting) {
+      borderColor = '#06b6d4'  // Cyan-500
+      boxShadow = '0 0 0 3px rgba(6, 182, 212, 0.3)'
+      
+      if (!hasError && !hasWarning) {
+        bgColor = '#cffafe'  // Cyan-100
+      }
     }
     
     node.style({
@@ -113,10 +135,12 @@ const updateNodeStyles = () => {
       'border-color': borderColor,
       'border-width': borderWidth,
       'border-style': state.isFinal ? 'double' : 'solid',
+      'box-shadow': boxShadow,
       'opacity': props.isSimulating && !isSimulating ? 0.4 : 1
     })
   })
 }
+
 
 const updateEdgeStyles = () => {
   if (!cy) return
