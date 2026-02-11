@@ -23,6 +23,36 @@ export const validationResult = computed(() => {
   return validator.validate(currentProject.value.states, currentProject.value.transitions)
 })
 
+// --- TEST CASES ---
+export interface TestCase {
+  id: string
+  input: string
+  expectedAccepted: boolean
+}
+
+export const testCases = ref<TestCase[]>([
+])
+
+export function addTestCase(input: string, expectedAccepted: boolean) {
+  testCases.value.push({
+    id: crypto.randomUUID(),
+    input,
+    expectedAccepted
+  })
+}
+
+export function removeTestCase(id: string) {
+  testCases.value = testCases.value.filter(tc => tc.id !== id)
+}
+
+export function updateTestCase(id: string, input: string, expectedAccepted: boolean) {
+  const tc = testCases.value.find(t => t.id === id)
+  if (tc) {
+    tc.input = input
+    tc.expectedAccepted = expectedAccepted
+  }
+}
+
 // Liste aller Projekte (später für Multi-Projekt-Support)
 export const projects = ref<AutomatonProject[]>([currentProject.value])
 

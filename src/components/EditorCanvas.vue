@@ -1,9 +1,18 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
-import { Plus, Flag, CircleDot, ArrowRightCircle, Trash2 } from 'lucide-vue-next'
+import { Plus, Flag, CircleDot, ArrowRightCircle, Trash2, Lock } from 'lucide-vue-next'
 import { currentProject, validationResult } from '@/lib/automatonStore'
+
+// --- PROPS ---
+const props = defineProps<{
+  currentSimulationState?: string | null
+  isSimulating?: boolean
+}>()
+
+// --- COMPUTED: Is Editor Locked? ---
+const isLocked = computed(() => props.isSimulating || false)
 
 // --- LOCAL STATE ---
 let nodeIdCounter = 1
@@ -20,6 +29,45 @@ const sourceNodeForEdge = ref<string | null>(null)
 let isDragging = false
 let dragStartPositions: Map<string, { x: number, y: number }> = new Map()
 
+// --- WATCH: Simulation State Changes ---
+watch(() => props.currentSimulationState, () => {
+  updateAllStyles()
+})
+
+watch(() => props.isSimulating, (newVal) => {
+  if (newVal) {
+    // Lock editor during simulation
+    selectedNodeIds.value.clear()
+    selectedEdgeId.value = null
+    sourceNodeForEdge.value = null
+    
+    // Make all nodes ungrabify during simulation
+    if (cy) {
+      cy.nodes().forEach(node => {
+        if (!node.id().startsWith('__start_')) {
+          node.ungrabify()
+        }
+      })
+      
+      // Disable box selection
+      cy.boxSelectionEnabled(false)
+    }
+  } else {
+    // Unlock editor
+    if (cy) {
+      cy.nodes().forEach(node => {
+        if (!node.id().startsWith('__start_')) {
+          node.grabify()
+        }
+      })
+      
+      // Re-enable box selection
+      cy.boxSelectionEnabled(true)
+    }
+  }
+  updateAllStyles()
+})
+
 // --- STYLES ---
 const updateNodeStyles = () => {
   if (!cy) return
@@ -33,22 +81,39 @@ const updateNodeStyles = () => {
     
     const isSelected = selectedNodeIds.value.has(nodeId)
     const isConnecting = sourceNodeForEdge.value === nodeId
+    const isSimulating = props.currentSimulationState === nodeId
     
     // Check if node has validation errors
     const hasError = validationResult.value.errors.some(e => e.affectedElements.includes(nodeId))
     const hasWarning = validationResult.value.warnings.some(w => w.affectedElements.includes(nodeId))
     
     let borderColor = '#000'
-    if (hasError) borderColor = '#dc2626'
-    else if (hasWarning) borderColor = '#f59e0b'
-    else if (isSelected) borderColor = '#3b82f6'
-    else if (isConnecting) borderColor = '#06b6d4'
+    let bgColor = '#fff'
+    let borderWidth = state.isFinal ? 6 : 2
+    
+    // PRIORITY: Simulation > Error > Warning > Selected > Connecting
+    if (isSimulating) {
+      borderColor = '#10b981'  // Green-500
+      bgColor = '#d1fae5'      // Green-100
+      borderWidth = 8
+    } else if (hasError) {
+      borderColor = '#dc2626'
+    } else if (hasWarning) {
+      borderColor = '#f59e0b'
+    } else if (isSelected) {
+      borderColor = '#3b82f6'
+      bgColor = '#dbeafe'
+      borderWidth = state.isFinal ? 10 : 6
+    } else if (isConnecting) {
+      borderColor = '#06b6d4'
+    }
     
     node.style({
-      'background-color': isSelected ? '#dbeafe' : '#fff',
+      'background-color': bgColor,
       'border-color': borderColor,
-      'border-width': isSelected ? (state.isFinal ? 10 : 6) : (state.isFinal ? 6 : 2),
-      'border-style': state.isFinal ? 'double' : 'solid'
+      'border-width': borderWidth,
+      'border-style': state.isFinal ? 'double' : 'solid',
+      'opacity': props.isSimulating && !isSimulating ? 0.4 : 1
     })
   })
 }
@@ -72,7 +137,8 @@ const updateEdgeStyles = () => {
       'target-arrow-color': color,
       'width': isSelected ? 4 : (hasError ? 3 : 2),
       'color': color,
-      'font-weight': isSelected ? 'bold' : 'normal'
+      'font-weight': isSelected ? 'bold' : 'normal',
+      'opacity': props.isSimulating ? 0.5 : 1
     })
   })
 }
@@ -84,7 +150,20 @@ const updateAllStyles = () => {
 
 // --- ACTIONS ---
 const addNode = () => {
-  const id = `q${nodeIdCounter++}`
+  if (isLocked.value) return
+  
+  // Find highest existing node number
+  const existingNumbers = currentProject.value.states
+    .map(s => {
+      const match = s.id.match(/^q(\d+)$/)
+      return match ? parseInt(match[1]) : -1
+    })
+    .filter(n => n >= 0)
+  
+  const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : -1
+  const nextNumber = maxNumber + 1
+  
+  const id = `q${nextNumber}`
   currentProject.value.states.push({
     id,
     label: id,
@@ -97,7 +176,8 @@ const addNode = () => {
 }
 
 const toggleFinalState = () => {
-  if (selectedNodeIds.value.size === 0) return
+  if (isLocked.value || selectedNodeIds.value.size === 0) return
+  
   selectedNodeIds.value.forEach(nodeId => {
     const state = currentProject.value.states.find(s => s.id === nodeId)
     if (state) state.isFinal = !state.isFinal
@@ -107,7 +187,8 @@ const toggleFinalState = () => {
 }
 
 const setStartState = () => {
-  if (selectedNodeIds.value.size === 0) return
+  if (isLocked.value || selectedNodeIds.value.size === 0) return
+  
   selectedNodeIds.value.forEach(nodeId => {
     const state = currentProject.value.states.find(s => s.id === nodeId)
     if (state) state.isStart = !state.isStart
@@ -117,9 +198,10 @@ const setStartState = () => {
 }
 
 const deleteSelected = () => {
+  if (isLocked.value) return
+  
   if (selectedNodeIds.value.size > 0) {
     selectedNodeIds.value.forEach(nodeId => {
-      if (cy) cy.$id(nodeId).remove()
       currentProject.value.states = currentProject.value.states.filter(s => s.id !== nodeId)
       currentProject.value.transitions = currentProject.value.transitions.filter(
         t => t.from !== nodeId && t.to !== nodeId
@@ -129,16 +211,16 @@ const deleteSelected = () => {
   }
   
   if (selectedEdgeId.value) {
-    if (cy) cy.$id(selectedEdgeId.value).remove()
     currentProject.value.transitions = currentProject.value.transitions.filter(t => t.id !== selectedEdgeId.value)
     selectedEdgeId.value = null
   }
   currentProject.value.updatedAt = new Date()
-  updateAllStyles()
+  syncToCytoscape()
 }
 
 const startConnection = () => {
-  if (selectedNodeIds.value.size !== 1) return
+  if (isLocked.value || selectedNodeIds.value.size !== 1) return
+  
   const nodeId = Array.from(selectedNodeIds.value)[0]
   sourceNodeForEdge.value = nodeId
   selectedNodeIds.value.clear()
@@ -146,6 +228,8 @@ const startConnection = () => {
 }
 
 const toggleNodeSelection = (nodeId: string, multiSelect: boolean) => {
+  if (isLocked.value) return
+  
   if (multiSelect) {
     if (selectedNodeIds.value.has(nodeId)) {
       selectedNodeIds.value.delete(nodeId)
@@ -229,8 +313,13 @@ onMounted(() => {
 
   syncToCytoscape()
 
-  // --- DRAG START: Speichere Start-Positionen aller selected Nodes ---
+  // --- DRAG START ---
   cy.on('grab', 'node', (event) => {
+    if (isLocked.value) {
+      event.preventDefault()
+      return
+    }
+    
     const grabbedNode = event.target
     if (grabbedNode.id().startsWith('__start_')) return
     
@@ -253,9 +342,9 @@ onMounted(() => {
     })
   })
 
-  // --- DRAG: Bewege alle selected Nodes synchron ---
+  // --- DRAG ---
   cy.on('drag', 'node', (event) => {
-    if (!isDragging || selectedNodeIds.value.size <= 1) return
+    if (isLocked.value || !isDragging || selectedNodeIds.value.size <= 1) return
     
     const draggedNode = event.target
     const draggedNodeId = draggedNode.id()
@@ -283,8 +372,10 @@ onMounted(() => {
     })
   })
 
-  // --- DRAG END: Update State für alle moved Nodes ---
+  // --- DRAG END ---
   cy.on('dragfree', 'node', (event) => {
+    if (isLocked.value) return
+    
     const node = event.target
     const nodeId = node.id()
     if (nodeId.startsWith('__start_')) return
@@ -312,6 +403,8 @@ onMounted(() => {
   })
 
   cy.on('tap', 'node', (event) => {
+    if (isLocked.value) return
+    
     const node = event.target
     if (node.id().startsWith('__start_')) return
     
@@ -339,6 +432,8 @@ onMounted(() => {
   })
 
   cy.on('cxttap', 'node', (event) => {
+    if (isLocked.value) return
+    
     event.preventDefault()
     const node = event.target
     if (node.id().startsWith('__start_')) return
@@ -350,6 +445,8 @@ onMounted(() => {
   })
 
   cy.on('tap', 'edge', (event) => {
+    if (isLocked.value) return
+    
     const edge = event.target
     if (edge.id().startsWith('__start_edge_')) return
     
@@ -359,6 +456,8 @@ onMounted(() => {
   })
 
   cy.on('tap', (event) => {
+    if (isLocked.value) return
+    
     if (event.target === cy) {
       selectedNodeIds.value.clear()
       selectedEdgeId.value = null
@@ -368,6 +467,8 @@ onMounted(() => {
   })
 
   cy.on('boxend', () => {
+    if (isLocked.value) return
+    
     const cySelected = cy!.$('node:selected')
     const realNodes = cySelected.filter(node => !node.id().startsWith('__start_'))
     
@@ -381,21 +482,37 @@ onMounted(() => {
   })
 
   cy.on('dbltap', (event) => {
-    if (event.target !== cy) return
-    const pos = event.position
-    const id = `q${nodeIdCounter++}`
-    currentProject.value.states.push({
-      id,
-      label: id,
-      isStart: currentProject.value.states.length === 0,
-      isFinal: false,
-      position: { x: pos.x, y: pos.y }
+  if (isLocked.value) return
+  
+  if (event.target !== cy) return
+  const pos = event.position
+  
+  // Find highest existing node number
+  const existingNumbers = currentProject.value.states
+    .map(s => {
+      const match = s.id.match(/^q(\d+)$/)
+      return match ? parseInt(match[1]) : -1
     })
-    currentProject.value.updatedAt = new Date()
-    syncToCytoscape()
+    .filter(n => n >= 0)
+  
+  const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : -1
+  const nextNumber = maxNumber + 1
+  
+  const id = `q${nextNumber}`
+  currentProject.value.states.push({
+    id,
+    label: id,
+    isStart: currentProject.value.states.length === 0,
+    isFinal: false,
+    position: { x: pos.x, y: pos.y }
   })
+  currentProject.value.updatedAt = new Date()
+  syncToCytoscape()
+})
 
   cy.on('dbltap', 'node', (event) => {
+    if (isLocked.value) return
+    
     const node = event.target
     if (node.id().startsWith('__start_')) return
     
@@ -415,14 +532,12 @@ const syncToCytoscape = () => {
   cy.nodes().forEach(node => {
     const nodeId = node.id()
     if (nodeId.startsWith('__start_')) {
-      // Check if the target state still exists
       const targetId = nodeId.replace('__start_', '')
       const targetExists = currentProject.value.states.some(s => s.id === targetId && s.isStart)
       if (!targetExists) {
         node.remove()
       }
     } else {
-      // Regular node
       if (!currentProject.value.states.some(s => s.id === nodeId)) {
         node.remove()
       }
@@ -449,18 +564,15 @@ const syncToCytoscape = () => {
     const existingNode = cy.$id(state.id)
     
     if (existingNode.length > 0) {
-      // Update existing node
       existingNode.data('label', state.label)
       existingNode.position(state.position)
     } else {
-      // Add new node
       cy.add({
         data: { id: state.id, label: state.label },
         position: state.position
       })
     }
 
-    // Handle start marker
     const markerId = `__start_${state.id}`
     const existingMarker = cy.$id(markerId)
     
@@ -477,7 +589,6 @@ const syncToCytoscape = () => {
         cy.$id(markerId).ungrabify()
       }
 
-      // Add start edge
       const startEdgeId = `__start_edge_${state.id}`
       const existingStartEdge = cy.$id(startEdgeId)
       if (existingStartEdge.length === 0) {
@@ -486,7 +597,6 @@ const syncToCytoscape = () => {
         })
       }
     } else {
-      // Remove marker if no longer start state
       if (existingMarker.length > 0) {
         existingMarker.remove()
       }
@@ -503,12 +613,10 @@ const syncToCytoscape = () => {
     const existingEdge = cy.$id(transition.id)
     
     if (existingEdge.length > 0) {
-      // Update existing edge
       existingEdge.data('label', transition.symbol || '')
       existingEdge.data('source', transition.from)
       existingEdge.data('target', transition.to)
     } else {
-      // Add new edge
       cy.add({
         data: {
           id: transition.id,
@@ -525,7 +633,7 @@ const syncToCytoscape = () => {
 
 // --- KEYBOARD ---
 const handleKeyDown = (e: KeyboardEvent) => {
-  if (!cy) return
+  if (!cy || isLocked.value) return
 
   if (e.key === 'Escape' && sourceNodeForEdge.value) {
     sourceNodeForEdge.value = null
@@ -596,38 +704,52 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
       "
     ></div>
 
-    <!-- Toolbar (z-50 - ÜBER Modal!) -->
+    <!-- Simulation Status Badge (Top Right - Subtle) -->
+    <div 
+      v-if="isSimulating"
+      class="absolute top-4 right-4 z-40 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-pulse"
+    >
+      <Lock class="w-4 h-4" />
+      <span class="text-xs font-bold">Simulation Running</span>
+    </div>
+
+    <!-- Toolbar -->
     <div class="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur-md rounded-full shadow-xl border border-zinc-200/50 px-3 py-2.5 flex items-center gap-2">
       
-      <button @click="addNode" class="p-2.5 rounded-full hover:bg-zinc-100 transition-colors">
-        <Plus class="w-6 h-6 text-zinc-700" />
+      <button 
+        @click="addNode" 
+        :disabled="isSimulating"
+        class="p-2.5 rounded-full transition-colors"
+        :class="isSimulating ? 'text-zinc-300 cursor-not-allowed' : 'hover:bg-zinc-100 text-zinc-700'"
+      >
+        <Plus class="w-6 h-6" />
       </button>
 
       <div class="w-px h-6 bg-zinc-200"></div>
 
       <button 
         @click="setStartState"
-        :disabled="selectedNodeIds.size === 0"
+        :disabled="selectedNodeIds.size === 0 || isSimulating"
         class="p-2.5 rounded-full transition-colors"
-        :class="selectedNodeIds.size > 0 ? 'hover:bg-green-50 text-green-600' : 'text-zinc-300 cursor-not-allowed'"
+        :class="(selectedNodeIds.size > 0 && !isSimulating) ? 'hover:bg-green-50 text-green-600' : 'text-zinc-300 cursor-not-allowed'"
       >
         <Flag class="w-6 h-6" />
       </button>
 
       <button 
         @click="toggleFinalState"
-        :disabled="selectedNodeIds.size === 0"
+        :disabled="selectedNodeIds.size === 0 || isSimulating"
         class="p-2.5 rounded-full transition-colors"
-        :class="selectedNodeIds.size > 0 ? 'hover:bg-purple-50 text-purple-600' : 'text-zinc-300 cursor-not-allowed'"
+        :class="(selectedNodeIds.size > 0 && !isSimulating) ? 'hover:bg-purple-50 text-purple-600' : 'text-zinc-300 cursor-not-allowed'"
       >
         <CircleDot class="w-6 h-6" />
       </button>
 
       <button 
         @click="startConnection"
-        :disabled="selectedNodeIds.size !== 1"
+        :disabled="selectedNodeIds.size !== 1 || isSimulating"
         class="p-2.5 rounded-full transition-colors"
-        :class="selectedNodeIds.size === 1 ? 'hover:bg-cyan-50 text-cyan-600' : 'text-zinc-300 cursor-not-allowed'"
+        :class="(selectedNodeIds.size === 1 && !isSimulating) ? 'hover:bg-cyan-50 text-cyan-600' : 'text-zinc-300 cursor-not-allowed'"
       >
         <ArrowRightCircle class="w-6 h-6" />
       </button>
@@ -636,9 +758,9 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
 
       <button 
         @click="deleteSelected"
-        :disabled="selectedNodeIds.size === 0 && !selectedEdgeId"
+        :disabled="(selectedNodeIds.size === 0 && !selectedEdgeId) || isSimulating"
         class="p-2.5 rounded-full transition-colors"
-        :class="(selectedNodeIds.size > 0 || selectedEdgeId) ? 'hover:bg-red-50 text-red-600' : 'text-zinc-300 cursor-not-allowed'"
+        :class="((selectedNodeIds.size > 0 || selectedEdgeId) && !isSimulating) ? 'hover:bg-red-50 text-red-600' : 'text-zinc-300 cursor-not-allowed'"
       >
         <Trash2 class="w-6 h-6" />
       </button>
@@ -647,7 +769,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
 
     <!-- Connection Banner -->
     <div 
-      v-if="sourceNodeForEdge" 
+      v-if="sourceNodeForEdge && !isSimulating" 
       class="absolute bottom-4 right-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-2 rounded-full shadow-lg z-40 text-xs font-medium flex items-center gap-2"
     >
       <ArrowRightCircle class="w-3 h-3" />
@@ -656,7 +778,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
 
     <!-- Multi-Select Counter -->
     <div 
-      v-if="selectedNodeIds.size > 0"
+      v-if="selectedNodeIds.size > 0 && !isSimulating"
       class="absolute bottom-4 left-4 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg z-40 text-xs font-bold"
     >
       {{ selectedNodeIds.size }} Node{{ selectedNodeIds.size > 1 ? 's' : '' }} • SHIFT+Click • Drag to move all
