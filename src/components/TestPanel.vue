@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { PlusCircle, Trash2, CheckCircle2, XCircle, Clock, ChevronRight, ChevronLeft, AlertCircle } from 'lucide-vue-next'
-import { testCases, addTestCase, removeTestCase, updateTestCase } from '@/lib/automatonStore'
+import { currentProject, currentTestCases, addTestCase, removeTestCase, updateTestCase } from '@/lib/automatonStore'
 import type { SimulationResult } from '@/lib/automatonSimulator'
 
 const props = defineProps<{
@@ -19,10 +19,9 @@ const emit = defineEmits<{
 const getTestResult = (testCaseId: string) => {
   if (!props.simulationResults) return null
   
-  const testCase = testCases.value.find(tc => tc.id === testCaseId)
+  const testCase = currentTestCases.value.find(tc => tc.id === testCaseId)
   if (!testCase) return null
   
-  // FIXED: Search by 'input' instead of 'testCase'
   return props.simulationResults.find(r => r.input === testCase.input)
 }
 
@@ -36,7 +35,7 @@ const getTestStatus = (testCaseId: string): 'pending' | 'passed' | 'failed' => {
 const handleAddTest = () => {
   addTestCase('', true)
   // Auto-select the new test
-  const newTest = testCases.value[testCases.value.length - 1]
+  const newTest = currentTestCases.value[currentTestCases.value.length - 1]
   if (newTest) {
     emit('update:selected', newTest.id)
   }
@@ -54,14 +53,14 @@ const handleSelectTest = (id: string) => {
 }
 
 const updateInput = (id: string, input: string) => {
-  const tc = testCases.value.find(t => t.id === id)
+  const tc = currentTestCases.value.find(t => t.id === id)
   if (tc) {
     updateTestCase(id, input, tc.expectedAccepted)
   }
 }
 
 const updateExpected = (id: string, expectedAccepted: boolean) => {
-  const tc = testCases.value.find(t => t.id === id)
+  const tc = currentTestCases.value.find(t => t.id === id)
   if (tc) {
     updateTestCase(id, tc.input, expectedAccepted)
   }
@@ -77,6 +76,9 @@ const testSummary = computed(() => {
   
   return { passed, failed, total }
 })
+
+// Test Count for current project
+const testCount = computed(() => currentTestCases.value.length)
 </script>
 
 <template>
@@ -102,7 +104,15 @@ const testSummary = computed(() => {
       
       <!-- Header -->
       <div class="px-4 py-3 border-b border-zinc-200 flex items-center justify-between bg-white flex-shrink-0">
-        <h2 class="text-sm font-semibold text-zinc-900">Test Cases</h2>
+        <div class="flex items-center gap-2">
+          <h2 class="text-sm font-semibold text-zinc-900">Test Cases</h2>
+          <span 
+            v-if="testCount > 0"
+            class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold"
+          >
+            {{ testCount }}
+          </span>
+        </div>
         <button 
           @click="handleAddTest" 
           class="p-1.5 rounded hover:bg-zinc-100 transition-colors"
@@ -115,7 +125,7 @@ const testSummary = computed(() => {
       <!-- Test List (Scrollable) -->
       <div class="flex-1 overflow-y-auto">
         <div 
-          v-for="tc in testCases" 
+          v-for="tc in currentTestCases" 
           :key="tc.id"
           @click="handleSelectTest(tc.id)"
           class="px-4 py-3 border-b border-zinc-200 hover:bg-white cursor-pointer transition-colors duration-150 group"
@@ -124,7 +134,7 @@ const testSummary = computed(() => {
           <!-- Header Row: Name + Status + Delete -->
           <div class="flex items-start justify-between gap-2 mb-2">
             <div class="flex-1 text-sm font-medium text-zinc-900">
-              Test {{ testCases.findIndex(t => t.id === tc.id) + 1 }}
+              Test {{ currentTestCases.findIndex(t => t.id === tc.id) + 1 }}
             </div>
             
             <div class="flex items-center gap-1">
@@ -201,9 +211,10 @@ const testSummary = computed(() => {
         </div>
 
         <!-- Empty State -->
-        <div v-if="testCases.length === 0" class="px-4 py-12 text-center">
+        <div v-if="currentTestCases.length === 0" class="px-4 py-12 text-center">
           <Clock class="w-12 h-12 text-zinc-300 mx-auto mb-3" />
-          <p class="text-sm text-zinc-500 mb-2">No test cases</p>
+          <p class="text-sm font-semibold text-zinc-700 mb-1">No test cases for this project</p>
+          <p class="text-xs text-zinc-500 mb-3">{{ currentProject.name }}</p>
           <button 
             @click="handleAddTest" 
             class="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"

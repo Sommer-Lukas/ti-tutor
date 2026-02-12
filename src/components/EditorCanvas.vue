@@ -14,6 +14,33 @@ const props = defineProps<{
 // --- COMPUTED: Is Editor Locked? ---
 const isLocked = computed(() => props.isSimulating || false)
 
+// --- CANVAS KEY FOR REACTIVITY ---
+const canvasKey = ref(0)
+
+// Watch for project changes and force re-render
+watch(() => currentProject.value.id, (newId, oldId) => {
+  if (newId !== oldId) {
+    console.log('🔄 Project switched in Canvas:', oldId, '->', newId)
+    canvasKey.value++
+    
+    // Re-initialize Cytoscape after project switch
+    if (cy) {
+      cy.destroy()
+      cy = null
+    }
+    
+    // Reset selection state
+    selectedNodeIds.value.clear()
+    selectedEdgeId.value = null
+    sourceNodeForEdge.value = null
+    
+    // Re-mount will trigger on next tick
+    setTimeout(() => {
+      initializeCytoscape()
+    }, 0)
+  }
+})
+
 // --- LOCAL STATE ---
 let nodeIdCounter = 1
 let edgeIdCounter = 0
@@ -141,7 +168,6 @@ const updateNodeStyles = () => {
   })
 }
 
-
 const updateEdgeStyles = () => {
   if (!cy) return
   
@@ -267,8 +293,8 @@ const toggleNodeSelection = (nodeId: string, multiSelect: boolean) => {
   updateAllStyles()
 }
 
-// --- CYTOSCAPE ---
-onMounted(() => {
+// --- CYTOSCAPE INITIALIZATION ---
+const initializeCytoscape = () => {
   if (!cyContainer.value) return
 
   cy = cytoscape({
@@ -335,7 +361,15 @@ onMounted(() => {
     autounselectify: true
   })
 
+  // Register all Cytoscape event handlers
+  registerCytoscapeEvents()
+  
   syncToCytoscape()
+}
+
+// --- CYTOSCAPE EVENT HANDLERS ---
+const registerCytoscapeEvents = () => {
+  if (!cy) return
 
   // --- DRAG START ---
   cy.on('grab', 'node', (event) => {
@@ -506,33 +540,33 @@ onMounted(() => {
   })
 
   cy.on('dbltap', (event) => {
-  if (isLocked.value) return
-  
-  if (event.target !== cy) return
-  const pos = event.position
-  
-  // Find highest existing node number
-  const existingNumbers = currentProject.value.states
-    .map(s => {
-      const match = s.id.match(/^q(\d+)$/)
-      return match ? parseInt(match[1]) : -1
+    if (isLocked.value) return
+    
+    if (event.target !== cy) return
+    const pos = event.position
+    
+    // Find highest existing node number
+    const existingNumbers = currentProject.value.states
+      .map(s => {
+        const match = s.id.match(/^q(\d+)$/)
+        return match ? parseInt(match[1]) : -1
+      })
+      .filter(n => n >= 0)
+    
+    const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : -1
+    const nextNumber = maxNumber + 1
+    
+    const id = `q${nextNumber}`
+    currentProject.value.states.push({
+      id,
+      label: id,
+      isStart: currentProject.value.states.length === 0,
+      isFinal: false,
+      position: { x: pos.x, y: pos.y }
     })
-    .filter(n => n >= 0)
-  
-  const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : -1
-  const nextNumber = maxNumber + 1
-  
-  const id = `q${nextNumber}`
-  currentProject.value.states.push({
-    id,
-    label: id,
-    isStart: currentProject.value.states.length === 0,
-    isFinal: false,
-    position: { x: pos.x, y: pos.y }
+    currentProject.value.updatedAt = new Date()
+    syncToCytoscape()
   })
-  currentProject.value.updatedAt = new Date()
-  syncToCytoscape()
-})
 
   cy.on('dbltap', 'node', (event) => {
     if (isLocked.value) return
@@ -547,6 +581,17 @@ onMounted(() => {
       updateAllStyles()
     }
   })
+}
+
+onMounted(() => {
+  initializeCytoscape()
+})
+
+onUnmounted(() => {
+  if (cy) {
+    cy.destroy()
+    cy = null
+  }
 })
 
 const syncToCytoscape = () => {
@@ -717,7 +762,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
 </script>
 
 <template>
-  <div class="relative w-full h-full">
+  <div :key="canvasKey" class="relative w-full h-full">
 
     <!-- Grid -->
     <div 

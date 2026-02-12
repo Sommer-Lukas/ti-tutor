@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, computed} from 'vue'
-import { Play, StepForward, Square, Clock, Check, X, AlertTriangle, ShieldAlert } from 'lucide-vue-next'
+import { ref, computed, watch } from 'vue'
+import { Play, StepForward, Square, Clock, Check, X, AlertTriangle, ShieldAlert, FolderOpen, Plus } from 'lucide-vue-next'
 import Sidebar from '@/components/Sidebar.vue'
 import EditorCanvas from '@/components/EditorCanvas.vue'
 import TestPanel from '@/components/TestPanel.vue'
-import { currentProject, validationResult, testCases } from '@/lib/automatonStore'
+import { currentProject, validationResult, currentTestCases, projects } from '@/lib/automatonStore'
 import { AUTOMATON_TYPES } from '@/lib/automatonTypes'
 import { AutomatonSimulator } from '@/lib/automatonSimulator'
 import type { SimulationResult } from '@/lib/automatonSimulator'
@@ -22,8 +22,24 @@ const currentStepIndex = ref(0)
 const allTestResults = ref<Array<SimulationResult & { expected: boolean; passed: boolean }>>([])
 const selectedTestCase = ref<string | null>(null)
 
+// --- COMPUTED: Has Projects ---
+const hasProjects = computed(() => projects.value.length > 0)
+
+// --- WATCH: Reset simulation on project switch ---
+watch(() => currentProject.value?.id, (newId, oldId) => {
+  if (newId !== oldId) {
+    console.log('🔄 Project switched in App.vue, resetting simulation state')
+    
+    // Reset all simulation state
+    stopSimulation()
+    allTestResults.value = []
+    selectedTestCase.value = null
+  }
+})
+
 // --- COMPUTED: Validation Badge Status ---
 const validationStatus = computed(() => {
+  if (!hasProjects.value) return 'valid'
   if (validationResult.value.errors.length > 0) return 'error'
   if (validationResult.value.warnings.length > 0) return 'warning'
   return 'valid'
@@ -36,12 +52,12 @@ const hasValidationErrors = computed(() => {
 
 // --- COMPUTED: Can Run Tests ---
 const canRunTests = computed(() => {
-  return !hasValidationErrors.value && !isSimulating.value
+  return hasProjects.value && !hasValidationErrors.value && !isSimulating.value && currentTestCases.value.length > 0
 })
 
 // --- COMPUTED: Can Start Simulation ---
 const canStartSimulation = computed(() => {
-  return !hasValidationErrors.value && selectedTestCase.value !== null && !isSimulating.value
+  return hasProjects.value && !hasValidationErrors.value && selectedTestCase.value !== null && !isSimulating.value
 })
 
 // --- COMPUTED: Current Step ---
@@ -77,6 +93,8 @@ const showErrorToastWithTimeout = () => {
 
 // --- SIMULATION ACTIONS ---
 const startSimulation = () => {
+  if (!hasProjects.value) return
+  
   // Validation Check
   if (hasValidationErrors.value) {
     showErrorToastWithTimeout()
@@ -85,7 +103,7 @@ const startSimulation = () => {
 
   if (!selectedTestCase.value) return
   
-  const testCase = testCases.value.find(tc => tc.id === selectedTestCase.value)
+  const testCase = currentTestCases.value.find(tc => tc.id === selectedTestCase.value)
   if (!testCase) return
 
   const simulator = new AutomatonSimulator(
@@ -123,9 +141,16 @@ const stopSimulation = () => {
 }
 
 const runAllTests = () => {
+  if (!hasProjects.value) return
+  
   // Validation Check
   if (hasValidationErrors.value) {
     showErrorToastWithTimeout()
+    return
+  }
+
+  if (currentTestCases.value.length === 0) {
+    console.warn('⚠️ No test cases for current project')
     return
   }
 
@@ -135,7 +160,7 @@ const runAllTests = () => {
     currentProject.value.type
   )
 
-  const testsWithExpectations = testCases.value.map(tc => ({
+  const testsWithExpectations = currentTestCases.value.map(tc => ({
     input: tc.input,
     expected: tc.expectedAccepted
   }))
@@ -148,11 +173,60 @@ const runAllTests = () => {
 }
 
 const toggleValidationModal = () => {
+  if (!hasProjects.value) return
   showValidationModal.value = !showValidationModal.value
 }
 
 const closeValidationModal = () => {
   showValidationModal.value = false
+}
+
+// --- KEYBOARD SHORTCUTS ---
+const handleKeyDown = (e: KeyboardEvent) => {
+  if (!hasProjects.value) return
+  
+  // F5 - Start Simulation
+  if (e.key === 'F5') {
+    e.preventDefault()
+    if (canStartSimulation.value) {
+      startSimulation()
+    }
+    return
+  }
+
+  // F10 - Step Simulation
+  if (e.key === 'F10') {
+    e.preventDefault()
+    if (isSimulating.value) {
+      stepSimulation()
+    }
+    return
+  }
+
+  // Shift+F5 - Stop Simulation
+  if (e.shiftKey && e.key === 'F5') {
+    e.preventDefault()
+    if (isSimulating.value) {
+      stopSimulation()
+    }
+    return
+  }
+}
+
+// Register keyboard shortcuts
+if (typeof window !== 'undefined') {
+  window.addEventListener('keydown', handleKeyDown)
+}
+
+// Trigger sidebar to open new dialog
+const triggerNewProject = () => {
+  // This will be handled by emitting to Sidebar
+  isSidebarOpen.value = true
+  // Use a small delay to ensure sidebar is open first
+  setTimeout(() => {
+    const event = new CustomEvent('open-new-automaton-dialog')
+    window.dispatchEvent(event)
+  }, 100)
 }
 </script>
 
@@ -169,7 +243,7 @@ const closeValidationModal = () => {
       <header class="flex h-14 items-center justify-between px-6 border-b z-50 bg-white flex-shrink-0 relative">
         
         <!-- Project Name + Type Badge + Validation Status -->
-        <div class="flex items-center gap-3">
+        <div v-if="hasProjects" class="flex items-center gap-3">
           <h1 class="text-lg font-semibold text-zinc-900">{{ currentProject.name }}</h1>
           
           <!-- Automaton Type Badge -->
@@ -202,7 +276,12 @@ const closeValidationModal = () => {
               {{ validationResult.warnings.length }} Warning{{ validationResult.warnings.length > 1 ? 's' : '' }}
             </span>
           </button>
+        </div>
 
+        <!-- Empty State Header -->
+        <div v-else class="flex items-center gap-2">
+          <FolderOpen class="w-5 h-5 text-zinc-400" />
+          <h1 class="text-lg font-semibold text-zinc-500">Kein Projekt geöffnet</h1>
         </div>
 
         <!-- User Avatar -->
@@ -212,150 +291,195 @@ const closeValidationModal = () => {
       <!-- WORKSPACE -->
       <div class="flex-1 flex flex-col min-h-0">
         
-        <!-- CANVAS + RIGHT PANEL ROW -->
-        <div class="flex-1 flex min-h-0 overflow-hidden relative">
-          
-          <!-- CANVAS mit Simulation State -->
-          <EditorCanvas 
-            class="flex-1 min-w-0"
-            :current-simulation-state="currentStep?.currentState"
-            :is-simulating="isSimulating"
-          />
+        <!-- EMPTY STATE (When no projects) -->
+        <div v-if="!hasProjects" class="flex-1 flex items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100">
+          <div class="text-center max-w-md px-8">
+            <!-- Icon -->
+            <div class="w-32 h-32 rounded-full bg-zinc-200 flex items-center justify-center mx-auto mb-6">
+              <FolderOpen class="w-16 h-16 text-zinc-400" />
+            </div>
 
-          <!-- RIGHT PANEL -->
-          <TestPanel 
-            v-model:selected="selectedTestCase"
-            v-model:visible="rightPanelOpen"
-            :simulation-results="allTestResults"
-          />
+            <!-- Title -->
+            <h2 class="text-2xl font-bold text-zinc-900 mb-3">
+              Willkommen! 👋
+            </h2>
 
+            <!-- Description -->
+            <p class="text-zinc-600 mb-6 leading-relaxed">
+              Du hast noch keine Automaten erstellt. Erstelle deinen ersten Automaten, um mit der Arbeit zu beginnen.
+            </p>
+
+            <!-- Call to Action -->
+            <button
+              @click="triggerNewProject"
+              class="inline-flex items-center gap-3 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all"
+            >
+              <Plus class="w-5 h-5" />
+              <span>Neuen Automaten erstellen</span>
+            </button>
+
+            <!-- Hint -->
+            <p class="text-xs text-zinc-500 mt-6">
+              Oder öffne die Sidebar links und klicke auf "Neuer Automat"
+            </p>
+          </div>
         </div>
 
-        <!-- BOTTOM BAR -->
-        <div class="h-16 bg-white border-t border-zinc-200 flex items-center px-6 gap-4 shadow-lg flex-shrink-0 relative z-50">
-          
-          <div class="flex items-center gap-2">
+        <!-- NORMAL WORKSPACE (When projects exist) -->
+        <template v-else>
+          <!-- CANVAS + RIGHT PANEL ROW -->
+          <div class="flex-1 flex min-h-0 overflow-hidden relative">
+            
+            <!-- CANVAS with Simulation State -->
+            <EditorCanvas 
+              class="flex-1 min-w-0"
+              :current-simulation-state="currentStep?.currentState"
+              :is-simulating="isSimulating"
+            />
+
+            <!-- RIGHT PANEL -->
+            <TestPanel 
+              v-model:selected="selectedTestCase"
+              v-model:visible="rightPanelOpen"
+              :simulation-results="allTestResults"
+            />
+
+          </div>
+
+          <!-- BOTTOM BAR -->
+          <div class="h-16 bg-white border-t border-zinc-200 flex items-center px-6 gap-4 shadow-lg flex-shrink-0 relative z-50">
+            
+            <div class="flex items-center gap-2">
+              <button 
+                @click="startSimulation"
+                :disabled="!canStartSimulation"
+                class="p-3 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed relative group"
+                :class="canStartSimulation ? 'hover:bg-zinc-100' : ''"
+                title="Start (F5)"
+              >
+                <Play class="w-5 h-5 text-green-600" :class="{'fill-green-600': canStartSimulation}" />
+                
+                <!-- Tooltip on Error -->
+                <div 
+                  v-if="hasValidationErrors && !isSimulating && selectedTestCase"
+                  class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                >
+                  Fix errors first!
+                </div>
+              </button>
+
+              <button 
+                @click="stepSimulation"
+                :disabled="!isSimulating"
+                class="p-3 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed relative group"
+                :class="isSimulating ? 'hover:bg-zinc-100' : ''"
+                :title="isAtEnd ? 'Step to close (F10)' : 'Step (F10)'"
+              >
+                <StepForward class="w-5 h-5 text-blue-600" />
+                
+                <!-- Tooltip when at end -->
+                <div 
+                  v-if="isAtEnd && isSimulating"
+                  class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                >
+                  Press to close
+                </div>
+              </button>
+
+              <button 
+                @click="stopSimulation"
+                :disabled="!isSimulating"
+                class="p-3 rounded-lg hover:bg-zinc-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Stop (Shift+F5)"
+              >
+                <Square class="w-4 h-4 text-red-600" :class="{'fill-red-600': isSimulating}" />
+              </button>
+            </div>
+
+            <div class="w-px h-8 bg-zinc-300"></div>
+
             <button 
-              @click="startSimulation"
-              :disabled="!canStartSimulation"
-              class="p-3 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed relative group"
-              :class="canStartSimulation ? 'hover:bg-zinc-100' : ''"
-              title="Start (F5)"
+              @click="runAllTests"
+              :disabled="!canRunTests"
+              class="px-6 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md relative group"
+              :class="canRunTests 
+                ? 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-lg' 
+                : 'bg-zinc-300 text-zinc-500 cursor-not-allowed'"
             >
-              <Play class="w-5 h-5 text-green-600" :class="{'fill-green-600': canStartSimulation}" />
+              Run All Tests
               
               <!-- Tooltip on Error -->
               <div 
-                v-if="hasValidationErrors && !isSimulating && selectedTestCase"
+                v-if="hasValidationErrors"
                 class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
               >
-                Fix errors first!
+                Fix {{ validationResult.errors.length }} error{{ validationResult.errors.length > 1 ? 's' : '' }} first!
               </div>
-            </button>
-
-            <button 
-              @click="stepSimulation"
-              :disabled="!isSimulating"
-              class="p-3 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed relative group"
-              :class="isSimulating ? 'hover:bg-zinc-100' : ''"
-              :title="isAtEnd ? 'Step to close (F10)' : 'Step (F10)'"
-            >
-              <StepForward class="w-5 h-5 text-blue-600" />
               
-              <!-- Tooltip when at end -->
+              <!-- Tooltip when no tests -->
               <div 
-                v-if="isAtEnd && isSimulating"
-                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                v-else-if="currentTestCases.length === 0"
+                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-zinc-600 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
               >
-                Press to close
+                No test cases yet!
               </div>
             </button>
 
-            <button 
-              @click="stopSimulation"
-              :disabled="!isSimulating"
-              class="p-3 rounded-lg hover:bg-zinc-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              title="Stop (Shift+F5)"
-            >
-              <Square class="w-4 h-4 text-red-600" :class="{'fill-red-600': isSimulating}" />
-            </button>
-          </div>
-
-          <div class="w-px h-8 bg-zinc-300"></div>
-
-          <button 
-            @click="runAllTests"
-            :disabled="!canRunTests"
-            class="px-6 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md relative group"
-            :class="canRunTests 
-              ? 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-lg' 
-              : 'bg-zinc-300 text-zinc-500 cursor-not-allowed'"
-          >
-            Run All Tests
-            
-            <!-- Tooltip on Error -->
-            <div 
-              v-if="hasValidationErrors"
-              class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-            >
-              Fix {{ validationResult.errors.length }} error{{ validationResult.errors.length > 1 ? 's' : '' }} first!
-            </div>
-          </button>
-
-          <!-- Test Summary Badge -->
-          <div v-if="testSummary" class="flex items-center gap-2">
-            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 text-green-700 text-xs font-bold">
-              <Check class="w-3 h-3" />
-              {{ testSummary.passed }}
-            </div>
-            <div v-if="testSummary.failed > 0" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-red-700 text-xs font-bold">
-              <X class="w-3 h-3" />
-              {{ testSummary.failed }}
-            </div>
-          </div>
-
-          <!-- Simulation Info -->
-          <div v-if="isSimulating && currentStep" class="ml-auto flex items-center gap-6">
-            <div class="flex flex-col gap-1">
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-zinc-500">Consumed:</span>
-                <code class="text-sm font-mono font-bold text-green-600">{{ currentStep.consumedInput || 'ε' }}</code>
+            <!-- Test Summary Badge -->
+            <div v-if="testSummary" class="flex items-center gap-2">
+              <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 text-green-700 text-xs font-bold">
+                <Check class="w-3 h-3" />
+                {{ testSummary.passed }}
               </div>
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-zinc-500">Remaining:</span>
-                <code class="text-sm font-mono font-bold text-blue-600">{{ currentStep.remainingInput || 'ε' }}</code>
+              <div v-if="testSummary.failed > 0" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-red-700 text-xs font-bold">
+                <X class="w-3 h-3" />
+                {{ testSummary.failed }}
+              </div>
+            </div>
+
+            <!-- Simulation Info -->
+            <div v-if="isSimulating && currentStep" class="ml-auto flex items-center gap-6">
+              <div class="flex flex-col gap-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-zinc-500">Consumed:</span>
+                  <code class="text-sm font-mono font-bold text-green-600">{{ currentStep.consumedInput || 'ε' }}</code>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-zinc-500">Remaining:</span>
+                  <code class="text-sm font-mono font-bold text-blue-600">{{ currentStep.remainingInput || 'ε' }}</code>
+                </div>
+              </div>
+              
+              <div class="flex items-center gap-3 text-zinc-600 text-sm font-medium">
+                <Clock class="w-5 h-5 animate-pulse text-blue-600" />
+                <span class="font-semibold">Step {{ currentStepIndex + 1 }}/{{ currentSimulation?.steps.length || 0 }}</span>
+              </div>
+
+              <!-- Current State Badge -->
+              <div class="px-4 py-2 rounded-full bg-green-100 border-2 border-green-500 text-green-900 text-sm font-bold">
+                {{ currentStep.currentState }}
+              </div>
+
+              <!-- Accepting State Indicator (WITH STUCK DETECTION!) -->
+              <div v-if="currentStep.isStuck && isAtEnd" 
+                   class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-600 text-white text-xs font-bold animate-pulse">
+                <X class="w-4 h-4" />
+                STUCK
+              </div>
+              <div v-else-if="currentStep.isAccepting && isAtEnd" 
+                   class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-600 text-white text-xs font-bold animate-pulse">
+                <Check class="w-4 h-4" />
+                ACCEPTED
+              </div>
+              <div v-else-if="!currentStep.isAccepting && isAtEnd" 
+                   class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-600 text-white text-xs font-bold animate-pulse">
+                <X class="w-4 h-4" />
+                REJECTED
               </div>
             </div>
             
-            <div class="flex items-center gap-3 text-zinc-600 text-sm font-medium">
-              <Clock class="w-5 h-5 animate-pulse text-blue-600" />
-              <span class="font-semibold">Step {{ currentStepIndex + 1 }}/{{ currentSimulation?.steps.length || 0 }}</span>
-            </div>
-
-            <!-- Current State Badge -->
-            <div class="px-4 py-2 rounded-full bg-green-100 border-2 border-green-500 text-green-900 text-sm font-bold">
-              {{ currentStep.currentState }}
-            </div>
-
-            <!-- Accepting State Indicator (WITH STUCK DETECTION!) -->
-            <div v-if="currentStep.isStuck && isAtEnd" 
-                 class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-600 text-white text-xs font-bold animate-pulse">
-              <X class="w-4 h-4" />
-              STUCK
-            </div>
-            <div v-else-if="currentStep.isAccepting && isAtEnd" 
-                 class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-600 text-white text-xs font-bold animate-pulse">
-              <Check class="w-4 h-4" />
-              ACCEPTED
-            </div>
-            <div v-else-if="!currentStep.isAccepting && isAtEnd" 
-                 class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-600 text-white text-xs font-bold animate-pulse">
-              <X class="w-4 h-4" />
-              REJECTED
-            </div>
           </div>
-          
-        </div>
+        </template>
 
       </div>
 
@@ -398,7 +522,7 @@ const closeValidationModal = () => {
       leave-to-class="opacity-0 scale-95"
     >
       <div 
-        v-if="showValidationModal"
+        v-if="showValidationModal && hasProjects"
         class="fixed inset-0 z-[100] flex items-center justify-center p-4"
         @click.self="closeValidationModal"
       >
