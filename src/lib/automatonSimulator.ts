@@ -1,9 +1,10 @@
 import type { State, Transition, AutomatonProject } from './automaton'
 import type { AutomatonType } from './automatonTypes'
 
+
 export interface SimulationStep {
   step: number
-  currentState: string
+  currentState: string | string[]  // NEA: Array von Zuständen!
   remainingInput: string
   consumedInput: string
   transition?: {
@@ -13,16 +14,19 @@ export interface SimulationStep {
   }
   isAccepting: boolean
   possibleTransitions: string[]
-  isStuck?: boolean  // NEW!
+  isStuck?: boolean
+  epsilonClosure?: string[]  // NEA: ε-Closure Info
 }
+
 
 export interface SimulationResult {
   input: string
   steps: SimulationStep[]
   accepted: boolean
-  finalState: string | null
+  finalState: string | string[] | null  // NEA: Array von Zuständen!
   error?: string
 }
+
 
 export class AutomatonSimulator {
   constructor(
@@ -30,6 +34,7 @@ export class AutomatonSimulator {
     private transitions: Transition[],
     private type: AutomatonType
   ) {}
+
 
   /**
    * Simuliert einen Testfall Schritt für Schritt
@@ -50,6 +55,7 @@ export class AutomatonSimulator {
       }
     }
 
+
     if (startStates.length > 1 && this.type === 'DFA') {
       return {
         input,
@@ -60,15 +66,18 @@ export class AutomatonSimulator {
       }
     }
 
+
     // DFA Simulation
     if (this.type === 'DFA') {
       return this.simulateDFA(input, startStates[0]!, steps)
     }
 
+
     // NFA Simulation
     if (this.type === 'NFA') {
       return this.simulateNFA(input, startStates, steps)
     }
+
 
     return {
       input,
@@ -88,6 +97,7 @@ export class AutomatonSimulator {
     let remainingInput = input
     let consumedInput = ''
 
+
     // Initial Step
     const initialPossible = this.getPossibleTransitions(currentState.id, input[0])
     steps.push({
@@ -99,6 +109,7 @@ export class AutomatonSimulator {
       possibleTransitions: initialPossible
     })
 
+
     // Process each symbol
     for (let i = 0; i < input.length; i++) {
       const symbol = input[i]
@@ -107,6 +118,7 @@ export class AutomatonSimulator {
       const transition = this.transitions.find(
         t => t.from === currentState.id && t.symbol === symbol
       )
+
 
       // **STUCK CHECK: Keine Transition möglich!**
       if (!transition) {
@@ -120,6 +132,7 @@ export class AutomatonSimulator {
           isStuck: true  // STUCK FLAG!
         })
 
+
         return {
           input,
           steps,
@@ -128,6 +141,7 @@ export class AutomatonSimulator {
           error: `Keine Transition für Symbol '${symbol}' in Zustand ${currentState.id}`
         }
       }
+
 
       // Finde Zielzustand
       const nextState = this.states.find(s => s.id === transition.to)
@@ -142,14 +156,17 @@ export class AutomatonSimulator {
         }
       }
 
+
       // Update state
       consumedInput += symbol
       remainingInput = input.slice(i + 1)
       currentState = nextState
 
+
       // Get possible next transitions
       const nextSymbol = input[i + 1]
       const possibleNext = nextSymbol ? this.getPossibleTransitions(currentState.id, nextSymbol) : []
+
 
       // Record step
       steps.push({
@@ -167,8 +184,10 @@ export class AutomatonSimulator {
       })
     }
 
-    // Check if final state
-    const accepted = currentState.isFinal
+
+    // ✅ CRITICAL CHECK: Input must be fully consumed AND in final state!
+    const accepted = currentState.isFinal && remainingInput === ''
+
 
     return {
       input,
@@ -179,22 +198,154 @@ export class AutomatonSimulator {
     }
   }
 
+
+  /**
+   * ✨ NFA SIMULATION mit Zustandsmengen (Powerset Construction Prinzip)
+   */
   private simulateNFA(
     input: string,
     startStates: State[],
     steps: SimulationStep[]
   ): SimulationResult {
-    // NFA Simulation mit ε-Closure
-    // Für später: Backtracking oder Breitensuche implementieren
-    
+    // Start mit ε-Closure aller Startzustände
+    let currentStates = this.getEpsilonClosure(new Set(startStates.map(s => s.id)))
+    let consumedInput = ''
+    let remainingInput = input
+
+
+    // Initial Step
+    const hasAcceptingState = Array.from(currentStates).some(stateId => {
+      const state = this.states.find(s => s.id === stateId)
+      return state?.isFinal ?? false
+    })
+
+
+    steps.push({
+      step: 0,
+      currentState: Array.from(currentStates),
+      remainingInput,
+      consumedInput,
+      isAccepting: hasAcceptingState,
+      possibleTransitions: [],
+      epsilonClosure: Array.from(currentStates)
+    })
+
+
+    // Process each symbol
+    for (let i = 0; i < input.length; i++) {
+      const symbol = input[i]
+      
+      // Finde ALLE möglichen Transitionen von ALLEN aktuellen Zuständen
+      const nextStates = new Set<string>()
+      
+      for (const stateId of currentStates) {
+        // Finde alle Transitionen mit diesem Symbol
+        const transitions = this.transitions.filter(
+          t => t.from === stateId && t.symbol === symbol
+        )
+        
+        // Füge alle Zielzustände hinzu
+        for (const trans of transitions) {
+          nextStates.add(trans.to)
+        }
+      }
+
+
+      // ❌ STUCK CHECK: Keine Transitionen möglich!
+      if (nextStates.size === 0) {
+        steps.push({
+          step: i + 1,
+          currentState: Array.from(currentStates),
+          remainingInput: input.slice(i),
+          consumedInput: consumedInput,
+          isAccepting: false,
+          possibleTransitions: [],
+          isStuck: true
+        })
+
+
+        return {
+          input,
+          steps,
+          accepted: false,
+          finalState: Array.from(currentStates),
+          error: `Keine Transition für Symbol '${symbol}' von Zuständen {${Array.from(currentStates).join(', ')}}`
+        }
+      }
+
+
+      // Berechne ε-Closure der neuen Zustände
+      currentStates = this.getEpsilonClosure(nextStates)
+      consumedInput += symbol
+      remainingInput = input.slice(i + 1)
+
+
+      // Check if any state is accepting
+      const isAccepting = Array.from(currentStates).some(stateId => {
+        const state = this.states.find(s => s.id === stateId)
+        return state?.isFinal ?? false
+      })
+
+
+      // Record step
+      steps.push({
+        step: i + 1,
+        currentState: Array.from(currentStates),
+        remainingInput,
+        consumedInput,
+        isAccepting,
+        possibleTransitions: [],
+        epsilonClosure: Array.from(currentStates)
+      })
+    }
+
+
+    // ✅ ACCEPT CHECK: Input vollständig konsumiert UND mindestens ein Endzustand
+    const accepted = remainingInput === '' && Array.from(currentStates).some(stateId => {
+      const state = this.states.find(s => s.id === stateId)
+      return state?.isFinal ?? false
+    })
+
+
     return {
       input,
-      steps: [],
-      accepted: false,
-      finalState: null,
-      error: 'NFA-Simulation noch nicht vollständig implementiert'
+      steps,
+      accepted,
+      finalState: Array.from(currentStates),
+      error: accepted ? undefined : `Keine der Endzustände {${Array.from(currentStates).join(', ')}} ist akzeptierend`
     }
   }
+
+
+  /**
+   * 🔄 Berechnet die ε-Closure einer Zustandsmenge
+   * (Alle Zustände die über ε-Transitionen erreichbar sind)
+   */
+  private getEpsilonClosure(states: Set<string>): Set<string> {
+    const closure = new Set(states)
+    const queue = Array.from(states)
+
+
+    while (queue.length > 0) {
+      const current = queue.shift()!
+      
+      // Finde alle ε-Transitionen von diesem Zustand
+      const epsilonTransitions = this.transitions.filter(
+        t => t.from === current && (t.symbol === 'ε' || t.symbol === 'epsilon' || t.symbol === '')
+      )
+      
+      for (const trans of epsilonTransitions) {
+        if (!closure.has(trans.to)) {
+          closure.add(trans.to)
+          queue.push(trans.to)
+        }
+      }
+    }
+
+
+    return closure
+  }
+
 
   /**
    * Helper: Get possible transitions from a state with a symbol
@@ -206,6 +357,7 @@ export class AutomatonSimulator {
       .filter(t => t.from === stateId && t.symbol === symbol)
       .map(t => t.to)
   }
+
 
   /**
    * Führt mehrere Testfälle aus
@@ -221,6 +373,7 @@ export class AutomatonSimulator {
     })
   }
 
+
   /**
    * Prüft ob ein bestimmtes Wort akzeptiert wird (ohne Schritte zu speichern)
    */
@@ -229,6 +382,7 @@ export class AutomatonSimulator {
     return result.accepted
   }
 
+
   /**
    * Gibt alle erreichbaren Zustände zurück
    */
@@ -236,8 +390,10 @@ export class AutomatonSimulator {
     const startStates = this.states.filter(s => s.isStart)
     if (startStates.length === 0) return new Set()
 
+
     const reachable = new Set<string>()
     const queue = [...startStates.map(s => s.id)]
+
 
     while (queue.length > 0) {
       const current = queue.shift()!
@@ -245,7 +401,8 @@ export class AutomatonSimulator {
       
       reachable.add(current)
 
-      // Finde alle Transitionen von diesem Zustand
+
+      // Finde alle Transitionen von diesem Zustand (inkl. ε)
       const outgoingTransitions = this.transitions.filter(t => t.from === current)
       for (const transition of outgoingTransitions) {
         if (!reachable.has(transition.to)) {
@@ -253,6 +410,7 @@ export class AutomatonSimulator {
         }
       }
     }
+
 
     return reachable
   }

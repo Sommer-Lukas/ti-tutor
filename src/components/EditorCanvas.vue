@@ -716,27 +716,31 @@ const handleKeyDown = (e: KeyboardEvent) => {
     return
   }
 
+  // ✅ EDGE EDITING (SINGLE CHARACTER ONLY!)
   if (selectedEdgeId.value) {
     const transition = currentProject.value.transitions.find(t => t.id === selectedEdgeId.value)
     if (!transition) return
 
+    // Backspace: Clear symbol (set to empty string)
     if (e.key === 'Backspace') {
       e.preventDefault()
-      transition.symbol = transition.symbol.slice(0, -1)
+      transition.symbol = ''
       currentProject.value.updatedAt = new Date()
       syncToCytoscape()
       return
     }
 
+    // Single character: REPLACE symbol (not append!)
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault()
-      transition.symbol += e.key
+      transition.symbol = e.key  // ← REPLACE, not append!
       currentProject.value.updatedAt = new Date()
       syncToCytoscape()
     }
     return
   }
 
+  // NODE LABEL EDITING (multiple characters allowed)
   if (selectedNodeIds.value.size === 1) {
     const nodeId = Array.from(selectedNodeIds.value)[0]
     const state = currentProject.value.states.find(s => s.id === nodeId)
@@ -751,7 +755,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
 
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault()
-      state.label += e.key
+      state.label += e.key  // ← Node labels can be multi-character
       if (cy) cy.$id(nodeId).data('label', state.label)
     }
   }

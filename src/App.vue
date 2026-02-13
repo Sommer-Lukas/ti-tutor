@@ -4,6 +4,7 @@ import { Play, StepForward, Square, Clock, Check, X, AlertTriangle, ShieldAlert,
 import Sidebar from '@/components/Sidebar.vue'
 import EditorCanvas from '@/components/EditorCanvas.vue'
 import TestPanel from '@/components/TestPanel.vue'
+import SimulationTreePanel from '@/components/SimulationTreePanel.vue'
 import { currentProject, validationResult, currentTestCases, projects } from '@/lib/automatonStore'
 import { AUTOMATON_TYPES } from '@/lib/automatonTypes'
 import { AutomatonSimulator } from '@/lib/automatonSimulator'
@@ -116,6 +117,9 @@ const startSimulation = () => {
   currentStepIndex.value = 0
   isSimulating.value = true
   
+  // ✅ HIDE TEST PANEL!
+  rightPanelOpen.value = false
+  
   console.log('🎬 Simulation started:', currentSimulation.value)
 }
 
@@ -137,6 +141,10 @@ const stopSimulation = () => {
   isSimulating.value = false
   currentSimulation.value = null
   currentStepIndex.value = 0
+  
+  // ✅ SHOW TEST PANEL AGAIN!
+  rightPanelOpen.value = true
+  
   console.log('⏹️ Simulation stopped')
 }
 
@@ -220,9 +228,7 @@ if (typeof window !== 'undefined') {
 
 // Trigger sidebar to open new dialog
 const triggerNewProject = () => {
-  // This will be handled by emitting to Sidebar
   isSidebarOpen.value = true
-  // Use a small delay to ensure sidebar is open first
   setTimeout(() => {
     const event = new CustomEvent('open-new-automaton-dialog')
     window.dispatchEvent(event)
@@ -294,22 +300,18 @@ const triggerNewProject = () => {
         <!-- EMPTY STATE (When no projects) -->
         <div v-if="!hasProjects" class="flex-1 flex items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100">
           <div class="text-center max-w-md px-8">
-            <!-- Icon -->
             <div class="w-32 h-32 rounded-full bg-zinc-200 flex items-center justify-center mx-auto mb-6">
               <FolderOpen class="w-16 h-16 text-zinc-400" />
             </div>
 
-            <!-- Title -->
             <h2 class="text-2xl font-bold text-zinc-900 mb-3">
               Willkommen! 👋
             </h2>
 
-            <!-- Description -->
             <p class="text-zinc-600 mb-6 leading-relaxed">
               Du hast noch keine Automaten erstellt. Erstelle deinen ersten Automaten, um mit der Arbeit zu beginnen.
             </p>
 
-            <!-- Call to Action -->
             <button
               @click="triggerNewProject"
               class="inline-flex items-center gap-3 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all"
@@ -318,7 +320,6 @@ const triggerNewProject = () => {
               <span>Neuen Automaten erstellen</span>
             </button>
 
-            <!-- Hint -->
             <p class="text-xs text-zinc-500 mt-6">
               Oder öffne die Sidebar links und klicke auf "Neuer Automat"
             </p>
@@ -337,11 +338,20 @@ const triggerNewProject = () => {
               :is-simulating="isSimulating"
             />
 
-            <!-- RIGHT PANEL -->
+            <!-- TEST PANEL (Hidden during simulation) -->
             <TestPanel 
+              v-show="!isSimulating"
               v-model:selected="selectedTestCase"
               v-model:visible="rightPanelOpen"
               :simulation-results="allTestResults"
+            />
+
+            <!-- SIMULATION TREE PANEL (Shown during simulation) -->
+            <SimulationTreePanel
+              v-if="isSimulating && currentSimulation"
+              :simulation="currentSimulation"
+              :current-step-index="currentStepIndex"
+              :automaton-type="currentProject.type"
             />
 
           </div>
@@ -359,7 +369,6 @@ const triggerNewProject = () => {
               >
                 <Play class="w-5 h-5 text-green-600" :class="{'fill-green-600': canStartSimulation}" />
                 
-                <!-- Tooltip on Error -->
                 <div 
                   v-if="hasValidationErrors && !isSimulating && selectedTestCase"
                   class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
@@ -377,7 +386,6 @@ const triggerNewProject = () => {
               >
                 <StepForward class="w-5 h-5 text-blue-600" />
                 
-                <!-- Tooltip when at end -->
                 <div 
                   v-if="isAtEnd && isSimulating"
                   class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
@@ -408,7 +416,6 @@ const triggerNewProject = () => {
             >
               Run All Tests
               
-              <!-- Tooltip on Error -->
               <div 
                 v-if="hasValidationErrors"
                 class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
@@ -416,7 +423,6 @@ const triggerNewProject = () => {
                 Fix {{ validationResult.errors.length }} error{{ validationResult.errors.length > 1 ? 's' : '' }} first!
               </div>
               
-              <!-- Tooltip when no tests -->
               <div 
                 v-else-if="currentTestCases.length === 0"
                 class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-zinc-600 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
@@ -457,10 +463,10 @@ const triggerNewProject = () => {
 
               <!-- Current State Badge -->
               <div class="px-4 py-2 rounded-full bg-green-100 border-2 border-green-500 text-green-900 text-sm font-bold">
-                {{ currentStep.currentState }}
+                {{ Array.isArray(currentStep.currentState) ? '{' + currentStep.currentState.join(', ') + '}' : currentStep.currentState }}
               </div>
 
-              <!-- Accepting State Indicator (WITH STUCK DETECTION!) -->
+              <!-- Accepting State Indicator -->
               <div v-if="currentStep.isStuck && isAtEnd" 
                    class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-600 text-white text-xs font-bold animate-pulse">
                 <X class="w-4 h-4" />
@@ -485,7 +491,7 @@ const triggerNewProject = () => {
 
     </main>
 
-    <!-- ERROR TOAST (Bottom Center) -->
+    <!-- ERROR TOAST -->
     <Transition
       enter-active-class="transition-all duration-300 ease-out"
       leave-active-class="transition-all duration-200 ease-in"
@@ -526,13 +532,10 @@ const triggerNewProject = () => {
         class="fixed inset-0 z-[100] flex items-center justify-center p-4"
         @click.self="closeValidationModal"
       >
-        <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="closeValidationModal"></div>
         
-        <!-- Modal Content -->
         <div class="relative w-full max-w-2xl bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden">
           
-          <!-- Header -->
           <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-zinc-50">
             <div class="flex items-center gap-3">
               <Check v-if="validationStatus === 'valid'" class="w-6 h-6 text-green-600" />
@@ -550,10 +553,8 @@ const triggerNewProject = () => {
             </button>
           </div>
 
-          <!-- Content (Scrollable) -->
           <div class="max-h-[60vh] overflow-y-auto">
             
-            <!-- ERRORS Section -->
             <div v-if="validationResult.errors.length > 0" class="p-6 border-b border-zinc-200 bg-red-50">
               <div class="flex items-center gap-2 mb-4">
                 <X class="w-5 h-5 text-red-600" />
@@ -576,7 +577,6 @@ const triggerNewProject = () => {
               </div>
             </div>
 
-            <!-- WARNINGS Section -->
             <div v-if="validationResult.warnings.length > 0" class="p-6 bg-yellow-50">
               <div class="flex items-center gap-2 mb-4">
                 <AlertTriangle class="w-5 h-5 text-yellow-600" />
@@ -596,7 +596,6 @@ const triggerNewProject = () => {
               </div>
             </div>
 
-            <!-- PERFECT STATE -->
             <div v-if="validationResult.errors.length === 0 && validationResult.warnings.length === 0" class="p-8 text-center">
               <div class="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
                 <Check class="w-10 h-10 text-green-600" />
@@ -607,7 +606,6 @@ const triggerNewProject = () => {
 
           </div>
 
-          <!-- Footer -->
           <div class="px-6 py-4 border-t border-zinc-200 bg-zinc-50 flex justify-end">
             <button 
               @click="closeValidationModal"
