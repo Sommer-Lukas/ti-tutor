@@ -2,6 +2,7 @@ import type { State, Transition } from './automaton'
 import type { AutomatonType, ValidationResult, ValidationError, ValidationWarning, AutomatonTypeConfig } from './automatonTypes'
 import { AUTOMATON_TYPES } from './automatonTypes'
 
+
 export class AutomatonValidator {
   private config: AutomatonTypeConfig
   
@@ -25,7 +26,6 @@ export class AutomatonValidator {
       })
     }
     
-    // ✅ FIXED: !== 'unlimited' statt !== null
     if (this.config.rules.maxStartStates !== 'unlimited' && startStates.length > this.config.rules.maxStartStates) {
       errors.push({
         type: 'state',
@@ -47,7 +47,6 @@ export class AutomatonValidator {
       })
     }
     
-    // ✅ FIXED: !== 'unlimited' statt !== null
     if (this.config.rules.maxFinalStates !== 'unlimited' && finalStates.length > this.config.rules.maxFinalStates) {
       errors.push({
         type: 'state',
@@ -57,12 +56,30 @@ export class AutomatonValidator {
       })
     }
     
+    // ✅ FIXED: PDA-specific acceptance mode warning
     if (finalStates.length === 0) {
-      warnings.push({
-        type: 'optimization',
-        message: 'Kein Endzustand definiert - Automat akzeptiert keine Wörter',
-        affectedElements: []
-      })
+      if (this.type === 'PDA') {
+        // PDA can accept by empty stack OR by final state
+        warnings.push({
+          type: 'optimization',
+          message: 'PDA hat keine Endzustände definiert - Akzeptanz erfolgt nur durch leeren Keller (Empty Stack)',
+          affectedElements: []
+        })
+      } else if (this.type === 'TM') {
+        // Turing Machine can have different halting conditions
+        warnings.push({
+          type: 'optimization',
+          message: 'Turingmaschine hat keine Endzustände - Akzeptanz erfolgt durch Halt in beliebigem Zustand',
+          affectedElements: []
+        })
+      } else {
+        // DFA/NFA MUST have final states to accept anything
+        warnings.push({
+          type: 'optimization',
+          message: 'Kein Endzustand definiert - Automat akzeptiert keine Wörter',
+          affectedElements: []
+        })
+      }
     }
     
     // ========== 3. VALIDATE TRANSITIONS (KRITISCH FÜR DEA!) ==========
@@ -71,42 +88,73 @@ export class AutomatonValidator {
     for (const state of states) {
       const outgoingTransitions = transitions.filter(t => t.from === state.id)
       
-      // Group transitions by symbol
+      // Group transitions by symbol (for DFA/NFA)
       const transitionsBySymbol = new Map<string, Transition[]>()
-      for (const t of outgoingTransitions) {
-        const symbols = this.parseTransitionSymbol(t.symbol)
-        
-        for (const symbol of symbols) {
-          if (!transitionsBySymbol.has(symbol)) {
-            transitionsBySymbol.set(symbol, [])
+      
+      // ✅ For PDA/TM: Use complex transition signature (input,stackTop/stackPush)
+      if (this.type === 'PDA') {
+        for (const t of outgoingTransitions) {
+          // PDA signature: "input,stackTop" (ignore stackPush for determinism check)
+          const signature = `${t.pdaInput || 'ε'},${t.pdaStackTop || 'ε'}`
+          
+          if (!transitionsBySymbol.has(signature)) {
+            transitionsBySymbol.set(signature, [])
           }
-          transitionsBySymbol.get(symbol)!.push(t)
+          transitionsBySymbol.get(signature)!.push(t)
+        }
+      } else {
+        // DFA/NFA: Use simple symbol
+        for (const t of outgoingTransitions) {
+          const symbols = this.parseTransitionSymbol(t.symbol)
+          
+          for (const symbol of symbols) {
+            if (!transitionsBySymbol.has(symbol)) {
+              transitionsBySymbol.set(symbol, [])
+            }
+            transitionsBySymbol.get(symbol)!.push(t)
+          }
         }
       }
       
-      // Check epsilon transitions
-      if (transitionsBySymbol.has('ε') && !this.config.rules.allowEpsilonTransitions) {
-        const epsilonTrans = transitionsBySymbol.get('ε')!
-        errors.push({
-          type: 'transition',
-          message: `${this.config.shortName} erlaubt KEINE ε-Übergänge (Zustand: ${state.label})`,
-          severity: 'error',
-          affectedElements: epsilonTrans.map(t => t.id)
-        })
+      // Check epsilon transitions (not applicable for PDA - it's built-in)
+      if (this.type !== 'PDA' && this.type !== 'TM') {
+        if (transitionsBySymbol.has('ε') && !this.config.rules.allowEpsilonTransitions) {
+          const epsilonTrans = transitionsBySymbol.get('ε')!
+          errors.push({
+            type: 'transition',
+            message: `${this.config.shortName} erlaubt KEINE ε-Übergänge (Zustand: ${state.label})`,
+            severity: 'error',
+            affectedElements: epsilonTrans.map(t => t.id)
+          })
+        }
       }
       
       // *** KRITISCH: Check multiple transitions per symbol (DEA vs NEA) ***
       for (const [symbol, trans] of transitionsBySymbol) {
         if (trans.length > 1 && !this.config.rules.allowMultipleTransitionsPerSymbol) {
-          errors.push({
-            type: 'transition',
-            message: `${this.config.shortName}-Verletzung: Zustand "${state.label}" hat ${trans.length} Transitionen für Symbol "${symbol}" (Ziele: ${trans.map(t => {
-              const targetState = states.find(s => s.id === t.to)
-              return targetState?.label || t.to
-            }).join(', ')})`,
-            severity: 'error',
-            affectedElements: [state.id, ...trans.map(t => t.id)]
-          })
+          if (this.type === 'PDA') {
+            // Special PDA message
+            const [input, stackTop] = symbol.split(',')
+            errors.push({
+              type: 'transition',
+              message: `PDA-Nondeterminismus: Zustand "${state.label}" hat ${trans.length} Transitionen für (Input: "${input}", Stack-Top: "${stackTop}") (Ziele: ${trans.map(t => {
+                const targetState = states.find(s => s.id === t.to)
+                return targetState?.label || t.to
+              }).join(', ')})`,
+              severity: 'error',
+              affectedElements: [state.id, ...trans.map(t => t.id)]
+            })
+          } else {
+            errors.push({
+              type: 'transition',
+              message: `${this.config.shortName}-Verletzung: Zustand "${state.label}" hat ${trans.length} Transitionen für Symbol "${symbol}" (Ziele: ${trans.map(t => {
+                const targetState = states.find(s => s.id === t.to)
+                return targetState?.label || t.to
+              }).join(', ')})`,
+              severity: 'error',
+              affectedElements: [state.id, ...trans.map(t => t.id)]
+            })
+          }
         }
       }
     }
@@ -122,6 +170,23 @@ export class AutomatonValidator {
           message: `${unreachableStates.length} Zustand(e) nicht vom Startzustand erreichbar: ${unreachableStates.map(s => s.label).join(', ')}`,
           affectedElements: unreachableStates.map(s => s.id)
         })
+      }
+    }
+    
+    // ========== 5. PDA-SPECIFIC VALIDATIONS ==========
+    if (this.type === 'PDA') {
+      // Check if all transitions have valid stack operations
+      for (const t of transitions) {
+        // pdaInput, pdaStackTop, pdaStackPush can be empty (epsilon)
+        // But they should be defined (not undefined)
+        if (t.pdaInput === undefined || t.pdaStackTop === undefined || t.pdaStackPush === undefined) {
+          errors.push({
+            type: 'transition',
+            message: `PDA-Transition ist unvollständig: Von "${states.find(s => s.id === t.from)?.label}" nach "${states.find(s => s.id === t.to)?.label}"`,
+            severity: 'error',
+            affectedElements: [t.id]
+          })
+        }
       }
     }
     
@@ -144,12 +209,24 @@ export class AutomatonValidator {
   
   private extractAlphabet(transitions: Transition[]): Set<string> {
     const alphabet = new Set<string>()
-    for (const t of transitions) {
-      const symbols = this.parseTransitionSymbol(t.symbol)
-      symbols.forEach(s => {
-        if (s !== 'ε') alphabet.add(s)
-      })
+    
+    if (this.type === 'PDA') {
+      // Extract input alphabet from PDA transitions
+      for (const t of transitions) {
+        if (t.pdaInput && t.pdaInput !== '') {
+          alphabet.add(t.pdaInput)
+        }
+      }
+    } else {
+      // Extract from symbol field
+      for (const t of transitions) {
+        const symbols = this.parseTransitionSymbol(t.symbol)
+        symbols.forEach(s => {
+          if (s !== 'ε') alphabet.add(s)
+        })
+      }
     }
+    
     return alphabet
   }
   
