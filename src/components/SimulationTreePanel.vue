@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
-import { GitBranch, ArrowRight, Check, X, AlertCircle } from 'lucide-vue-next'
+import { GitBranch, ArrowRight, Check, X, AlertCircle, Layers } from 'lucide-vue-next'
 import type { SimulationResult } from '@/lib/automatonSimulator'
 import type { AutomatonType } from '@/lib/automatonTypes'
 
@@ -14,6 +14,7 @@ const props = defineProps<{
 const steps = computed(() => props.simulation.steps)
 const currentStep = computed(() => steps.value[props.currentStepIndex])
 const isNFA = computed(() => props.automatonType === 'NFA')
+const isPDA = computed(() => props.automatonType === 'PDA')
 
 // Refs for auto-scroll
 const stepRefs = ref<HTMLElement[]>([])
@@ -40,10 +41,26 @@ watch(() => props.currentStepIndex, async (newIndex) => {
     })
   }
 }, { immediate: true })
+
+// Helper: Format stack for display (bottom to top)
+const formatStack = (stack: string[] | undefined): string => {
+  if (!stack || stack.length === 0) return '∅ (leer)'
+  // Show from bottom to top (reverse for display)
+  return stack.join(' ')
+}
+
+// Helper: Get stack top
+const getStackTop = (stack: string[] | undefined): string => {
+  if (!stack || stack.length === 0) return '∅'
+  return stack[stack.length - 1] || '∅'
+}
 </script>
 
 <template>
-  <aside class="w-[400px] border-l bg-gradient-to-br from-zinc-50 to-zinc-100 flex flex-col overflow-hidden shadow-xl">
+  <aside 
+    class="border-l bg-gradient-to-br from-zinc-50 to-zinc-100 flex flex-col overflow-hidden shadow-xl"
+    :class="isPDA ? 'w-[500px]' : 'w-[400px]'"
+  >
     
     <!-- HEADER -->
     <div class="px-6 py-4 border-b border-zinc-200 bg-white">
@@ -52,6 +69,12 @@ watch(() => props.currentStepIndex, async (newIndex) => {
           <GitBranch class="w-5 h-5 text-blue-600" />
         </div>
         <h2 class="text-base font-bold text-zinc-900">Simulation Tree</h2>
+        
+        <!-- PDA Badge -->
+        <div v-if="isPDA" class="px-2 py-1 rounded-full bg-purple-100 border border-purple-300 flex items-center gap-1">
+          <Layers class="w-3 h-3 text-purple-700" />
+          <span class="text-[10px] font-bold text-purple-900 uppercase tracking-wide">PDA</span>
+        </div>
       </div>
       
       <div class="flex items-center gap-2 text-xs">
@@ -109,40 +132,110 @@ watch(() => props.currentStepIndex, async (newIndex) => {
           <!-- Card Body -->
           <div class="px-4 py-3 space-y-2">
             
-            <!-- State(s) -->
-            <div class="flex items-start gap-2">
-              <span class="text-xs text-zinc-500 font-semibold min-w-[70px]">State{{ isNFA && Array.isArray(step.currentState) ? 's' : '' }}:</span>
-              <div class="flex flex-wrap gap-1.5">
-                <template v-if="Array.isArray(step.currentState)">
-                  <span
-                    v-for="state in step.currentState"
-                    :key="state"
-                    class="px-2 py-1 rounded-md bg-purple-100 text-purple-900 text-xs font-mono font-bold border border-purple-300"
-                  >
-                    {{ state }}
-                  </span>
-                </template>
-                <template v-else>
+            <!-- PDA: Two-Column Layout (State + Stack) -->
+            <div v-if="isPDA" class="grid grid-cols-2 gap-3">
+              
+              <!-- Left: State Info -->
+              <div class="space-y-2">
+                <!-- State -->
+                <div class="flex items-start gap-2">
+                  <span class="text-xs text-zinc-500 font-semibold">State:</span>
                   <span class="px-2 py-1 rounded-md bg-green-100 text-green-900 text-xs font-mono font-bold border border-green-300">
                     {{ step.currentState }}
                   </span>
-                </template>
+                </div>
+
+                <!-- Transition (if exists) -->
+                <div v-if="step.transition" class="space-y-1">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] text-zinc-500 font-semibold">Transition:</span>
+                  </div>
+                  <div class="px-2 py-1.5 bg-purple-50 rounded-lg border border-purple-200">
+                    <div class="text-[10px] space-y-0.5">
+                      <div class="flex items-center gap-1">
+                        <span class="text-zinc-500">Read:</span>
+                        <code class="font-mono font-bold text-purple-900">{{ step.transition.pdaInput }}</code>
+                      </div>
+                      <div class="flex items-center gap-1">
+                        <span class="text-zinc-500">Pop:</span>
+                        <code class="font-mono font-bold text-purple-900">{{ step.transition.pdaStackTop }}</code>
+                      </div>
+                      <div class="flex items-center gap-1">
+                        <span class="text-zinc-500">Push:</span>
+                        <code class="font-mono font-bold text-purple-900">{{ step.transition.pdaStackPush }}</code>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
+
+              <!-- Right: Stack Visualization -->
+              <div class="space-y-1">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <Layers class="w-3 h-3 text-purple-600" />
+                  <span class="text-xs text-purple-700 font-bold">Stack</span>
+                  <span class="text-[10px] text-purple-500">(Top → Bottom)</span>
+                </div>
+                
+                <!-- Stack Display -->
+                <div class="bg-purple-50 rounded-lg border-2 border-purple-300 p-2 min-h-[80px]">
+                  <div v-if="step.stack && step.stack.length > 0" class="space-y-1">
+                    <!-- Show stack from top to bottom -->
+                    <div
+                      v-for="(symbol, stackIdx) in [...step.stack].reverse()"
+                      :key="stackIdx"
+                      class="px-2 py-1 bg-purple-200 rounded text-center font-mono font-bold text-sm border border-purple-400"
+                      :class="stackIdx === 0 ? 'bg-purple-300 ring-2 ring-purple-500' : ''"
+                    >
+                      {{ symbol }}
+                      <span v-if="stackIdx === 0" class="text-[9px] text-purple-700 ml-1">← TOP</span>
+                    </div>
+                  </div>
+                  <div v-else class="text-center text-zinc-400 text-xs font-semibold py-4">
+                    ∅ (leer)
+                  </div>
+                </div>
+              </div>
+
             </div>
 
-            <!-- Transition (if exists) -->
-            <div v-if="step.transition" class="flex items-center gap-2 pl-2 border-l-2 border-blue-300">
-              <span class="text-xs text-zinc-500 font-semibold min-w-[60px]">Read:</span>
-              <code class="px-2 py-1 bg-blue-100 rounded text-blue-900 text-xs font-mono font-bold">
-                {{ step.transition.symbol }}
-              </code>
-              <ArrowRight class="w-3 h-3 text-zinc-400" />
-              <span class="px-2 py-1 rounded-md bg-green-100 text-green-900 text-xs font-mono font-bold">
-                {{ step.transition.to }}
-              </span>
-            </div>
+            <!-- NON-PDA: Original Layout -->
+            <template v-else>
+              <!-- State(s) -->
+              <div class="flex items-start gap-2">
+                <span class="text-xs text-zinc-500 font-semibold min-w-[70px]">State{{ isNFA && Array.isArray(step.currentState) ? 's' : '' }}:</span>
+                <div class="flex flex-wrap gap-1.5">
+                  <template v-if="Array.isArray(step.currentState)">
+                    <span
+                      v-for="state in step.currentState"
+                      :key="state"
+                      class="px-2 py-1 rounded-md bg-purple-100 text-purple-900 text-xs font-mono font-bold border border-purple-300"
+                    >
+                      {{ state }}
+                    </span>
+                  </template>
+                  <template v-else>
+                    <span class="px-2 py-1 rounded-md bg-green-100 text-green-900 text-xs font-mono font-bold border border-green-300">
+                      {{ step.currentState }}
+                    </span>
+                  </template>
+                </div>
+              </div>
 
-            <!-- Input Status -->
+              <!-- Transition (if exists) -->
+              <div v-if="step.transition" class="flex items-center gap-2 pl-2 border-l-2 border-blue-300">
+                <span class="text-xs text-zinc-500 font-semibold min-w-[60px]">Read:</span>
+                <code class="px-2 py-1 bg-blue-100 rounded text-blue-900 text-xs font-mono font-bold">
+                  {{ step.transition.symbol }}
+                </code>
+                <ArrowRight class="w-3 h-3 text-zinc-400" />
+                <span class="px-2 py-1 rounded-md bg-green-100 text-green-900 text-xs font-mono font-bold">
+                  {{ step.transition.to }}
+                </span>
+              </div>
+            </template>
+
+            <!-- Input Status (for all types) -->
             <div class="flex items-center gap-4 text-[11px] pt-2 border-t border-zinc-200">
               <div class="flex items-center gap-1.5">
                 <span class="text-zinc-500 font-semibold">Consumed:</span>
@@ -203,6 +296,28 @@ watch(() => props.currentStepIndex, async (newIndex) => {
 
     <!-- FOOTER (Final Result) -->
     <div class="px-6 py-4 border-t border-zinc-200 bg-white">
+      
+      <!-- PDA: Final Stack Info -->
+      <div v-if="isPDA && simulation.finalStack" class="mb-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+        <div class="flex items-center gap-2 mb-2">
+          <Layers class="w-4 h-4 text-purple-600" />
+          <span class="text-xs font-bold text-purple-900">Final Stack:</span>
+        </div>
+        <div class="flex flex-wrap gap-1.5">
+          <template v-if="simulation.finalStack.length > 0">
+            <span
+              v-for="(symbol, idx) in simulation.finalStack"
+              :key="idx"
+              class="px-2 py-1 rounded bg-purple-200 text-purple-900 text-xs font-mono font-bold border border-purple-400"
+            >
+              {{ symbol }}
+            </span>
+          </template>
+          <span v-else class="text-xs text-purple-600 font-semibold">∅ (leer) - Accepted by empty stack!</span>
+        </div>
+      </div>
+
+      <!-- Result Badge -->
       <div 
         class="p-4 rounded-xl flex items-center gap-3"
         :class="simulation.accepted 

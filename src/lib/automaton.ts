@@ -1,6 +1,5 @@
 import type { AutomatonType } from './automatonTypes'
 
-
 export interface State {
   id: string
   label: string
@@ -8,7 +7,6 @@ export interface State {
   isFinal: boolean
   position: { x: number; y: number }
 }
-
 
 export interface Transition {
   id: string
@@ -27,7 +25,6 @@ export interface Transition {
   // tmMove?: 'L' | 'R' | 'N'
 }
 
-
 export interface AutomatonProject {
   id: string
   name: string
@@ -39,5 +36,9 @@ export interface AutomatonProject {
   metadata?: {
     description?: string
     alphabet?: string[]  // Explizite Alphabet-Definition
+  }
+  // ✅ ADD THIS:
+  pdaConfig?: {
+    startStackSymbol: string  // Default: "$", used for PDA simulation
   }
 }

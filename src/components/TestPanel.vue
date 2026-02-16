@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { PlusCircle, Trash2, CheckCircle2, XCircle, Clock, ChevronRight, ChevronLeft, AlertCircle } from 'lucide-vue-next'
 import { currentProject, currentTestCases, addTestCase, removeTestCase, updateTestCase } from '@/lib/automatonStore'
 import type { SimulationResult } from '@/lib/automatonSimulator'
@@ -13,7 +13,22 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:selected': [value: string | null]
   'update:visible': [value: boolean]
+  'update:pdaStartStackSymbol': [value: string]  // ← NEU!
 }>()
+
+// ✅ PDA Start Stack Symbol (Default: "$")
+const pdaStartStackSymbol = ref('$')
+
+// Watch for project changes and reset stack symbol
+watch(() => currentProject.value.id, () => {
+  // TODO: Load from currentProject.pdaConfig?.startStackSymbol when store is ready
+  pdaStartStackSymbol.value = '$'
+})
+
+// Emit changes to parent (for storage in automatonStore)
+watch(pdaStartStackSymbol, (newValue) => {
+  emit('update:pdaStartStackSymbol', newValue)
+})
 
 // Get result for a specific test case
 const getTestResult = (testCaseId: string) => {
@@ -120,6 +135,31 @@ const testCount = computed(() => currentTestCases.value.length)
         >
           <PlusCircle class="w-4 h-4 text-zinc-600" />
         </button>
+      </div>
+
+      <!-- ✅ PDA CONFIG SECTION (Only visible for PDA) -->
+      <div 
+        v-if="currentProject.type === 'PDA'"
+        class="px-4 py-3 border-b border-zinc-200 bg-gradient-to-br from-purple-50 to-indigo-50 flex-shrink-0"
+      >
+        <div class="mb-2 flex items-center gap-2">
+          <span class="text-xs font-bold text-purple-900">📚 PDA Configuration</span>
+        </div>
+        
+        <div>
+          <label class="text-xs text-purple-700 font-semibold mb-1 block">
+            Start-Kellersymbol (Initial Stack)
+          </label>
+          <input 
+            v-model="pdaStartStackSymbol"
+            class="w-full px-3 py-2 text-sm bg-white border-2 border-purple-300 rounded-lg outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all font-mono font-bold text-purple-900"
+            placeholder="$ oder Z0"
+            maxlength="3"
+          />
+          <p class="text-[10px] text-purple-600 mt-1">
+            💡 Wird zu Beginn auf den Stack gelegt
+          </p>
+        </div>
       </div>
 
       <!-- Test List (Scrollable) -->

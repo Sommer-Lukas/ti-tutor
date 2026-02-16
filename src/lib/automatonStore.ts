@@ -5,15 +5,12 @@ import type { AutomatonType } from './automatonTypes'
 import { AUTOMATON_TYPES } from './automatonTypes'
 import { AutomatonValidator } from './automatonValidator'
 
-
 // --- MULTI-PROJECT MANAGEMENT ---
 export const projects = ref<AutomatonProject[]>([])
 export const currentProjectId = ref<string | null>(null)
 
-
 // Force update counter for reactivity
 const projectSwitchCounter = ref(0)
-
 
 // --- TEST CASES ---
 export interface TestCase {
@@ -23,9 +20,7 @@ export interface TestCase {
   expectedAccepted: boolean
 }
 
-
 export const testCases = ref<TestCase[]>([])
-
 
 // --- HELPER: Create Default Project ---
 function createDefaultProject(): AutomatonProject {
@@ -42,7 +37,6 @@ function createDefaultProject(): AutomatonProject {
   }
 }
 
-
 // --- HELPER: Create Empty Dummy Project ---
 function createEmptyDummyProject(): AutomatonProject {
   return {
@@ -55,7 +49,6 @@ function createEmptyDummyProject(): AutomatonProject {
     updatedAt: new Date()
   }
 }
-
 
 // --- COMPUTED: Current Project (GUARANTEED NON-NULL!) ---
 export const currentProject: ComputedRef<AutomatonProject> = computed((): AutomatonProject => {
@@ -79,13 +72,11 @@ export const currentProject: ComputedRef<AutomatonProject> = computed((): Automa
   return projects.value[0]!
 })
 
-
 // --- COMPUTED: Current Project Test Cases ---
 export const currentTestCases = computed(() => {
   if (!currentProjectId.value || projects.value.length === 0) return []
   return testCases.value.filter(tc => tc.projectId === currentProject.value.id)
 })
-
 
 // --- COMPUTED: Real-time Validation ---
 export const validationResult = computed(() => {
@@ -97,12 +88,10 @@ export const validationResult = computed(() => {
   return validator.validate(currentProject.value.states, currentProject.value.transitions)
 })
 
-
 // --- INITIALIZATION ---
 const STORAGE_KEY_PROJECTS = 'automaton-projects'
 const STORAGE_KEY_TESTS = 'automaton-test-cases'
 const STORAGE_KEY_CURRENT = 'automaton-current-project-id'
-
 
 function loadFromStorage() {
   try {
@@ -117,13 +106,11 @@ function loadFromStorage() {
       }))
     }
 
-
     // Load test cases
     const storedTests = localStorage.getItem(STORAGE_KEY_TESTS)
     if (storedTests) {
       testCases.value = JSON.parse(storedTests)
     }
-
 
     // Load current project ID
     const storedCurrentId = localStorage.getItem(STORAGE_KEY_CURRENT)
@@ -131,12 +118,10 @@ function loadFromStorage() {
       currentProjectId.value = storedCurrentId
     }
 
-
     // ✅ Only set currentProjectId if projects exist
     if (projects.value.length > 0 && !currentProjectId.value) {
       currentProjectId.value = projects.value[0].id
     }
-
 
     console.log('✅ Loaded from storage:', projects.value.length, 'projects')
   } catch (error) {
@@ -146,7 +131,6 @@ function loadFromStorage() {
     currentProjectId.value = null
   }
 }
-
 
 function saveToStorage() {
   try {
@@ -162,13 +146,10 @@ function saveToStorage() {
   }
 }
 
-
 // Watch for changes and auto-save
 watch([projects, testCases, currentProjectId], saveToStorage, { deep: true })
 
-
 // --- PROJECT MANAGEMENT ---
-
 
 export function createProject(name: string, type: AutomatonType): AutomatonProject {
   const config = AUTOMATON_TYPES[type]
@@ -182,7 +163,13 @@ export function createProject(name: string, type: AutomatonType): AutomatonProje
     ],
     transitions: [],
     createdAt: new Date(),
-    updatedAt: new Date()
+    updatedAt: new Date(),
+    // ✅ ADD: PDA config if type is PDA
+    ...(type === 'PDA' && {
+      pdaConfig: {
+        startStackSymbol: '$'
+      }
+    })
   }
   
   projects.value.push(newProject)
@@ -199,7 +186,6 @@ export function createProject(name: string, type: AutomatonType): AutomatonProje
   return newProject
 }
 
-
 export function setCurrentProject(projectId: string) {
   const project = projects.value.find(p => p.id === projectId)
   if (project) {
@@ -212,7 +198,6 @@ export function setCurrentProject(projectId: string) {
   }
 }
 
-
 export function deleteProject(projectId: string) {
   const index = projects.value.findIndex(p => p.id === projectId)
   if (index === -1) {
@@ -220,9 +205,7 @@ export function deleteProject(projectId: string) {
     return
   }
 
-
   console.log('🗑️ Deleting project:', projectId)
-
 
   // Remove project
   projects.value.splice(index, 1)
@@ -244,7 +227,6 @@ export function deleteProject(projectId: string) {
   }
 }
 
-
 export function renameProject(projectId: string, newName: string) {
   const project = projects.value.find(p => p.id === projectId)
   if (project) {
@@ -254,21 +236,26 @@ export function renameProject(projectId: string, newName: string) {
   }
 }
 
-
 export function updateProjectType(projectId: string, newType: AutomatonType) {
   const project = projects.value.find(p => p.id === projectId)
   if (project) {
     project.type = newType
     project.updatedAt = new Date()
+    
+    // ✅ ADD: Initialize PDA config when converting to PDA
+    if (newType === 'PDA' && !project.pdaConfig) {
+      project.pdaConfig = {
+        startStackSymbol: '$'
+      }
+    }
+    
     console.log('🔄 Updated project type to:', newType)
   }
 }
 
-
 export function duplicateProject(projectId: string): AutomatonProject | null {
   const project = projects.value.find(p => p.id === projectId)
   if (!project) return null
-
 
   const duplicatedProject: AutomatonProject = {
     ...JSON.parse(JSON.stringify(project)), // Deep clone
@@ -277,7 +264,6 @@ export function duplicateProject(projectId: string): AutomatonProject | null {
     createdAt: new Date(),
     updatedAt: new Date()
   }
-
 
   projects.value.push(duplicatedProject)
   
@@ -291,27 +277,47 @@ export function duplicateProject(projectId: string): AutomatonProject | null {
     })
   })
 
-
   // Force reactivity update
   projectSwitchCounter.value++
   triggerRef(projects)
 
-
   console.log('📋 Duplicated project:', duplicatedProject.name)
-
 
   return duplicatedProject
 }
-
 
 // --- LEGACY SUPPORT (for compatibility) ---
 export function createNewProject(type: AutomatonType, name?: string): AutomatonProject {
   return createProject(name || `Neuer ${AUTOMATON_TYPES[type].shortName}`, type)
 }
 
+// ✅ NEW: PDA Configuration Management
+export function updatePDAStartStackSymbol(projectId: string, symbol: string) {
+  const project = projects.value.find(p => p.id === projectId)
+  if (project && project.type === 'PDA') {
+    if (!project.pdaConfig) {
+      project.pdaConfig = { startStackSymbol: symbol }
+    } else {
+      project.pdaConfig.startStackSymbol = symbol
+    }
+    project.updatedAt = new Date()
+    console.log('📚 Updated PDA start stack symbol to:', symbol)
+  }
+}
+
+export function getPDAStartStackSymbol(projectId?: string): string {
+  const project = projectId 
+    ? projects.value.find(p => p.id === projectId)
+    : currentProject.value
+    
+  if (project && project.type === 'PDA') {
+    return project.pdaConfig?.startStackSymbol || '$'
+  }
+  
+  return '$' // Default fallback
+}
 
 // --- TEST CASE MANAGEMENT ---
-
 
 export function addTestCase(input: string, expectedAccepted: boolean) {
   if (!currentProjectId.value || projects.value.length === 0) {
@@ -327,11 +333,9 @@ export function addTestCase(input: string, expectedAccepted: boolean) {
   })
 }
 
-
 export function removeTestCase(id: string) {
   testCases.value = testCases.value.filter(tc => tc.id !== id)
 }
-
 
 export function updateTestCase(id: string, input: string, expectedAccepted: boolean) {
   const tc = testCases.value.find(t => t.id === id)
@@ -341,7 +345,6 @@ export function updateTestCase(id: string, input: string, expectedAccepted: bool
   }
 }
 
-
 export function clearTestCases(projectId?: string) {
   if (projectId) {
     testCases.value = testCases.value.filter(tc => tc.projectId !== projectId)
@@ -350,17 +353,13 @@ export function clearTestCases(projectId?: string) {
   }
 }
 
-
 // --- EXPORT/IMPORT (for later) ---
-
 
 export function exportProject(projectId: string): string {
   const project = projects.value.find(p => p.id === projectId)
   if (!project) throw new Error('Project not found')
 
-
   const projectTests = testCases.value.filter(tc => tc.projectId === projectId)
-
 
   return JSON.stringify({
     project,
@@ -369,7 +368,6 @@ export function exportProject(projectId: string): string {
     version: '1.0'
   }, null, 2)
 }
-
 
 export function importProject(jsonString: string): AutomatonProject {
   const data = JSON.parse(jsonString)
@@ -381,9 +379,7 @@ export function importProject(jsonString: string): AutomatonProject {
     updatedAt: new Date()
   }
 
-
   projects.value.push(importedProject)
-
 
   // Import test cases
   if (data.testCases) {
@@ -396,18 +392,14 @@ export function importProject(jsonString: string): AutomatonProject {
     })
   }
 
-
   // Force reactivity update
   projectSwitchCounter.value++
   triggerRef(projects)
 
-
   console.log('📥 Imported project:', importedProject.name)
-
 
   return importedProject
 }
-
 
 // --- INITIALIZE ON LOAD ---
 loadFromStorage()

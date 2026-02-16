@@ -5,7 +5,7 @@ import Sidebar from '@/components/Sidebar.vue'
 import EditorCanvas from '@/components/EditorCanvas.vue'
 import TestPanel from '@/components/TestPanel.vue'
 import SimulationTreePanel from '@/components/SimulationTreePanel.vue'
-import { currentProject, validationResult, currentTestCases, projects } from '@/lib/automatonStore'
+import { currentProject, validationResult, currentTestCases, projects, getPDAStartStackSymbol } from '@/lib/automatonStore'
 import { AUTOMATON_TYPES } from '@/lib/automatonTypes'
 import { AutomatonSimulator } from '@/lib/automatonSimulator'
 import type { SimulationResult } from '@/lib/automatonSimulator'
@@ -107,10 +107,16 @@ const startSimulation = () => {
   const testCase = currentTestCases.value.find(tc => tc.id === selectedTestCase.value)
   if (!testCase) return
 
+  // ✅ FIX: PDA Config übergeben
+  const pdaConfig = currentProject.value.type === 'PDA' 
+    ? { startStackSymbol: getPDAStartStackSymbol() }
+    : undefined
+
   const simulator = new AutomatonSimulator(
     currentProject.value.states,
     currentProject.value.transitions,
-    currentProject.value.type
+    currentProject.value.type,
+    pdaConfig  // ✅ NEU!
   )
 
   currentSimulation.value = simulator.simulate(testCase.input)
@@ -162,10 +168,16 @@ const runAllTests = () => {
     return
   }
 
+  // ✅ FIX: PDA Config übergeben
+  const pdaConfig = currentProject.value.type === 'PDA' 
+    ? { startStackSymbol: getPDAStartStackSymbol() }
+    : undefined
+
   const simulator = new AutomatonSimulator(
     currentProject.value.states,
     currentProject.value.transitions,
-    currentProject.value.type
+    currentProject.value.type,
+    pdaConfig  // ✅ NEU!
   )
 
   const testsWithExpectations = currentTestCases.value.map(tc => ({
