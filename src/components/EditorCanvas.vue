@@ -7,6 +7,7 @@ import { currentProject, validationResult } from '@/lib/automatonStore'
 import { formatTransitionLabel, requiresModalEditor } from '@/lib/automatonTypes'
 import type { Transition } from '@/lib/automatonStore'
 import PDATransitionEditor from './PDATransitionEditor.vue'
+import TMTransitionEditor from './TMTransitionEditor.vue'  // ✅ NEU
 
 // --- PROPS ---
 const props = defineProps<{
@@ -23,9 +24,11 @@ const canvasKey = ref(0)
 // --- PDA EDITOR STATE ---
 const pdaEditorVisible = ref(false)
 const editingTransition = ref<Transition | null>(null)
-
-// --- PDA KEYBOARD INPUT BUFFER ---
 const pdaInputBuffer = ref('')
+
+// --- ✅ TM EDITOR STATE ---
+const tmEditorVisible = ref(false)
+const tmInputBuffer = ref('')
 
 // Watch for project changes and force re-render
 watch(() => currentProject.value.id, (newId, oldId) => {
@@ -33,21 +36,21 @@ watch(() => currentProject.value.id, (newId, oldId) => {
     console.log('🔄 Project switched in Canvas:', oldId, '->', newId)
     canvasKey.value++
     
-    // Re-initialize Cytoscape after project switch
     if (cy) {
       cy.destroy()
       cy = null
     }
     
-    // Reset selection state
     selectedNodeIds.value.clear()
     selectedEdgeId.value = null
     sourceNodeForEdge.value = null
     pdaEditorVisible.value = false
     editingTransition.value = null
     pdaInputBuffer.value = ''
+    // ✅ NEU: Reset TM state
+    tmEditorVisible.value = false
+    tmInputBuffer.value = ''
     
-    // Re-mount will trigger on next tick
     setTimeout(() => {
       initializeCytoscape()
     }, 0)
@@ -76,44 +79,41 @@ watch(() => props.currentSimulationState, () => {
 
 watch(() => props.isSimulating, (newVal) => {
   if (newVal) {
-    // Lock editor during simulation
     selectedNodeIds.value.clear()
     selectedEdgeId.value = null
     sourceNodeForEdge.value = null
     pdaEditorVisible.value = false
     editingTransition.value = null
     pdaInputBuffer.value = ''
+    // ✅ NEU: Reset TM state
+    tmEditorVisible.value = false
+    tmInputBuffer.value = ''
     
-    // Make all nodes ungrabify during simulation
     if (cy) {
       cy.nodes().forEach(node => {
         if (!node.id().startsWith('__start_')) {
           node.ungrabify()
         }
       })
-      
-      // Disable box selection
       cy.boxSelectionEnabled(false)
     }
   } else {
-    // Unlock editor
     if (cy) {
       cy.nodes().forEach(node => {
         if (!node.id().startsWith('__start_')) {
           node.grabify()
         }
       })
-      
-      // Re-enable box selection
       cy.boxSelectionEnabled(true)
     }
   }
   updateAllStyles()
 })
 
-// Clear buffer when edge selection changes
+// Clear buffers when edge selection changes
 watch(selectedEdgeId, () => {
   pdaInputBuffer.value = ''
+  tmInputBuffer.value = ''  // ✅ NEU
 })
 
 // --- STYLES ---
@@ -131,7 +131,6 @@ const updateNodeStyles = () => {
     const isConnecting = sourceNodeForEdge.value === nodeId
     const isSimulating = props.currentSimulationState === nodeId
     
-    // Check if node has validation errors
     const hasError = validationResult.value.errors.some(e => e.affectedElements.includes(nodeId))
     const hasWarning = validationResult.value.warnings.some(w => w.affectedElements.includes(nodeId))
     
@@ -139,38 +138,28 @@ const updateNodeStyles = () => {
     let bgColor = '#fff'
     let borderWidth = state.isFinal ? 6 : 2
     
-    // BASE STYLE: Error/Warning (Base layer)
     if (hasError) {
-      borderColor = '#dc2626'  // Red-600
-      bgColor = '#fee2e2'      // Red-100
+      borderColor = '#dc2626'
+      bgColor = '#fee2e2'
     } else if (hasWarning) {
-      borderColor = '#f59e0b'  // Amber-500
-      bgColor = '#fef3c7'      // Amber-100
+      borderColor = '#f59e0b'
+      bgColor = '#fef3c7'
     }
     
-    // OVERRIDE: Simulation (Highest priority)
     if (isSimulating) {
-      borderColor = '#10b981'  // Green-500
-      bgColor = '#d1fae5'      // Green-100
+      borderColor = '#10b981'
+      bgColor = '#d1fae5'
       borderWidth = 8
-    }
-    // OVERRIDE: Selected (Second highest - MUST be visible!)
-    else if (isSelected) {
-      // Keep error/warning background, but add blue border + shadow
-      borderColor = '#3b82f6'  // Blue-500
+    } else if (isSelected) {
+      borderColor = '#3b82f6'
       borderWidth = state.isFinal ? 10 : 6
-      
-      // If no error/warning, use blue background
       if (!hasError && !hasWarning) {
-        bgColor = '#dbeafe'  // Blue-100
+        bgColor = '#dbeafe'
       }
-    }
-    // OVERRIDE: Connecting
-    else if (isConnecting) {
-      borderColor = '#06b6d4'  // Cyan-500
-      
+    } else if (isConnecting) {
+      borderColor = '#06b6d4'
       if (!hasError && !hasWarning) {
-        bgColor = '#cffafe'  // Cyan-100
+        bgColor = '#cffafe'
       }
     }
     
@@ -192,8 +181,6 @@ const updateEdgeStyles = () => {
     if (edgeId.startsWith('__start_edge_')) return
     
     const isSelected = selectedEdgeId.value === edgeId
-    
-    // Check if edge has validation errors
     const hasError = validationResult.value.errors.some(e => e.affectedElements.includes(edgeId))
     
     const color = hasError ? '#dc2626' : (isSelected ? '#3b82f6' : '#000')
@@ -214,11 +201,24 @@ const updateAllStyles = () => {
   updateEdgeStyles()
 }
 
+const getEdgeLabel = (transition: Transition): string => {
+  if (currentProject.value.type === 'TM') {
+    const read = transition.symbol || '?'
+    const action = transition.tmWrite ?? transition.tmMove ?? '?'
+    return `${read}/${action}`
+  }
+  return formatTransitionLabel(currentProject.value.type, {
+    symbol: transition.symbol,
+    input: transition.pdaInput,
+    stackTop: transition.pdaStackTop,
+    stackPush: transition.pdaStackPush
+  })
+}
+
 // --- ACTIONS ---
 const addNode = () => {
   if (isLocked.value) return
   
-  // Find highest existing node number
   const existingNumbers = currentProject.value.states
     .map(s => {
       const match = s.id.match(/^q(\d+)$/)
@@ -333,20 +333,115 @@ const savePDATransition = (data: { pdaInput: string, pdaStackTop: string, pdaSta
   editingTransition.value = null
 }
 
+// --- ✅ NEU: TM EDITOR ACTIONS ---
+const openTMEditor = (transitionId: string) => {
+  const transition = currentProject.value.transitions.find(t => t.id === transitionId)
+  if (!transition) return
+  
+  editingTransition.value = transition
+  tmEditorVisible.value = true
+}
+
+const saveTMTransition = (data: { tmRead: string; action: string }) => {
+  if (!editingTransition.value) return
+
+  editingTransition.value.symbol = data.tmRead
+
+  if (data.action === 'L' || data.action === 'R') {
+    editingTransition.value.tmMove = data.action as 'L' | 'R'
+    editingTransition.value.tmWrite = undefined
+  } else {
+    editingTransition.value.tmWrite = data.action
+    editingTransition.value.tmMove = undefined
+  }
+
+  currentProject.value.updatedAt = new Date()
+  syncToCytoscape()
+  editingTransition.value = null
+}
+
+const parseTMInput = (input: string, transition: Transition) => {
+  // input ist immer genau "X/Y" — 3 Zeichen
+  const read = input.charAt(0)   // Position 0: Lese-Symbol
+  // Position 1: immer '/'
+  const action = input.charAt(2) // Position 2: L, R oder Schreib-Symbol
+  
+  if (!read || !action) return
+  
+  transition.symbol = read
+  
+  if (action === 'L' || action === 'R') {
+    transition.tmMove = action as 'L' | 'R'
+    transition.tmWrite = undefined
+  } else {
+    transition.tmWrite = action
+    transition.tmMove = undefined
+  }
+}
+
+// --- ✅ NEU: TM KEYBOARD INPUT HANDLER ---
+const handleTMKeyboardInput = (e: KeyboardEvent, transition: Transition) => {
+  if (e.key === 'Backspace') {
+    e.preventDefault()
+    tmInputBuffer.value = tmInputBuffer.value.slice(0, -1)
+
+    // Bei leerem Buffer: Transition leeren
+    if (tmInputBuffer.value === '') {
+      transition.symbol = ''
+      transition.tmWrite = undefined
+      transition.tmMove = undefined
+      currentProject.value.updatedAt = new Date()
+      syncToCytoscape()
+    }
+    return
+  }
+
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    tmInputBuffer.value = ''
+    return
+  }
+
+  if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault()
+    if (/\s/.test(e.key)) return
+
+    const bufLen = tmInputBuffer.value.length
+
+    if (bufLen === 0) {
+      // Erstes Zeichen: das Lese-Symbol
+      tmInputBuffer.value = e.key
+
+    } else if (bufLen === 1) {
+      // Zweites Zeichen: MUSS '/' sein — alles andere: Buffer reset
+      if (e.key !== '/') {
+        tmInputBuffer.value = ''
+        return
+      }
+      tmInputBuffer.value += e.key
+
+    } else if (bufLen === 2) {
+      // Drittes Zeichen: Action (L/R oder Schreib-Symbol) → AUTO APPLY!
+      tmInputBuffer.value += e.key          // Buffer: "c/L"
+      parseTMInput(tmInputBuffer.value, transition)
+      currentProject.value.updatedAt = new Date()
+      syncToCytoscape()
+      setTimeout(() => { tmInputBuffer.value = '' }, 400)  // Kurzes visuelles Feedback
+    }
+  }
+}
+
 // --- PDA KEYBOARD PARSER ---
 const handlePDAKeyboardInput = (e: KeyboardEvent, transition: Transition) => {
-  // Backspace: Remove last character from buffer
   if (e.key === 'Backspace') {
     e.preventDefault()
     pdaInputBuffer.value = pdaInputBuffer.value.slice(0, -1)
     
-    // If buffer is empty, clear transition
     if (pdaInputBuffer.value === '') {
       transition.pdaInput = ''
       transition.pdaStackTop = ''
       transition.pdaStackPush = ''
     } else {
-      // Try to parse partial buffer
       parsePDAInput(pdaInputBuffer.value, transition)
     }
     
@@ -355,7 +450,6 @@ const handlePDAKeyboardInput = (e: KeyboardEvent, transition: Transition) => {
     return
   }
 
-  // Enter: Finalize input and clear buffer
   if (e.key === 'Enter') {
     e.preventDefault()
     parsePDAInput(pdaInputBuffer.value, transition)
@@ -365,45 +459,32 @@ const handlePDAKeyboardInput = (e: KeyboardEvent, transition: Transition) => {
     return
   }
 
-  // Single character: Add to buffer
   if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault()
     
-    // ✅ BLOCK WHITESPACE!
     if (/\s/.test(e.key)) {
       console.warn('⚠️ Leerzeichen sind nicht erlaubt!')
       return
     }
     
     pdaInputBuffer.value += e.key
-    
-    // Try to parse (live preview)
     parsePDAInput(pdaInputBuffer.value, transition)
-    
     currentProject.value.updatedAt = new Date()
     syncToCytoscape()
   }
 }
 
 const parsePDAInput = (input: string, transition: Transition) => {
-  // Format: input,stackTop/stackPush
-  // Examples: "a,$/aa", "ε,a/", "b,$/ba$", ",$/a", "a,e/aa"
-  
-  // ✅ REMOVE ALL WHITESPACE (defense in depth)
   input = input.replace(/\s/g, '')
   
-  // Split by '/'
   const parts = input.split('/')
   const leftSide = parts[0] || ''
   const rightSide = parts[1] || ''
   
-  // Split left side by ','
   const leftParts = leftSide.split(',')
   let inputSymbol = leftParts[0] || ''
   let stackTopSymbol = leftParts[1] || ''
   
-  // ✅ VALIDATION: Max 1 character for input and stackTop (except ε)
-  // Take only first character if multiple entered
   if (inputSymbol.length > 1 && inputSymbol !== 'ε') {
     inputSymbol = inputSymbol.charAt(0)
   }
@@ -412,10 +493,6 @@ const parsePDAInput = (input: string, transition: Transition) => {
     stackTopSymbol = stackTopSymbol.charAt(0)
   }
   
-  // ✅ Set values (OPTION 2):
-  // - Empty string = epsilon (empty in store)
-  // - "ε" explicitly = epsilon (empty in store)
-  // - Any other character (including "e") = that character
   transition.pdaInput = (inputSymbol === 'ε' || inputSymbol === '') ? '' : inputSymbol
   transition.pdaStackTop = (stackTopSymbol === 'ε' || stackTopSymbol === '') ? '' : stackTopSymbol
   transition.pdaStackPush = (rightSide === 'ε' || rightSide === '') ? '' : rightSide
@@ -489,9 +566,7 @@ const initializeCytoscape = () => {
     autounselectify: true
   })
 
-  // Register all Cytoscape event handlers
   registerCytoscapeEvents()
-  
   syncToCytoscape()
 }
 
@@ -607,6 +682,7 @@ const registerCytoscapeEvents = () => {
         pdaInput: '',
         pdaStackTop: '',
         pdaStackPush: ''
+        // tmWrite and tmMove are optional → undefined by default ✅
       })
       selectedEdgeId.value = edgeId
       selectedNodeIds.value.clear()
@@ -676,7 +752,6 @@ const registerCytoscapeEvents = () => {
     if (event.target !== cy) return
     const pos = event.position
     
-    // Find highest existing node number
     const existingNumbers = currentProject.value.states
       .map(s => {
         const match = s.id.match(/^q(\d+)$/)
@@ -713,18 +788,19 @@ const registerCytoscapeEvents = () => {
     }
   })
 
-  // ✅ NEW: Double-click on edge to edit (for PDA/TM)
+  // ✅ Double-click on edge: PDA → PDA Modal, TM → TM Modal
   cy.on('dbltap', 'edge', (event) => {
     if (isLocked.value) return
     
     const edge = event.target
     if (edge.id().startsWith('__start_edge_')) return
     
-    // For PDA/TM: Open modal editor
-    if (requiresModalEditor(currentProject.value.type)) {
+    if (currentProject.value.type === 'PDA' && requiresModalEditor(currentProject.value.type)) {
       openPDAEditor(edge.id())
+    } else if (currentProject.value.type === 'TM') {
+      // ✅ NEU: TM Modal
+      openTMEditor(edge.id())
     }
-    // For DFA/NFA: Keyboard editing is used (no action needed here)
   })
 }
 
@@ -775,20 +851,20 @@ const syncToCytoscape = () => {
 
   // --- 2. ADD/UPDATE nodes ---
   currentProject.value.states.forEach(state => {
-    const existingNode = cy.$id(state.id)
+    const existingNode = cy!.$id(state.id)
     
     if (existingNode.length > 0) {
       existingNode.data('label', state.label)
       existingNode.position(state.position)
     } else {
-      cy.add({
+      cy!.add({
         data: { id: state.id, label: state.label },
         position: state.position
       })
     }
 
     const markerId = `__start_${state.id}`
-    const existingMarker = cy.$id(markerId)
+    const existingMarker = cy!.$id(markerId)
     
     if (state.isStart) {
       const markerPos = { x: state.position.x - 80, y: state.position.y }
@@ -796,17 +872,17 @@ const syncToCytoscape = () => {
       if (existingMarker.length > 0) {
         existingMarker.position(markerPos)
       } else {
-        cy.add({
+        cy!.add({
           data: { id: markerId, label: '', isStartMarker: true },
           position: markerPos
         })
-        cy.$id(markerId).ungrabify()
+        cy!.$id(markerId).ungrabify()
       }
 
       const startEdgeId = `__start_edge_${state.id}`
-      const existingStartEdge = cy.$id(startEdgeId)
+      const existingStartEdge = cy!.$id(startEdgeId)
       if (existingStartEdge.length === 0) {
-        cy.add({
+        cy!.add({
           data: { id: startEdgeId, source: markerId, target: state.id, isStartEdge: true }
         })
       }
@@ -815,31 +891,26 @@ const syncToCytoscape = () => {
         existingMarker.remove()
       }
       const startEdgeId = `__start_edge_${state.id}`
-      const existingStartEdge = cy.$id(startEdgeId)
+      const existingStartEdge = cy!.$id(startEdgeId)
       if (existingStartEdge.length > 0) {
         existingStartEdge.remove()
       }
     }
   })
 
-  // --- 3. ADD/UPDATE edges (with proper label formatting) ---
+  // --- 3. ADD/UPDATE edges ---
   currentProject.value.transitions.forEach(transition => {
-    const existingEdge = cy.$id(transition.id)
+    const existingEdge = cy!.$id(transition.id)
     
-    // ✅ Format label based on automaton type
-    const label = formatTransitionLabel(currentProject.value.type, {
-      symbol: transition.symbol,
-      input: transition.pdaInput,
-      stackTop: transition.pdaStackTop,
-      stackPush: transition.pdaStackPush
-    })
+    // ✅ NEU: Use getEdgeLabel() für alle Typen (inkl. TM)
+    const label = getEdgeLabel(transition)
     
     if (existingEdge.length > 0) {
       existingEdge.data('label', label)
       existingEdge.data('source', transition.from)
       existingEdge.data('target', transition.to)
     } else {
-      cy.add({
+      cy!.add({
         data: {
           id: transition.id,
           source: transition.from,
@@ -855,8 +926,8 @@ const syncToCytoscape = () => {
 
 // --- KEYBOARD ---
 const handleKeyDown = (e: KeyboardEvent) => {
-  // ✅ FIX 1: Don't process keyboard events when modal is open!
-  if (pdaEditorVisible.value) return
+  // ✅ UPDATED: Don't process when ANY modal is open
+  if (pdaEditorVisible.value || tmEditorVisible.value) return
   
   if (!cy || isLocked.value) return
 
@@ -877,14 +948,19 @@ const handleKeyDown = (e: KeyboardEvent) => {
     const transition = currentProject.value.transitions.find(t => t.id === selectedEdgeId.value)
     if (!transition) return
 
-    // ✅ PDA: Keyboard Parser (HYBRID MODE!)
+    // PDA: Keyboard Parser
     if (currentProject.value.type === 'PDA') {
       handlePDAKeyboardInput(e, transition)
       return
     }
 
-    // For DFA/NFA: Keep existing keyboard editing
-    // Backspace: Clear symbol (set to empty string)
+    // ✅ NEU: TM Keyboard Parser
+    if (currentProject.value.type === 'TM') {
+      handleTMKeyboardInput(e, transition)
+      return
+    }
+
+    // DFA/NFA: Single character replacement
     if (e.key === 'Backspace') {
       e.preventDefault()
       transition.symbol = ''
@@ -893,19 +969,18 @@ const handleKeyDown = (e: KeyboardEvent) => {
       return
     }
 
-    // Single character: REPLACE symbol (not append!)
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault()
-      transition.symbol = e.key  // ← REPLACE, not append!
+      transition.symbol = e.key
       currentProject.value.updatedAt = new Date()
       syncToCytoscape()
     }
     return
   }
 
-  // NODE LABEL EDITING (multiple characters allowed)
+  // NODE LABEL EDITING
   if (selectedNodeIds.value.size === 1) {
-    const nodeId = Array.from(selectedNodeIds.value)[0]
+    const nodeId = Array.from(selectedNodeIds.value)[0]!
     const state = currentProject.value.states.find(s => s.id === nodeId)
     if (!state) return
 
@@ -918,7 +993,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
 
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault()
-      state.label += e.key  // ← Node labels can be multi-character
+      state.label += e.key
       if (cy) cy.$id(nodeId).data('label', state.label)
     }
   }
@@ -940,7 +1015,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
       "
     ></div>
 
-    <!-- Simulation Status Badge (Top Right - Subtle) -->
+    <!-- Simulation Status Badge -->
     <div 
       v-if="isSimulating"
       class="absolute top-4 right-4 z-40 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-pulse"
@@ -1012,7 +1087,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
       Ziel wählen (ESC = Abbruch)
     </div>
 
-    <!-- PDA Keyboard Input Buffer (Live Feedback) -->
+    <!-- PDA Keyboard Input Buffer -->
     <div 
       v-if="selectedEdgeId && currentProject.type === 'PDA' && pdaInputBuffer.length > 0 && !isSimulating && !pdaEditorVisible"
       class="absolute bottom-4 right-4 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl z-40 border-2 border-emerald-400"
@@ -1028,13 +1103,38 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
       </p>
     </div>
 
-    <!-- PDA Editing Hint (When buffer is empty) -->
+    <!-- PDA Editing Hint (buffer empty) -->
     <div 
       v-if="selectedEdgeId && currentProject.type === 'PDA' && pdaInputBuffer.length === 0 && !isSimulating && !pdaEditorVisible"
       class="absolute bottom-4 right-4 bg-emerald-600 text-white px-4 py-2 rounded-full shadow-lg z-40 text-xs font-medium flex items-center gap-2"
     >
       <span>⚡</span>
       Tippen: a,$/aa (verwende ε für Epsilon) • Doppelklick für Editor
+    </div>
+
+    <!-- ✅ NEU: TM Keyboard Input Buffer -->
+    <div 
+      v-if="selectedEdgeId && currentProject.type === 'TM' && tmInputBuffer.length > 0 && !isSimulating && !tmEditorVisible"
+      class="absolute bottom-4 right-4 bg-blue-600 text-white px-4 py-3 rounded-xl shadow-2xl z-40 border-2 border-blue-400"
+    >
+      <div class="flex items-center gap-3">
+        <span class="text-xs font-semibold opacity-75">⚙️ TM Eingabe:</span>
+        <code class="text-lg font-mono font-bold bg-blue-700 px-3 py-1 rounded">
+          {{ tmInputBuffer }}<span class="animate-pulse">|</span>
+        </code>
+      </div>
+      <p class="text-[10px] mt-1 opacity-75">
+        Format: c/L • c/d • w/R • Wird automatisch übernommen
+      </p>
+    </div>
+
+    <!-- ✅ NEU: TM Editing Hint (buffer empty) -->
+    <div 
+      v-if="selectedEdgeId && currentProject.type === 'TM' && tmInputBuffer.length === 0 && !isSimulating && !tmEditorVisible"
+      class="absolute bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg z-40 text-xs font-medium flex items-center gap-2"
+    >
+      <span>⚙️</span>
+      Tippen: c/L • c/d • w/R • Doppelklick für Editor
     </div>
 
     <!-- Multi-Select Counter -->
@@ -1054,6 +1154,14 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
       :transition="editingTransition"
       @close="pdaEditorVisible = false; editingTransition = null"
       @save="savePDATransition"
+    />
+
+    <!-- ✅ NEU: TM Transition Editor Modal -->
+    <TMTransitionEditor
+      :visible="tmEditorVisible"
+      :transition="editingTransition"
+      @close="tmEditorVisible = false; editingTransition = null"
+      @save="saveTMTransition"
     />
 
   </div>
