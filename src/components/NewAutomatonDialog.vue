@@ -163,7 +163,6 @@ const handleInput = () => {
                   ? 'border-blue-500 bg-blue-50' 
                   : 'border-zinc-200 bg-white hover:border-zinc-300'"
               >
-                <div class="text-2xl mb-1">{{ type.icon }}</div>
                 <div class="font-bold text-sm mb-1" :class="selectedType === key ? 'text-blue-700' : 'text-zinc-900'">
                   {{ type.shortName }}
                 </div>

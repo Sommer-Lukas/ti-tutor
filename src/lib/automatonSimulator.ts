@@ -14,12 +14,18 @@ export interface SimulationStep {
     pdaInput?: string
     pdaStackTop?: string
     pdaStackPush?: string
+    // ✅ TM-specific
+    tmWrite?: string
+    tmMove?: 'L' | 'R'
   }
   isAccepting: boolean
   possibleTransitions: string[]
   isStuck?: boolean
   epsilonClosure?: string[]  // NEA: ε-Closure Info
   stack?: string[]  // ✅ PDA: Current stack state (top = last element)
+  // ✅ TM-specific
+  tape?: string[]  // TM: Current tape content
+  headPosition?: number  // TM: Position of read/write head
 }
 
 export interface SimulationResult {
@@ -29,6 +35,8 @@ export interface SimulationResult {
   finalState: string | string[] | null  // NEA/PDA: Array von Zuständen!
   error?: string
   finalStack?: string[]  // ✅ PDA: Final stack state
+  // ✅ TM-specific
+  finalTape?: string[]  // TM: Final tape state
 }
 
 export class AutomatonSimulator {
@@ -87,6 +95,11 @@ export class AutomatonSimulator {
     // ✅ PDA Simulation
     if (this.type === 'PDA') {
       return this.simulatePDA(input, startStates[0]!, steps)
+    }
+
+    // ✅ TM Simulation
+    if (this.type === 'TM') {
+      return this.simulateTM(input, startStates[0]!, steps)
     }
 
     return {
@@ -471,6 +484,191 @@ export class AutomatonSimulator {
         ? undefined 
         : `PDA rejected: Input verbraucht=${remainingInput === ''}, Endzustand=${currentState.isFinal}, Stack leer=${stack.length === 0}`
     }
+  }
+
+  /**
+   * 🎯 TM SIMULATION mit Tape und Read/Write Head
+   * 
+   * Eine Turing Machine hat:
+   * - Ein unendliches Tape (wir begrenzen es auf Sicherheit)
+   * - Ein Read/Write Head (Position im Array)
+   * - Transitionen die schreiben können und den Kopf bewegen (L/R)
+   * 
+   * AKZEPTANZKRITERIUM:
+   * - Input vollständig verbraucht UND
+   * - In einem Endzustand
+   * (Nicht: "Tape ist leer" wie bei manchen TM Definitionen)
+   */
+  private simulateTM(
+    input: string,
+    startState: State,
+    steps: SimulationStep[]
+  ): SimulationResult {
+    let currentState = startState
+    let tape: string[] = input.split('')  // Tape starts with input
+    let headPosition = 0  // Head starts at position 0
+    let consumedInput = ''
+
+    // ✅ BLANK Symbol (Unicode: U+25A1)
+    const BLANK = '□'
+
+    // Initial Step
+    const currentCell = tape[headPosition] || BLANK
+    steps.push({
+      step: 0,
+      currentState: currentState.id,
+      remainingInput: input,
+      consumedInput: '',
+      isAccepting: currentState.isFinal,
+      possibleTransitions: [],
+      tape: [...tape],
+      headPosition: headPosition
+    })
+
+    let stepCounter = 0
+    const MAX_STEPS = 1000  // Safety limit to prevent infinite loops
+
+    // 🔄 Main simulation loop
+    while (stepCounter < MAX_STEPS) {
+      stepCounter++
+
+      // Read current cell
+      const readSymbol = tape[headPosition] ?? BLANK
+      
+      // Find matching transition
+      const transition = this.findTMTransition(currentState.id, readSymbol)
+
+      if (!transition) {
+        // ❌ STUCK: No transition found
+        steps.push({
+          step: stepCounter,
+          currentState: currentState.id,
+          remainingInput: '',
+          consumedInput: consumedInput,
+          isAccepting: false,
+          possibleTransitions: [],
+          isStuck: true,
+          tape: [...tape],
+          headPosition: headPosition
+        })
+
+        return {
+          input,
+          steps,
+          accepted: false,
+          finalState: currentState.id,
+          finalTape: [...tape],
+          error: `Keine Transition für Symbol '${this.normalizeBLANK(readSymbol) === '□' ? '#' : this.normalizeBLANK(readSymbol)}' in Zustand ${currentState.id}. Du benötigst eine Transition mit Symbol '#', 'BLANK', 'ε', '.', oder '_' für Blank-Zellen!`
+        }
+      }
+
+      // ✅ Apply transition
+
+      // 1️⃣ Write to tape (if specified)
+      if (transition.tmWrite !== undefined && transition.tmWrite !== '') {
+        tape[headPosition] = this.normalizeBLANK(transition.tmWrite)
+      }
+
+      // 2️⃣ Move head (if specified)
+      if (transition.tmMove === 'L') {
+        headPosition--
+        // Expand tape to the left if needed
+        if (headPosition < 0) {
+          tape.unshift(BLANK)
+          headPosition = 0
+        }
+      } else if (transition.tmMove === 'R') {
+        headPosition++
+        // Expand tape to the right if needed
+        if (headPosition >= tape.length) {
+          tape.push(BLANK)
+        }
+      }
+
+      // 3️⃣ Move to next state
+      const nextState = this.states.find(s => s.id === transition.to)
+      if (!nextState) {
+        return {
+          input,
+          steps,
+          accepted: false,
+          finalState: null,
+          finalTape: [...tape],
+          error: `Zielzustand ${transition.to} nicht gefunden`
+        }
+      }
+
+      currentState = nextState
+
+      // Record step
+      steps.push({
+        step: stepCounter,
+        currentState: currentState.id,
+        remainingInput: '',
+        consumedInput: consumedInput,
+        transition: {
+          from: transition.from,
+          to: transition.to,
+          symbol: this.normalizeBLANK(readSymbol),
+          tmWrite: transition.tmWrite ? this.normalizeBLANK(transition.tmWrite) : undefined,
+          tmMove: transition.tmMove
+        },
+        isAccepting: currentState.isFinal,
+        possibleTransitions: [],
+        tape: [...tape],
+        headPosition: headPosition
+      })
+
+      // ✅ ACCEPTANCE CHECK: If in final state, accept!
+      if (currentState.isFinal) {
+        return {
+          input,
+          steps,
+          accepted: true,
+          finalState: currentState.id,
+          finalTape: [...tape],
+          error: undefined
+        }
+      }
+    }
+
+    // ❌ MAX STEPS EXCEEDED
+    return {
+      input,
+      steps,
+      accepted: false,
+      finalState: currentState.id,
+      finalTape: [...tape],
+      error: `Simulation abgebrochen: Zu viele Schritte (${MAX_STEPS}). Mögliche Endlosschleife!`
+    }
+  }
+
+  /**
+   * Helper: Normalize BLANK symbol aliases to '□'
+   * Supports: '.', 'BLANK', 'ε', '#', '_'
+   */
+  private normalizeBLANK(symbol: string): string {
+    if (!symbol || symbol === '' || symbol === '.' || symbol === 'BLANK' || symbol === 'ε' || symbol === '#' || symbol === '_') {
+      return '□'
+    }
+    return symbol
+  }
+
+  /**
+   * Helper: Find TM transition for (state, readSymbol)
+   */
+  private findTMTransition(stateId: string, readSymbol: string): Transition | undefined {
+    const BLANK = '□'
+    const normalizedReadSymbol = this.normalizeBLANK(readSymbol)
+    
+    return this.transitions.find(t => {
+      if (t.from !== stateId) return false
+      
+      // Normalize transition symbol (handle BLANK aliases)
+      const tSymbol = this.normalizeBLANK(t.symbol)
+      
+      return tSymbol === normalizedReadSymbol
+    })
   }
 
   /**

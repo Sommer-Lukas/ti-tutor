@@ -119,8 +119,8 @@ function loadFromStorage() {
     }
 
     // ✅ Only set currentProjectId if projects exist
-    if (projects.value.length > 0 && !currentProjectId.value) {
-      currentProjectId.value = projects.value[0].id
+    if (projects.value.length > 0 && !currentProjectId.value && projects.value[0]) {
+      currentProjectId.value = projects.value[0]!.id
     }
 
     console.log('✅ Loaded from storage:', projects.value.length, 'projects')
@@ -216,9 +216,12 @@ export function deleteProject(projectId: string) {
   // If deleted project was current, switch to another or set to null
   if (currentProjectId.value === projectId) {
     if (projects.value.length > 0) {
-      currentProjectId.value = projects.value[0].id
-      projectSwitchCounter.value++
-      console.log('📌 Switched to project:', projects.value[0].name)
+      const firstProject = projects.value[0]
+      if (firstProject) {
+        currentProjectId.value = firstProject.id
+        projectSwitchCounter.value++
+        console.log('📌 Switched to project:', firstProject.name)
+      }
     } else {
       currentProjectId.value = null
       projectSwitchCounter.value++

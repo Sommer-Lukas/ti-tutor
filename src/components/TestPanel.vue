@@ -47,6 +47,12 @@ const getTestStatus = (testCaseId: string): 'pending' | 'passed' | 'failed' => {
   return result.passed ? 'passed' : 'failed'
 }
 
+// Helper: Convert BLANK symbol to # for display
+const displayTape = (tape: string[] | undefined): string => {
+  if (!tape) return '#'
+  return tape.map(cell => cell === '□' ? '#' : cell).join('')
+}
+
 const handleAddTest = () => {
   addTestCase('', true)
   // Auto-select the new test
@@ -181,20 +187,40 @@ const testCount = computed(() => currentTestCases.value.length)
               <!-- Status Icon -->
               <div v-if="getTestStatus(tc.id) === 'passed'" class="relative group/status">
                 <CheckCircle2 class="w-4 h-4 text-green-500" />
-                <div class="absolute right-0 top-full mt-1 w-48 p-2 bg-zinc-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover/status:opacity-100 group-hover/status:visible transition-all z-50 pointer-events-none">
-                  ✅ Test passed
+                <div class="absolute right-0 top-full mt-1 w-80 p-3 bg-zinc-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover/status:opacity-100 group-hover/status:visible transition-all z-50 pointer-events-none">
+                  <div class="font-bold mb-2 text-green-400 flex items-center gap-1">
+                    <CheckCircle2 class="w-3 h-3" />
+                    Test Passed
+                  </div>
+                  
+                  <!-- TM-specific: Show final tape -->
+                  <div v-if="currentProject.type === 'TM' && getTestResult(tc.id)?.finalTape" class="p-2 bg-zinc-800 rounded border border-zinc-700">
+                    <div class="text-zinc-400 mb-1">📝 Final Tape:</div>
+                    <div class="font-mono text-blue-300 break-all text-[11px]">
+                      {{ displayTape(getTestResult(tc.id)?.finalTape) }}
+                    </div>
+                  </div>
                 </div>
               </div>
               
               <div v-else-if="getTestStatus(tc.id) === 'failed'" class="relative group/status">
                 <XCircle class="w-4 h-4 text-red-500" />
                 <!-- Error Tooltip -->
-                <div class="absolute right-0 top-full mt-1 w-64 p-3 bg-zinc-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover/status:opacity-100 group-hover/status:visible transition-all z-50 pointer-events-none">
+                <div class="absolute right-0 top-full mt-1 w-80 p-3 bg-zinc-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover/status:opacity-100 group-hover/status:visible transition-all z-50 pointer-events-none">
                   <div class="font-bold mb-1 text-red-400 flex items-center gap-1">
                     <AlertCircle class="w-3 h-3" />
                     Test Failed
                   </div>
                   <div class="mb-2 text-zinc-300">{{ getTestResult(tc.id)?.error || 'Unexpected result' }}</div>
+                  
+                  <!-- TM-specific: Show final tape -->
+                  <div v-if="currentProject.type === 'TM' && getTestResult(tc.id)?.finalTape" class="mb-2 p-2 bg-zinc-800 rounded border border-zinc-700">
+                    <div class="text-zinc-400 mb-1">📝 Final Tape:</div>
+                    <div class="font-mono text-blue-300 break-all">
+                      {{ displayTape(getTestResult(tc.id)?.finalTape) }}
+                    </div>
+                  </div>
+                  
                   <div class="flex items-center justify-between text-xs border-t border-zinc-700 pt-2 mt-2">
                     <div>
                       <span class="text-zinc-400">Expected:</span>

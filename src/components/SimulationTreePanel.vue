@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
-import { GitBranch, ArrowRight, Check, X, AlertCircle, Layers } from 'lucide-vue-next'
+import { GitBranch, ArrowRight, Check, X, AlertCircle, Layers, Zap } from 'lucide-vue-next'
 import type { SimulationResult } from '@/lib/automatonSimulator'
 import type { AutomatonType } from '@/lib/automatonTypes'
 
@@ -15,6 +15,7 @@ const steps = computed(() => props.simulation.steps)
 const currentStep = computed(() => steps.value[props.currentStepIndex])
 const isNFA = computed(() => props.automatonType === 'NFA')
 const isPDA = computed(() => props.automatonType === 'PDA')
+const isTM = computed(() => props.automatonType === 'TM')
 
 // Refs for auto-scroll
 const stepRefs = ref<HTMLElement[]>([])
@@ -54,14 +55,56 @@ const getStackTop = (stack: string[] | undefined): string => {
   if (!stack || stack.length === 0) return '∅'
   return stack[stack.length - 1] || '∅'
 }
+
+// Helper: Display BLANK symbol as #
+const displaySymbol = (symbol: string): string => {
+  return symbol === '□' ? '#' : symbol
+}
+
+// Helper: Get tape window (centered on head position, padded with #)
+// Shows 11 cells with head in center (5 left, 1 center, 5 right)
+const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined): { cells: string[]; offsetStart: number } => {
+  if (!tape || tape.length === 0) {
+    return { cells: Array(11).fill('#'), offsetStart: 0 }
+  }
+
+  const WINDOW_SIZE = 11
+  const CENTER = Math.floor(WINDOW_SIZE / 2) // 5 for window of 11
+  const head = headPos ?? 0
+
+  // Calculate start position (head should be at center)
+  let startPos = head - CENTER
+  let endPos = startPos + WINDOW_SIZE
+
+  // Pad with # on left if out of bounds
+  let paddingLeft = 0
+  if (startPos < 0) {
+    paddingLeft = Math.abs(startPos)
+    startPos = 0
+  }
+
+  // Pad with # on right if out of bounds
+  let paddingRight = 0
+  if (endPos > tape.length) {
+    paddingRight = endPos - tape.length
+    endPos = tape.length
+  }
+
+  // Build window
+  const cells: string[] = [
+    ...Array(paddingLeft).fill('#'),
+    ...tape.slice(startPos, endPos),
+    ...Array(paddingRight).fill('#')
+  ]
+
+  return { cells, offsetStart: startPos - paddingLeft }
+}
 </script>
 
 <template>
   <aside 
     class="border-l bg-gradient-to-br from-zinc-50 to-zinc-100 flex flex-col overflow-hidden shadow-xl"
-    :class="isPDA ? 'w-[500px]' : 'w-[400px]'"
-  >
-    
+      :class="(isPDA || isTM) ? 'w-[600px]' : 'w-[400px]'"
     <!-- HEADER -->
     <div class="px-6 py-4 border-b border-zinc-200 bg-white">
       <div class="flex items-center gap-3 mb-2">
@@ -74,6 +117,11 @@ const getStackTop = (stack: string[] | undefined): string => {
         <div v-if="isPDA" class="px-2 py-1 rounded-full bg-purple-100 border border-purple-300 flex items-center gap-1">
           <Layers class="w-3 h-3 text-purple-700" />
           <span class="text-[10px] font-bold text-purple-900 uppercase tracking-wide">PDA</span>
+        </div>
+        
+        <!-- TM Badge -->
+        <div v-if="isTM" class="px-2 py-1 rounded-full bg-amber-100 border border-amber-300 flex items-center gap-1">
+          <span class="text-[10px] font-bold text-amber-900 uppercase tracking-wide">🎯 TM</span>
         </div>
       </div>
       
@@ -199,7 +247,73 @@ const getStackTop = (stack: string[] | undefined): string => {
 
             </div>
 
-            <!-- NON-PDA: Original Layout -->
+            <!-- TM: Two-Column Layout (State + Tape) -->
+            <div v-if="isTM" class="grid grid-cols-2 gap-3">
+              
+              <!-- Left: State Info -->
+              <div class="space-y-2">
+                <!-- State -->
+                <div class="flex items-start gap-2">
+                  <span class="text-xs text-zinc-500 font-semibold">State:</span>
+                  <span class="px-2 py-1 rounded-md bg-green-100 text-green-900 text-xs font-mono font-bold border border-green-300">
+                    {{ step.currentState }}
+                  </span>
+                </div>
+
+                <!-- Transition (if exists) -->
+                <div v-if="step.transition" class="space-y-1">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] text-zinc-500 font-semibold">Transition:</span>
+                  </div>
+                  <div class="px-2 py-1.5 bg-amber-50 rounded-lg border border-amber-200">
+                    <div class="text-[10px] space-y-0.5">
+                      <div class="flex items-center gap-1">
+                        <span class="text-zinc-500">Read:</span>
+                        <code class="font-mono font-bold text-amber-900">{{ displaySymbol(step.transition.symbol) }}</code>
+                      </div>
+                      <div v-if="step.transition.tmWrite !== undefined" class="flex items-center gap-1">
+                        <span class="text-zinc-500">Write:</span>
+                        <code class="font-mono font-bold text-amber-900">{{ displaySymbol(step.transition.tmWrite || '') }}</code>
+                      </div>
+                      <div v-if="step.transition.tmMove" class="flex items-center gap-1">
+                        <span class="text-zinc-500">Move:</span>
+                        <code class="font-mono font-bold text-amber-900">{{ step.transition.tmMove }}</code>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right: Tape Visualization -->
+              <div class="space-y-1">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="text-xs text-amber-700 font-bold">📊 Tape</span>
+                  <span class="text-[10px] text-amber-500">(Head @ {{ step.headPosition ?? 0 }})</span>
+                </div>
+                
+                <!-- Tape Display (Window view with padding) -->
+                <div class="bg-amber-50 rounded-lg border-2 border-amber-300 p-2 overflow-x-auto">
+                  <div class="flex gap-1 min-w-min">
+                    <!-- Show tape window (11 cells with head centered) -->
+                    <div
+                      v-for="(cell, cellIdx) in getTapeWindow(step.tape, step.headPosition).cells"
+                      :key="cellIdx"
+                      class="w-8 h-8 flex items-center justify-center font-mono font-bold text-sm rounded border-2"
+                      :class="{
+                        'bg-amber-400 border-amber-600 text-amber-900 ring-2 ring-amber-600': cellIdx === 5, // Center = head position
+                        'bg-blue-100 border-blue-300 text-blue-600': cell === '#' && cellIdx !== 5,
+                        'bg-white border-amber-200 text-zinc-900': cell !== '#' && cellIdx !== 5
+                      }"
+                    >
+                      {{ displaySymbol(cell) }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- NON-PDA/TM: Original Layout -->
             <template v-else>
               <!-- State(s) -->
               <div class="flex items-start gap-2">
@@ -298,6 +412,7 @@ const getStackTop = (stack: string[] | undefined): string => {
     <div class="px-6 py-4 border-t border-zinc-200 bg-white">
       
       <!-- PDA: Final Stack Info -->
+      <!-- PDA: Final Stack Info -->
       <div v-if="isPDA && simulation.finalStack" class="mb-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
         <div class="flex items-center gap-2 mb-2">
           <Layers class="w-4 h-4 text-purple-600" />
@@ -314,6 +429,28 @@ const getStackTop = (stack: string[] | undefined): string => {
             </span>
           </template>
           <span v-else class="text-xs text-purple-600 font-semibold">∅ (leer) - Accepted by empty stack!</span>
+        </div>
+      </div>
+      
+      <!-- TM: Final Tape Info -->
+      <div v-if="isTM && simulation.finalTape" class="mb-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-bold text-amber-900">📝 Final Tape:</span>
+        </div>
+        <div class="flex flex-wrap gap-1">
+          <div
+            v-for="(cell, idx) in simulation.finalTape"
+            :key="idx"
+            class="w-7 h-7 flex items-center justify-center font-mono font-bold text-[11px] rounded border"
+            :class="cell === '□'
+              ? 'bg-blue-100 border-blue-300 text-blue-600'
+              : 'bg-white border-amber-400 text-zinc-900'"
+          >
+            {{ displaySymbol(cell) }}
+          </div>
+        </div>
+        <div class="text-xs text-amber-700 font-mono mt-2 break-all">
+          {{ simulation.finalTape.map(c => displaySymbol(c)).join('') }}
         </div>
       </div>
 

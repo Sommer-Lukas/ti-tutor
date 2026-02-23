@@ -5,7 +5,7 @@ import type { Core } from 'cytoscape'
 import { Plus, Flag, CircleDot, ArrowRightCircle, Trash2, Lock } from 'lucide-vue-next'
 import { currentProject, validationResult } from '@/lib/automatonStore'
 import { formatTransitionLabel, requiresModalEditor } from '@/lib/automatonTypes'
-import type { Transition } from '@/lib/automatonStore'
+import type { Transition } from '@/lib/automaton'
 import PDATransitionEditor from './PDATransitionEditor.vue'
 import TMTransitionEditor from './TMTransitionEditor.vue'  // ✅ NEU
 
@@ -222,7 +222,7 @@ const addNode = () => {
   const existingNumbers = currentProject.value.states
     .map(s => {
       const match = s.id.match(/^q(\d+)$/)
-      return match ? parseInt(match[1]) : -1
+      return (match?.[1]) ? parseInt(match[1]) : -1
     })
     .filter(n => n >= 0)
   
@@ -288,9 +288,11 @@ const startConnection = () => {
   if (isLocked.value || selectedNodeIds.value.size !== 1) return
   
   const nodeId = Array.from(selectedNodeIds.value)[0]
-  sourceNodeForEdge.value = nodeId
-  selectedNodeIds.value.clear()
-  updateAllStyles()
+  if (nodeId !== undefined) {
+    sourceNodeForEdge.value = nodeId
+    selectedNodeIds.value.clear()
+    updateAllStyles()
+  }
 }
 
 const toggleNodeSelection = (nodeId: string, multiSelect: boolean) => {
@@ -755,7 +757,7 @@ const registerCytoscapeEvents = () => {
     const existingNumbers = currentProject.value.states
       .map(s => {
         const match = s.id.match(/^q(\d+)$/)
-        return match ? parseInt(match[1]) : -1
+        return (match?.[1]) ? parseInt(match[1]) : -1
       })
       .filter(n => n >= 0)
     

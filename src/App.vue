@@ -4,6 +4,7 @@ import { Play, StepForward, Square, Clock, Check, X, AlertTriangle, ShieldAlert,
 import Sidebar from '@/components/Sidebar.vue'
 import EditorCanvas from '@/components/EditorCanvas.vue'
 import TestPanel from '@/components/TestPanel.vue'
+import SimulationStepBar from '@/components/SimulationStepBar.vue'
 import SimulationTreePanel from '@/components/SimulationTreePanel.vue'
 import { currentProject, validationResult, currentTestCases, projects, getPDAStartStackSymbol } from '@/lib/automatonStore'
 import { AUTOMATON_TYPES } from '@/lib/automatonTypes'
@@ -25,6 +26,14 @@ const selectedTestCase = ref<string | null>(null)
 
 // --- COMPUTED: Has Projects ---
 const hasProjects = computed(() => projects.value.length > 0)
+
+// --- COMPUTED: Automaton Type Checks ---
+const isDFA = computed(() => currentProject.value?.type === 'DFA')
+const isNFA = computed(() => currentProject.value?.type === 'NFA')
+const isPDA = computed(() => currentProject.value?.type === 'PDA')
+const isTM = computed(() => currentProject.value?.type === 'TM')
+const showSimulationStepBar = computed(() => (isPDA.value || isTM.value) && isSimulating.value && currentSimulation.value !== null)
+const showSimulationTreePanel = computed(() => (isDFA.value || isNFA.value) && isSimulating.value && currentSimulation.value !== null)
 
 // --- WATCH: Reset simulation on project switch ---
 watch(() => currentProject.value?.id, (newId, oldId) => {
@@ -340,13 +349,21 @@ const triggerNewProject = () => {
 
         <!-- NORMAL WORKSPACE (When projects exist) -->
         <template v-else>
+          <!-- SIMULATION STEP BAR (For PDA & TM) -->
+          <SimulationStepBar
+            v-if="showSimulationStepBar"
+            :simulation="currentSimulation!"
+            :current-step-index="currentStepIndex"
+            :automaton-type="currentProject.type"
+          />
+
           <!-- CANVAS + RIGHT PANEL ROW -->
           <div class="flex-1 flex min-h-0 overflow-hidden relative">
             
             <!-- CANVAS with Simulation State -->
             <EditorCanvas 
               class="flex-1 min-w-0"
-              :current-simulation-state="currentStep?.currentState"
+              :current-simulation-state="typeof currentStep?.currentState === 'string' ? currentStep.currentState : (typeof currentStep?.currentState === 'object' ? currentStep.currentState?.[0] : currentStep?.currentState)"
               :is-simulating="isSimulating"
             />
 
@@ -358,10 +375,10 @@ const triggerNewProject = () => {
               :simulation-results="allTestResults"
             />
 
-            <!-- SIMULATION TREE PANEL (Shown during simulation) -->
+            <!-- SIMULATION TREE PANEL (For DFA & NFA) -->
             <SimulationTreePanel
-              v-if="isSimulating && currentSimulation"
-              :simulation="currentSimulation"
+              v-if="showSimulationTreePanel"
+              :simulation="currentSimulation!"
               :current-step-index="currentStepIndex"
               :automaton-type="currentProject.type"
             />

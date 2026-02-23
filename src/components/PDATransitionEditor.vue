@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { X, AlertCircle, Zap, ChevronDown, ChevronUp, CheckCircle, XCircle } from 'lucide-vue-next'
-import type { Transition } from '@/lib/automatonStore'
+import type { Transition } from '@/lib/automaton'
 
 const props = defineProps<{
   visible: boolean

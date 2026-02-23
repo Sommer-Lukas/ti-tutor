@@ -27,6 +27,13 @@ export interface Transition {
 // ✅ TM: Blank Symbol Konstante
 export const TM_BLANK = '□'  // Unicode Blank (U+25A1)
 
+// 📝 TM BLANK Symbol Aliases (alle werden zu '□' intern normalisiert, aber als '#' angezeigt):
+//   - '#'      (Hashtag) ← Recommended!
+//   - 'BLANK'  (Wort)
+//   - 'ε'      (Epsilon)
+//   - '.'      (Punkt)
+//   - '_'      (Unterstrich)
+
 // ✅ Helper: Transition Label berechnen (für Canvas-Anzeige)
 export function getTransitionLabel(t: Transition, type: AutomatonType): string {
   switch (type) {
