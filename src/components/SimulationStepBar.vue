@@ -17,19 +17,22 @@ const currentStep = computed(() => props.simulation.steps[props.currentStepIndex
 const tapeContainer = ref<HTMLElement | null>(null)
 
 // Auto-scroll tape window
-watch(() => props.currentStepIndex, async () => {
-  await nextTick()
-  if (tapeContainer.value) {
-    const activeCell = tapeContainer.value.querySelector('[data-is-head="true"]')
-    if (activeCell) {
-      activeCell.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-        inline: 'center'
-      })
+watch(
+  () => props.currentStepIndex,
+  async () => {
+    await nextTick()
+    if (tapeContainer.value) {
+      const activeCell = tapeContainer.value.querySelector('[data-is-head="true"]')
+      if (activeCell) {
+        activeCell.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'center',
+        })
+      }
     }
-  }
-})
+  },
+)
 
 // Helper: Format stack (bottom to top)
 const formatStackDisplay = (stack: string[] | undefined): string[] => {
@@ -43,7 +46,10 @@ const displaySymbol = (symbol: string): string => {
 }
 
 // Helper: Get tape window (centered on head)
-const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined): { cells: string[]; offsetStart: number } => {
+const getTapeWindow = (
+  tape: string[] | undefined,
+  headPos: number | undefined,
+): { cells: string[]; offsetStart: number } => {
   if (!tape || tape.length === 0) {
     return { cells: Array(11).fill('#'), offsetStart: 0 }
   }
@@ -70,7 +76,7 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
   const cells: string[] = [
     ...Array(paddingLeft).fill('#'),
     ...tape.slice(startPos, endPos),
-    ...Array(paddingRight).fill('#')
+    ...Array(paddingRight).fill('#'),
   ]
 
   return { cells, offsetStart: startPos - paddingLeft }
@@ -83,15 +89,22 @@ const isStuck = computed(() => currentStep.value?.isStuck ?? false)
 </script>
 
 <template>
-  <div v-if="currentStep" class="h-24 bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200 flex items-stretch overflow-hidden">
-    
+  <div
+    v-if="currentStep"
+    class="h-24 bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200 flex items-stretch overflow-hidden"
+  >
     <!-- LEFT: Step Counter + State Info -->
-    <div class="flex-shrink-0 w-48 px-6 py-4 border-r border-blue-200 flex flex-col justify-center gap-2 bg-white">
+    <div
+      class="flex-shrink-0 w-48 px-6 py-4 border-r border-blue-200 flex flex-col justify-center gap-2 bg-white"
+    >
       <div class="text-xs text-zinc-500 font-semibold">Step {{ currentStep.step }}</div>
       <div class="text-sm font-bold text-zinc-900">
-        State: <code class="bg-blue-100 px-2 py-1 rounded text-blue-700 font-mono">{{ currentStep.currentState }}</code>
+        State:
+        <code class="bg-blue-100 px-2 py-1 rounded text-blue-700 font-mono">{{
+          currentStep.currentState
+        }}</code>
       </div>
-      
+
       <!-- Transition Info -->
       <div v-if="currentStep.transition" class="text-xs text-zinc-600 flex items-center gap-1">
         <span>{{ currentStep.transition.symbol }}</span>
@@ -107,20 +120,25 @@ const isStuck = computed(() => currentStep.value?.isStuck ?? false)
     </div>
 
     <!-- CENTER: TM Tape Window -->
-    <div v-if="isTM && currentStep.tape" class="flex-1 px-6 py-4 flex flex-col justify-center gap-2 border-r border-blue-200 bg-gradient-to-b from-amber-50 to-amber-100 overflow-hidden">
+    <div
+      v-if="isTM && currentStep.tape"
+      class="flex-1 px-6 py-4 flex flex-col justify-center gap-2 border-r border-blue-200 bg-gradient-to-b from-amber-50 to-amber-100 overflow-hidden"
+    >
       <div class="text-xs text-amber-700 font-semibold">📝 Tape Window</div>
-      
+
       <div ref="tapeContainer" class="flex gap-1 overflow-x-auto pb-1 scroll-smooth">
         <div
           v-for="(cell, idx) in getTapeWindow(currentStep.tape, currentStep.headPosition).cells"
           :key="idx"
           :data-is-head="idx === 5"
           class="flex-shrink-0 w-8 h-8 flex items-center justify-center font-mono font-bold text-xs rounded border-2 transition-all"
-          :class="idx === 5
-            ? 'border-orange-500 ring-2 ring-orange-400 bg-orange-100 text-orange-900'
-            : cell === '□'
-              ? 'border-blue-400 bg-blue-100 text-blue-600'
-              : 'border-zinc-400 bg-white text-zinc-900'"
+          :class="
+            idx === 5
+              ? 'border-orange-500 ring-2 ring-orange-400 bg-orange-100 text-orange-900'
+              : cell === '□'
+                ? 'border-blue-400 bg-blue-100 text-blue-600'
+                : 'border-zinc-400 bg-white text-zinc-900'
+          "
         >
           {{ displaySymbol(cell) }}
         </div>
@@ -128,14 +146,14 @@ const isStuck = computed(() => currentStep.value?.isStuck ?? false)
     </div>
 
     <!-- CENTER: PDA Stack -->
-    <div v-if="isPDA && currentStep.stack" class="flex-1 px-6 py-4 flex flex-col justify-center gap-2 border-r border-blue-200 bg-gradient-to-b from-purple-50 to-purple-100 overflow-hidden">
+    <div
+      v-if="isPDA && currentStep.stack"
+      class="flex-1 px-6 py-4 flex flex-col justify-center gap-2 border-r border-blue-200 bg-gradient-to-b from-purple-50 to-purple-100 overflow-hidden"
+    >
       <div class="text-xs text-purple-700 font-semibold">📚 Stack</div>
-      
+
       <div class="flex gap-1 overflow-x-auto pb-1">
-        <div
-          v-if="currentStep.stack.length === 0"
-          class="text-xs text-purple-600 font-semibold"
-        >
+        <div v-if="currentStep.stack.length === 0" class="text-xs text-purple-600 font-semibold">
           ∅ (leer)
         </div>
         <div
@@ -149,12 +167,16 @@ const isStuck = computed(() => currentStep.value?.isStuck ?? false)
     </div>
 
     <!-- RIGHT: Input Info -->
-    <div class="flex-shrink-0 w-48 px-6 py-4 flex flex-col justify-center gap-2 bg-white border-l border-blue-200">
+    <div
+      class="flex-shrink-0 w-48 px-6 py-4 flex flex-col justify-center gap-2 bg-white border-l border-blue-200"
+    >
       <div class="text-xs text-zinc-500 font-semibold">Input Status</div>
       <div class="flex items-center gap-2">
         <div class="text-xs">
           <span class="text-zinc-600">Consumed:</span>
-          <code class="ml-1 px-1.5 py-0.5 bg-green-50 rounded text-green-700 font-mono font-bold text-[10px]">
+          <code
+            class="ml-1 px-1.5 py-0.5 bg-green-50 rounded text-green-700 font-mono font-bold text-[10px]"
+          >
             {{ currentStep.consumedInput || 'ε' }}
           </code>
         </div>
@@ -162,13 +184,14 @@ const isStuck = computed(() => currentStep.value?.isStuck ?? false)
       <div class="flex items-center gap-2">
         <div class="text-xs">
           <span class="text-zinc-600">Remaining:</span>
-          <code class="ml-1 px-1.5 py-0.5 bg-blue-50 rounded text-blue-700 font-mono font-bold text-[10px]">
+          <code
+            class="ml-1 px-1.5 py-0.5 bg-blue-50 rounded text-blue-700 font-mono font-bold text-[10px]"
+          >
             {{ currentStep.remainingInput || 'ε' }}
           </code>
         </div>
       </div>
     </div>
-
   </div>
 </template>
 

@@ -1,12 +1,29 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Play, StepForward, Square, Clock, Check, X, AlertTriangle, ShieldAlert, FolderOpen, Plus } from 'lucide-vue-next'
+import {
+  Play,
+  StepForward,
+  Square,
+  Clock,
+  Check,
+  X,
+  AlertTriangle,
+  ShieldAlert,
+  FolderOpen,
+  Plus,
+} from 'lucide-vue-next'
 import Sidebar from '@/components/Sidebar.vue'
 import EditorCanvas from '@/components/EditorCanvas.vue'
 import TestPanel from '@/components/TestPanel.vue'
 import SimulationStepBar from '@/components/SimulationStepBar.vue'
 import SimulationTreePanel from '@/components/SimulationTreePanel.vue'
-import { currentProject, validationResult, currentTestCases, projects, getPDAStartStackSymbol } from '@/lib/automatonStore'
+import {
+  currentProject,
+  validationResult,
+  currentTestCases,
+  projects,
+  getPDAStartStackSymbol,
+} from '@/lib/automatonStore'
 import { AUTOMATON_TYPES } from '@/lib/automatonTypes'
 import { AutomatonSimulator } from '@/lib/automatonSimulator'
 import type { SimulationResult } from '@/lib/automatonSimulator'
@@ -32,20 +49,27 @@ const isDFA = computed(() => currentProject.value?.type === 'DFA')
 const isNFA = computed(() => currentProject.value?.type === 'NFA')
 const isPDA = computed(() => currentProject.value?.type === 'PDA')
 const isTM = computed(() => currentProject.value?.type === 'TM')
-const showSimulationStepBar = computed(() => (isPDA.value || isTM.value) && isSimulating.value && currentSimulation.value !== null)
-const showSimulationTreePanel = computed(() => (isDFA.value || isNFA.value) && isSimulating.value && currentSimulation.value !== null)
+const showSimulationStepBar = computed(
+  () => (isPDA.value || isTM.value) && isSimulating.value && currentSimulation.value !== null,
+)
+const showSimulationTreePanel = computed(
+  () => (isDFA.value || isNFA.value) && isSimulating.value && currentSimulation.value !== null,
+)
 
 // --- WATCH: Reset simulation on project switch ---
-watch(() => currentProject.value?.id, (newId, oldId) => {
-  if (newId !== oldId) {
-    console.log('🔄 Project switched in App.vue, resetting simulation state')
-    
-    // Reset all simulation state
-    stopSimulation()
-    allTestResults.value = []
-    selectedTestCase.value = null
-  }
-})
+watch(
+  () => currentProject.value?.id,
+  (newId, oldId) => {
+    if (newId !== oldId) {
+      console.log('🔄 Project switched in App.vue, resetting simulation state')
+
+      // Reset all simulation state
+      stopSimulation()
+      allTestResults.value = []
+      selectedTestCase.value = null
+    }
+  },
+)
 
 // --- COMPUTED: Validation Badge Status ---
 const validationStatus = computed(() => {
@@ -62,12 +86,22 @@ const hasValidationErrors = computed(() => {
 
 // --- COMPUTED: Can Run Tests ---
 const canRunTests = computed(() => {
-  return hasProjects.value && !hasValidationErrors.value && !isSimulating.value && currentTestCases.value.length > 0
+  return (
+    hasProjects.value &&
+    !hasValidationErrors.value &&
+    !isSimulating.value &&
+    currentTestCases.value.length > 0
+  )
 })
 
 // --- COMPUTED: Can Start Simulation ---
 const canStartSimulation = computed(() => {
-  return hasProjects.value && !hasValidationErrors.value && selectedTestCase.value !== null && !isSimulating.value
+  return (
+    hasProjects.value &&
+    !hasValidationErrors.value &&
+    selectedTestCase.value !== null &&
+    !isSimulating.value
+  )
 })
 
 // --- COMPUTED: Current Step ---
@@ -85,11 +119,11 @@ const isAtEnd = computed(() => {
 // --- COMPUTED: Test Results Summary ---
 const testSummary = computed(() => {
   if (allTestResults.value.length === 0) return null
-  
-  const passed = allTestResults.value.filter(r => r.passed).length
-  const failed = allTestResults.value.filter(r => !r.passed).length
+
+  const passed = allTestResults.value.filter((r) => r.passed).length
+  const failed = allTestResults.value.filter((r) => !r.passed).length
   const total = allTestResults.value.length
-  
+
   return { passed, failed, total }
 })
 
@@ -104,7 +138,7 @@ const showErrorToastWithTimeout = () => {
 // --- SIMULATION ACTIONS ---
 const startSimulation = () => {
   if (!hasProjects.value) return
-  
+
   // Validation Check
   if (hasValidationErrors.value) {
     showErrorToastWithTimeout()
@@ -112,42 +146,44 @@ const startSimulation = () => {
   }
 
   if (!selectedTestCase.value) return
-  
-  const testCase = currentTestCases.value.find(tc => tc.id === selectedTestCase.value)
+
+  const testCase = currentTestCases.value.find((tc) => tc.id === selectedTestCase.value)
   if (!testCase) return
 
   // ✅ FIX: PDA Config übergeben
-  const pdaConfig = currentProject.value.type === 'PDA' 
-    ? { startStackSymbol: getPDAStartStackSymbol() }
-    : undefined
+  const pdaConfig =
+    currentProject.value.type === 'PDA' ? { startStackSymbol: getPDAStartStackSymbol() } : undefined
 
   const simulator = new AutomatonSimulator(
     currentProject.value.states,
     currentProject.value.transitions,
     currentProject.value.type,
-    pdaConfig  // ✅ NEU!
+    pdaConfig, // ✅ NEU!
   )
 
   currentSimulation.value = simulator.simulate(testCase.input)
   currentStepIndex.value = 0
   isSimulating.value = true
-  
+
   // ✅ HIDE TEST PANEL!
   rightPanelOpen.value = false
-  
+
   console.log('🎬 Simulation started:', currentSimulation.value)
 }
 
 const stepSimulation = () => {
   if (!isSimulating.value || !currentSimulation.value) return
-  
+
   // If at end, close simulation
   if (currentStepIndex.value === currentSimulation.value.steps.length - 1) {
-    console.log('✅ Simulation complete:', currentSimulation.value.accepted ? 'ACCEPTED' : 'REJECTED')
+    console.log(
+      '✅ Simulation complete:',
+      currentSimulation.value.accepted ? 'ACCEPTED' : 'REJECTED',
+    )
     stopSimulation()
     return
   }
-  
+
   // Otherwise, step forward
   currentStepIndex.value++
 }
@@ -156,16 +192,16 @@ const stopSimulation = () => {
   isSimulating.value = false
   currentSimulation.value = null
   currentStepIndex.value = 0
-  
+
   // ✅ SHOW TEST PANEL AGAIN!
   rightPanelOpen.value = true
-  
+
   console.log('⏹️ Simulation stopped')
 }
 
 const runAllTests = () => {
   if (!hasProjects.value) return
-  
+
   // Validation Check
   if (hasValidationErrors.value) {
     showErrorToastWithTimeout()
@@ -178,24 +214,23 @@ const runAllTests = () => {
   }
 
   // ✅ FIX: PDA Config übergeben
-  const pdaConfig = currentProject.value.type === 'PDA' 
-    ? { startStackSymbol: getPDAStartStackSymbol() }
-    : undefined
+  const pdaConfig =
+    currentProject.value.type === 'PDA' ? { startStackSymbol: getPDAStartStackSymbol() } : undefined
 
   const simulator = new AutomatonSimulator(
     currentProject.value.states,
     currentProject.value.transitions,
     currentProject.value.type,
-    pdaConfig  // ✅ NEU!
+    pdaConfig, // ✅ NEU!
   )
 
-  const testsWithExpectations = currentTestCases.value.map(tc => ({
+  const testsWithExpectations = currentTestCases.value.map((tc) => ({
     input: tc.input,
-    expected: tc.expectedAccepted
+    expected: tc.expectedAccepted,
   }))
 
   allTestResults.value = simulator.runTests(testsWithExpectations)
-  
+
   console.log('🧪 All Test Results:', allTestResults.value)
   console.log(`✅ Passed: ${testSummary.value?.passed}/${testSummary.value?.total}`)
   console.log(`❌ Failed: ${testSummary.value?.failed}/${testSummary.value?.total}`)
@@ -213,7 +248,7 @@ const closeValidationModal = () => {
 // --- KEYBOARD SHORTCUTS ---
 const handleKeyDown = (e: KeyboardEvent) => {
   if (!hasProjects.value) return
-  
+
   // F5 - Start Simulation
   if (e.key === 'F5') {
     e.preventDefault()
@@ -259,28 +294,31 @@ const triggerNewProject = () => {
 
 <template>
   <div class="flex h-screen w-full bg-zinc-50 text-zinc-900 overflow-hidden relative">
-    
     <!-- LEFT SIDEBAR (Component) -->
     <Sidebar v-model:is-open="isSidebarOpen" />
 
     <!-- MAIN CONTENT -->
     <main class="flex-1 flex flex-col h-full min-w-0 bg-white">
-      
       <!-- TOP BAR -->
-      <header class="flex h-14 items-center justify-between px-6 border-b z-50 bg-white flex-shrink-0 relative">
-        
+      <header
+        class="flex h-14 items-center justify-between px-6 border-b z-50 bg-white flex-shrink-0 relative"
+      >
         <!-- Project Name + Type Badge + Validation Status -->
         <div v-if="hasProjects" class="flex items-center gap-3">
           <h1 class="text-lg font-semibold text-zinc-900">{{ currentProject.name }}</h1>
-          
+
           <!-- Automaton Type Badge -->
-          <span 
+          <span
             class="px-2.5 py-1 rounded-full text-xs font-bold"
-            :class="currentProject.type === 'DFA' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'"
+            :class="
+              currentProject.type === 'DFA'
+                ? 'bg-blue-100 text-blue-700'
+                : 'bg-purple-100 text-purple-700'
+            "
           >
             {{ AUTOMATON_TYPES[currentProject.type].shortName }}
           </span>
-          
+
           <!-- Validation Status Badge -->
           <button
             @click="toggleValidationModal"
@@ -288,19 +326,23 @@ const triggerNewProject = () => {
             :class="{
               'bg-green-50 text-green-700 hover:bg-green-100': validationStatus === 'valid',
               'bg-red-50 text-red-700 hover:bg-red-100 animate-pulse': validationStatus === 'error',
-              'bg-yellow-50 text-yellow-700 hover:bg-yellow-100': validationStatus === 'warning'
+              'bg-yellow-50 text-yellow-700 hover:bg-yellow-100': validationStatus === 'warning',
             }"
           >
             <Check v-if="validationStatus === 'valid'" class="w-4 h-4" />
             <X v-else-if="validationStatus === 'error'" class="w-4 h-4" />
             <AlertTriangle v-else class="w-4 h-4" />
-            
+
             <span v-if="validationStatus === 'valid'">Valid</span>
             <span v-else-if="validationStatus === 'error'">
-              {{ validationResult.errors.length }} Error{{ validationResult.errors.length > 1 ? 's' : '' }}
+              {{ validationResult.errors.length }} Error{{
+                validationResult.errors.length > 1 ? 's' : ''
+              }}
             </span>
             <span v-else>
-              {{ validationResult.warnings.length }} Warning{{ validationResult.warnings.length > 1 ? 's' : '' }}
+              {{ validationResult.warnings.length }} Warning{{
+                validationResult.warnings.length > 1 ? 's' : ''
+              }}
             </span>
           </button>
         </div>
@@ -317,20 +359,23 @@ const triggerNewProject = () => {
 
       <!-- WORKSPACE -->
       <div class="flex-1 flex flex-col min-h-0">
-        
         <!-- EMPTY STATE (When no projects) -->
-        <div v-if="!hasProjects" class="flex-1 flex items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100">
+        <div
+          v-if="!hasProjects"
+          class="flex-1 flex items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100"
+        >
           <div class="text-center max-w-md px-8">
-            <div class="w-32 h-32 rounded-full bg-zinc-200 flex items-center justify-center mx-auto mb-6">
+            <div
+              class="w-32 h-32 rounded-full bg-zinc-200 flex items-center justify-center mx-auto mb-6"
+            >
               <FolderOpen class="w-16 h-16 text-zinc-400" />
             </div>
 
-            <h2 class="text-2xl font-bold text-zinc-900 mb-3">
-              Willkommen! 👋
-            </h2>
+            <h2 class="text-2xl font-bold text-zinc-900 mb-3">Willkommen! 👋</h2>
 
             <p class="text-zinc-600 mb-6 leading-relaxed">
-              Du hast noch keine Automaten erstellt. Erstelle deinen ersten Automaten, um mit der Arbeit zu beginnen.
+              Du hast noch keine Automaten erstellt. Erstelle deinen ersten Automaten, um mit der
+              Arbeit zu beginnen.
             </p>
 
             <button
@@ -359,16 +404,21 @@ const triggerNewProject = () => {
 
           <!-- CANVAS + RIGHT PANEL ROW -->
           <div class="flex-1 flex min-h-0 overflow-hidden relative">
-            
             <!-- CANVAS with Simulation State -->
-            <EditorCanvas 
+            <EditorCanvas
               class="flex-1 min-w-0"
-              :current-simulation-state="typeof currentStep?.currentState === 'string' ? currentStep.currentState : (typeof currentStep?.currentState === 'object' ? currentStep.currentState?.[0] : currentStep?.currentState)"
+              :current-simulation-state="
+                typeof currentStep?.currentState === 'string'
+                  ? currentStep.currentState
+                  : typeof currentStep?.currentState === 'object'
+                    ? currentStep.currentState?.[0]
+                    : currentStep?.currentState
+              "
               :is-simulating="isSimulating"
             />
 
             <!-- TEST PANEL (Hidden during simulation) -->
-            <TestPanel 
+            <TestPanel
               v-show="!isSimulating"
               v-model:selected="selectedTestCase"
               v-model:visible="rightPanelOpen"
@@ -382,23 +432,26 @@ const triggerNewProject = () => {
               :current-step-index="currentStepIndex"
               :automaton-type="currentProject.type"
             />
-
           </div>
 
           <!-- BOTTOM BAR -->
-          <div class="h-16 bg-white border-t border-zinc-200 flex items-center px-6 gap-4 shadow-lg flex-shrink-0 relative z-50">
-            
+          <div
+            class="h-16 bg-white border-t border-zinc-200 flex items-center px-6 gap-4 shadow-lg flex-shrink-0 relative z-50"
+          >
             <div class="flex items-center gap-2">
-              <button 
+              <button
                 @click="startSimulation"
                 :disabled="!canStartSimulation"
                 class="p-3 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed relative group"
                 :class="canStartSimulation ? 'hover:bg-zinc-100' : ''"
                 title="Start (F5)"
               >
-                <Play class="w-5 h-5 text-green-600" :class="{'fill-green-600': canStartSimulation}" />
-                
-                <div 
+                <Play
+                  class="w-5 h-5 text-green-600"
+                  :class="{ 'fill-green-600': canStartSimulation }"
+                />
+
+                <div
                   v-if="hasValidationErrors && !isSimulating && selectedTestCase"
                   class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
                 >
@@ -406,7 +459,7 @@ const triggerNewProject = () => {
                 </div>
               </button>
 
-              <button 
+              <button
                 @click="stepSimulation"
                 :disabled="!isSimulating"
                 class="p-3 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed relative group"
@@ -414,8 +467,8 @@ const triggerNewProject = () => {
                 :title="isAtEnd ? 'Step to close (F10)' : 'Step (F10)'"
               >
                 <StepForward class="w-5 h-5 text-blue-600" />
-                
-                <div 
+
+                <div
                   v-if="isAtEnd && isSimulating"
                   class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
                 >
@@ -423,36 +476,41 @@ const triggerNewProject = () => {
                 </div>
               </button>
 
-              <button 
+              <button
                 @click="stopSimulation"
                 :disabled="!isSimulating"
                 class="p-3 rounded-lg hover:bg-zinc-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 title="Stop (Shift+F5)"
               >
-                <Square class="w-4 h-4 text-red-600" :class="{'fill-red-600': isSimulating}" />
+                <Square class="w-4 h-4 text-red-600" :class="{ 'fill-red-600': isSimulating }" />
               </button>
             </div>
 
             <div class="w-px h-8 bg-zinc-300"></div>
 
-            <button 
+            <button
               @click="runAllTests"
               :disabled="!canRunTests"
               class="px-6 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md relative group"
-              :class="canRunTests 
-                ? 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-lg' 
-                : 'bg-zinc-300 text-zinc-500 cursor-not-allowed'"
+              :class="
+                canRunTests
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-lg'
+                  : 'bg-zinc-300 text-zinc-500 cursor-not-allowed'
+              "
             >
               Run All Tests
-              
-              <div 
+
+              <div
                 v-if="hasValidationErrors"
                 class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
               >
-                Fix {{ validationResult.errors.length }} error{{ validationResult.errors.length > 1 ? 's' : '' }} first!
+                Fix {{ validationResult.errors.length }} error{{
+                  validationResult.errors.length > 1 ? 's' : ''
+                }}
+                first!
               </div>
-              
-              <div 
+
+              <div
                 v-else-if="currentTestCases.length === 0"
                 class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-zinc-600 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
               >
@@ -462,11 +520,16 @@ const triggerNewProject = () => {
 
             <!-- Test Summary Badge -->
             <div v-if="testSummary" class="flex items-center gap-2">
-              <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 text-green-700 text-xs font-bold">
+              <div
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 text-green-700 text-xs font-bold"
+              >
                 <Check class="w-3 h-3" />
                 {{ testSummary.passed }}
               </div>
-              <div v-if="testSummary.failed > 0" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-red-700 text-xs font-bold">
+              <div
+                v-if="testSummary.failed > 0"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-red-700 text-xs font-bold"
+              >
                 <X class="w-3 h-3" />
                 {{ testSummary.failed }}
               </div>
@@ -477,47 +540,62 @@ const triggerNewProject = () => {
               <div class="flex flex-col gap-1">
                 <div class="flex items-center gap-2">
                   <span class="text-xs text-zinc-500">Consumed:</span>
-                  <code class="text-sm font-mono font-bold text-green-600">{{ currentStep.consumedInput || 'ε' }}</code>
+                  <code class="text-sm font-mono font-bold text-green-600">{{
+                    currentStep.consumedInput || 'ε'
+                  }}</code>
                 </div>
                 <div class="flex items-center gap-2">
                   <span class="text-xs text-zinc-500">Remaining:</span>
-                  <code class="text-sm font-mono font-bold text-blue-600">{{ currentStep.remainingInput || 'ε' }}</code>
+                  <code class="text-sm font-mono font-bold text-blue-600">{{
+                    currentStep.remainingInput || 'ε'
+                  }}</code>
                 </div>
               </div>
-              
+
               <div class="flex items-center gap-3 text-zinc-600 text-sm font-medium">
                 <Clock class="w-5 h-5 animate-pulse text-blue-600" />
-                <span class="font-semibold">Step {{ currentStepIndex + 1 }}/{{ currentSimulation?.steps.length || 0 }}</span>
+                <span class="font-semibold"
+                  >Step {{ currentStepIndex + 1 }}/{{ currentSimulation?.steps.length || 0 }}</span
+                >
               </div>
 
               <!-- Current State Badge -->
-              <div class="px-4 py-2 rounded-full bg-green-100 border-2 border-green-500 text-green-900 text-sm font-bold">
-                {{ Array.isArray(currentStep.currentState) ? '{' + currentStep.currentState.join(', ') + '}' : currentStep.currentState }}
+              <div
+                class="px-4 py-2 rounded-full bg-green-100 border-2 border-green-500 text-green-900 text-sm font-bold"
+              >
+                {{
+                  Array.isArray(currentStep.currentState)
+                    ? '{' + currentStep.currentState.join(', ') + '}'
+                    : currentStep.currentState
+                }}
               </div>
 
               <!-- Accepting State Indicator -->
-              <div v-if="currentStep.isStuck && isAtEnd" 
-                   class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-600 text-white text-xs font-bold animate-pulse">
+              <div
+                v-if="currentStep.isStuck && isAtEnd"
+                class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-600 text-white text-xs font-bold animate-pulse"
+              >
                 <X class="w-4 h-4" />
                 STUCK
               </div>
-              <div v-else-if="currentStep.isAccepting && isAtEnd" 
-                   class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-600 text-white text-xs font-bold animate-pulse">
+              <div
+                v-else-if="currentStep.isAccepting && isAtEnd"
+                class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-600 text-white text-xs font-bold animate-pulse"
+              >
                 <Check class="w-4 h-4" />
                 ACCEPTED
               </div>
-              <div v-else-if="!currentStep.isAccepting && isAtEnd" 
-                   class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-600 text-white text-xs font-bold animate-pulse">
+              <div
+                v-else-if="!currentStep.isAccepting && isAtEnd"
+                class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-600 text-white text-xs font-bold animate-pulse"
+              >
                 <X class="w-4 h-4" />
                 REJECTED
               </div>
             </div>
-            
           </div>
         </template>
-
       </div>
-
     </main>
 
     <!-- ERROR TOAST -->
@@ -529,16 +607,21 @@ const triggerNewProject = () => {
       leave-from-class="opacity-100 translate-y-0"
       leave-to-class="opacity-0 translate-y-4"
     >
-      <div 
+      <div
         v-if="showErrorToast"
         class="fixed bottom-24 left-1/2 -translate-x-1/2 z-[110] bg-red-600 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 border-2 border-red-400"
       >
         <ShieldAlert class="w-6 h-6 animate-pulse" />
         <div>
           <p class="font-bold text-sm">Cannot Run Tests!</p>
-          <p class="text-xs opacity-90">Fix {{ validationResult.errors.length }} validation error{{ validationResult.errors.length > 1 ? 's' : '' }} first.</p>
+          <p class="text-xs opacity-90">
+            Fix {{ validationResult.errors.length }} validation error{{
+              validationResult.errors.length > 1 ? 's' : ''
+            }}
+            first.
+          </p>
         </div>
-        <button 
+        <button
           @click="toggleValidationModal"
           class="ml-2 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-semibold transition-colors"
         >
@@ -556,51 +639,72 @@ const triggerNewProject = () => {
       leave-from-class="opacity-100 scale-100"
       leave-to-class="opacity-0 scale-95"
     >
-      <div 
+      <div
         v-if="showValidationModal && hasProjects"
         class="fixed inset-0 z-[100] flex items-center justify-center p-4"
         @click.self="closeValidationModal"
       >
-        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="closeValidationModal"></div>
-        
-        <div class="relative w-full max-w-2xl bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden">
-          
-          <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-zinc-50">
+        <div
+          class="absolute inset-0 bg-black/40 backdrop-blur-sm"
+          @click="closeValidationModal"
+        ></div>
+
+        <div
+          class="relative w-full max-w-2xl bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden"
+        >
+          <div
+            class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-zinc-50"
+          >
             <div class="flex items-center gap-3">
               <Check v-if="validationStatus === 'valid'" class="w-6 h-6 text-green-600" />
               <X v-else-if="validationStatus === 'error'" class="w-6 h-6 text-red-600" />
               <AlertTriangle v-else class="w-6 h-6 text-yellow-600" />
               <h2 class="text-base font-bold text-zinc-900">Validierung</h2>
             </div>
-            <button 
+            <button
               @click="closeValidationModal"
               class="p-2 rounded-lg hover:bg-zinc-200 transition-colors"
             >
-              <svg class="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              <svg
+                class="w-5 h-5 text-zinc-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
 
           <div class="max-h-[60vh] overflow-y-auto">
-            
-            <div v-if="validationResult.errors.length > 0" class="p-6 border-b border-zinc-200 bg-red-50">
+            <div
+              v-if="validationResult.errors.length > 0"
+              class="p-6 border-b border-zinc-200 bg-red-50"
+            >
               <div class="flex items-center gap-2 mb-4">
                 <X class="w-5 h-5 text-red-600" />
                 <h3 class="text-sm font-bold text-red-900">
                   {{ validationResult.errors.length }} Fehler
                 </h3>
               </div>
-              
+
               <div class="space-y-3">
-                <div 
-                  v-for="(error, idx) in validationResult.errors" 
+                <div
+                  v-for="(error, idx) in validationResult.errors"
                   :key="idx"
                   class="p-4 bg-white rounded-lg border border-red-200 shadow-sm"
                 >
-                  <p class="text-sm font-medium text-red-900 leading-relaxed">{{ error.message }}</p>
+                  <p class="text-sm font-medium text-red-900 leading-relaxed">
+                    {{ error.message }}
+                  </p>
                   <p v-if="error.affectedElements.length > 0" class="text-xs text-red-700 mt-2">
-                    <span class="font-semibold">Betroffen:</span> {{ error.affectedElements.length }} Element(e)
+                    <span class="font-semibold">Betroffen:</span>
+                    {{ error.affectedElements.length }} Element(e)
                   </p>
                 </div>
               </div>
@@ -610,43 +714,49 @@ const triggerNewProject = () => {
               <div class="flex items-center gap-2 mb-4">
                 <AlertTriangle class="w-5 h-5 text-yellow-600" />
                 <h3 class="text-sm font-bold text-yellow-900">
-                  {{ validationResult.warnings.length }} Warnung{{ validationResult.warnings.length > 1 ? 'en' : '' }}
+                  {{ validationResult.warnings.length }} Warnung{{
+                    validationResult.warnings.length > 1 ? 'en' : ''
+                  }}
                 </h3>
               </div>
-              
+
               <div class="space-y-3">
-                <div 
-                  v-for="(warning, idx) in validationResult.warnings" 
+                <div
+                  v-for="(warning, idx) in validationResult.warnings"
                   :key="idx"
                   class="p-4 bg-white rounded-lg border border-yellow-200 shadow-sm"
                 >
-                  <p class="text-sm font-medium text-yellow-900 leading-relaxed">{{ warning.message }}</p>
+                  <p class="text-sm font-medium text-yellow-900 leading-relaxed">
+                    {{ warning.message }}
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div v-if="validationResult.errors.length === 0 && validationResult.warnings.length === 0" class="p-8 text-center">
-              <div class="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+            <div
+              v-if="validationResult.errors.length === 0 && validationResult.warnings.length === 0"
+              class="p-8 text-center"
+            >
+              <div
+                class="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4"
+              >
                 <Check class="w-10 h-10 text-green-600" />
               </div>
               <h3 class="text-lg font-bold text-zinc-900 mb-2">Perfekt!</h3>
               <p class="text-sm text-zinc-600">Keine Fehler oder Warnungen gefunden.</p>
             </div>
-
           </div>
 
           <div class="px-6 py-4 border-t border-zinc-200 bg-zinc-50 flex justify-end">
-            <button 
+            <button
               @click="closeValidationModal"
               class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
             >
               Schließen
             </button>
           </div>
-
         </div>
       </div>
     </Transition>
-    
   </div>
 </template>

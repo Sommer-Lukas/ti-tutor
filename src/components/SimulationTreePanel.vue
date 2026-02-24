@@ -28,26 +28,23 @@ const setStepRef = (el: unknown, idx: number) => {
 }
 
 // Watch currentStepIndex and auto-scroll
-watch(() => props.currentStepIndex, async (newIndex) => {
-  await nextTick()
-  
-  const targetElement = stepRefs.value[newIndex]
-  if (targetElement && scrollContainer.value) {
-    // Smooth scroll to current step
-    targetElement.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center',
-      inline: 'nearest'
-    })
-  }
-}, { immediate: true })
+watch(
+  () => props.currentStepIndex,
+  async (newIndex) => {
+    await nextTick()
 
-// Helper: Format stack for display (bottom to top) - TODO: Use in template if needed
-const _formatStack = (stack: string[] | undefined): string => {
-  if (!stack || stack.length === 0) return '∅ (leer)'
-  // Show from bottom to top (reverse for display)
-  return stack.join(' ')
-}
+    const targetElement = stepRefs.value[newIndex]
+    if (targetElement && scrollContainer.value) {
+      // Smooth scroll to current step
+      targetElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'nearest',
+      })
+    }
+  },
+  { immediate: true },
+)
 
 // Helper: Get stack top - TODO: Use in template if needed
 const _getStackTop = (stack: string[] | undefined): string => {
@@ -62,7 +59,10 @@ const displaySymbol = (symbol: string): string => {
 
 // Helper: Get tape window (centered on head position, padded with #)
 // Shows 11 cells with head in center (5 left, 1 center, 5 right)
-const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined): { cells: string[]; offsetStart: number } => {
+const getTapeWindow = (
+  tape: string[] | undefined,
+  headPos: number | undefined,
+): { cells: string[]; offsetStart: number } => {
   if (!tape || tape.length === 0) {
     return { cells: Array(11).fill('#'), offsetStart: 0 }
   }
@@ -93,7 +93,7 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
   const cells: string[] = [
     ...Array(paddingLeft).fill('#'),
     ...tape.slice(startPos, endPos),
-    ...Array(paddingRight).fill('#')
+    ...Array(paddingRight).fill('#'),
   ]
 
   return { cells, offsetStart: startPos - paddingLeft }
@@ -101,9 +101,9 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
 </script>
 
 <template>
-  <aside 
+  <aside
     class="border-l bg-gradient-to-br from-zinc-50 to-zinc-100 flex flex-col overflow-hidden shadow-xl"
-    :class="(isPDA || isTM) ? 'w-[600px]' : 'w-[400px]'"
+    :class="isPDA || isTM ? 'w-[600px]' : 'w-[400px]'"
   >
     <!-- HEADER -->
     <div class="px-6 py-4 border-b border-zinc-200 bg-white">
@@ -112,19 +112,25 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
           <GitBranch class="w-5 h-5 text-blue-600" />
         </div>
         <h2 class="text-base font-bold text-zinc-900">Simulation Tree</h2>
-        
+
         <!-- PDA Badge -->
-        <div v-if="isPDA" class="px-2 py-1 rounded-full bg-purple-100 border border-purple-300 flex items-center gap-1">
+        <div
+          v-if="isPDA"
+          class="px-2 py-1 rounded-full bg-purple-100 border border-purple-300 flex items-center gap-1"
+        >
           <Layers class="w-3 h-3 text-purple-700" />
           <span class="text-[10px] font-bold text-purple-900 uppercase tracking-wide">PDA</span>
         </div>
-        
+
         <!-- TM Badge -->
-        <div v-if="isTM" class="px-2 py-1 rounded-full bg-amber-100 border border-amber-300 flex items-center gap-1">
+        <div
+          v-if="isTM"
+          class="px-2 py-1 rounded-full bg-amber-100 border border-amber-300 flex items-center gap-1"
+        >
           <span class="text-[10px] font-bold text-amber-900 uppercase tracking-wide">🎯 TM</span>
         </div>
       </div>
-      
+
       <div class="flex items-center gap-2 text-xs">
         <span class="text-zinc-500">Input:</span>
         <code class="px-2 py-1 bg-zinc-100 rounded font-mono font-bold text-zinc-900">
@@ -135,7 +141,6 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
 
     <!-- TREE CONTENT (Scrollable) -->
     <div ref="scrollContainer" class="flex-1 overflow-y-auto p-6 space-y-3">
-      
       <!-- STEP CARDS -->
       <div
         v-for="(step, idx) in steps"
@@ -144,22 +149,24 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
         class="relative"
       >
         <!-- Card -->
-        <div 
+        <div
           class="rounded-xl border-2 transition-all duration-300"
-          :class="idx === currentStepIndex 
-            ? 'bg-blue-50 border-blue-500 shadow-lg scale-105' 
-            : idx < currentStepIndex
-              ? 'bg-white border-zinc-200 opacity-60'
-              : 'bg-white border-zinc-200 opacity-40'"
+          :class="
+            idx === currentStepIndex
+              ? 'bg-blue-50 border-blue-500 shadow-lg scale-105'
+              : idx < currentStepIndex
+                ? 'bg-white border-zinc-200 opacity-60'
+                : 'bg-white border-zinc-200 opacity-40'
+          "
         >
           <!-- Card Header -->
           <div class="px-4 py-3 border-b border-zinc-200 flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <div 
+              <div
                 class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                :class="idx === currentStepIndex 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-zinc-200 text-zinc-600'"
+                :class="
+                  idx === currentStepIndex ? 'bg-blue-600 text-white' : 'bg-zinc-200 text-zinc-600'
+                "
               >
                 {{ idx }}
               </div>
@@ -169,7 +176,7 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
             </div>
 
             <!-- Status Badge -->
-            <div 
+            <div
               v-if="idx === currentStepIndex"
               class="px-2 py-1 rounded-full bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wide"
             >
@@ -179,16 +186,16 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
 
           <!-- Card Body -->
           <div class="px-4 py-3 space-y-2">
-            
             <!-- PDA: Two-Column Layout (State + Stack) -->
             <div v-if="isPDA" class="grid grid-cols-2 gap-3">
-              
               <!-- Left: State Info -->
               <div class="space-y-2">
                 <!-- State -->
                 <div class="flex items-start gap-2">
                   <span class="text-xs text-zinc-500 font-semibold">State:</span>
-                  <span class="px-2 py-1 rounded-md bg-green-100 text-green-900 text-xs font-mono font-bold border border-green-300">
+                  <span
+                    class="px-2 py-1 rounded-md bg-green-100 text-green-900 text-xs font-mono font-bold border border-green-300"
+                  >
                     {{ step.currentState }}
                   </span>
                 </div>
@@ -202,15 +209,21 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
                     <div class="text-[10px] space-y-0.5">
                       <div class="flex items-center gap-1">
                         <span class="text-zinc-500">Read:</span>
-                        <code class="font-mono font-bold text-purple-900">{{ step.transition.pdaInput }}</code>
+                        <code class="font-mono font-bold text-purple-900">{{
+                          step.transition.pdaInput
+                        }}</code>
                       </div>
                       <div class="flex items-center gap-1">
                         <span class="text-zinc-500">Pop:</span>
-                        <code class="font-mono font-bold text-purple-900">{{ step.transition.pdaStackTop }}</code>
+                        <code class="font-mono font-bold text-purple-900">{{
+                          step.transition.pdaStackTop
+                        }}</code>
                       </div>
                       <div class="flex items-center gap-1">
                         <span class="text-zinc-500">Push:</span>
-                        <code class="font-mono font-bold text-purple-900">{{ step.transition.pdaStackPush }}</code>
+                        <code class="font-mono font-bold text-purple-900">{{
+                          step.transition.pdaStackPush
+                        }}</code>
                       </div>
                     </div>
                   </div>
@@ -224,7 +237,7 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
                   <span class="text-xs text-purple-700 font-bold">Stack</span>
                   <span class="text-[10px] text-purple-500">(Top → Bottom)</span>
                 </div>
-                
+
                 <!-- Stack Display -->
                 <div class="bg-purple-50 rounded-lg border-2 border-purple-300 p-2 min-h-[80px]">
                   <div v-if="step.stack && step.stack.length > 0" class="space-y-1">
@@ -236,7 +249,9 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
                       :class="stackIdx === 0 ? 'bg-purple-300 ring-2 ring-purple-500' : ''"
                     >
                       {{ symbol }}
-                      <span v-if="stackIdx === 0" class="text-[9px] text-purple-700 ml-1">← TOP</span>
+                      <span v-if="stackIdx === 0" class="text-[9px] text-purple-700 ml-1"
+                        >← TOP</span
+                      >
                     </div>
                   </div>
                   <div v-else class="text-center text-zinc-400 text-xs font-semibold py-4">
@@ -244,18 +259,18 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
                   </div>
                 </div>
               </div>
-
             </div>
 
             <!-- TM: Two-Column Layout (State + Tape) -->
             <div v-if="isTM" class="grid grid-cols-2 gap-3">
-              
               <!-- Left: State Info -->
               <div class="space-y-2">
                 <!-- State -->
                 <div class="flex items-start gap-2">
                   <span class="text-xs text-zinc-500 font-semibold">State:</span>
-                  <span class="px-2 py-1 rounded-md bg-green-100 text-green-900 text-xs font-mono font-bold border border-green-300">
+                  <span
+                    class="px-2 py-1 rounded-md bg-green-100 text-green-900 text-xs font-mono font-bold border border-green-300"
+                  >
                     {{ step.currentState }}
                   </span>
                 </div>
@@ -269,15 +284,24 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
                     <div class="text-[10px] space-y-0.5">
                       <div class="flex items-center gap-1">
                         <span class="text-zinc-500">Read:</span>
-                        <code class="font-mono font-bold text-amber-900">{{ displaySymbol(step.transition.symbol) }}</code>
+                        <code class="font-mono font-bold text-amber-900">{{
+                          displaySymbol(step.transition.symbol)
+                        }}</code>
                       </div>
-                      <div v-if="step.transition.tmWrite !== undefined" class="flex items-center gap-1">
+                      <div
+                        v-if="step.transition.tmWrite !== undefined"
+                        class="flex items-center gap-1"
+                      >
                         <span class="text-zinc-500">Write:</span>
-                        <code class="font-mono font-bold text-amber-900">{{ displaySymbol(step.transition.tmWrite || '') }}</code>
+                        <code class="font-mono font-bold text-amber-900">{{
+                          displaySymbol(step.transition.tmWrite || '')
+                        }}</code>
                       </div>
                       <div v-if="step.transition.tmMove" class="flex items-center gap-1">
                         <span class="text-zinc-500">Move:</span>
-                        <code class="font-mono font-bold text-amber-900">{{ step.transition.tmMove }}</code>
+                        <code class="font-mono font-bold text-amber-900">{{
+                          step.transition.tmMove
+                        }}</code>
                       </div>
                     </div>
                   </div>
@@ -288,9 +312,11 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
               <div class="space-y-1">
                 <div class="flex items-center gap-1.5 mb-1">
                   <span class="text-xs text-amber-700 font-bold">📊 Tape</span>
-                  <span class="text-[10px] text-amber-500">(Head @ {{ step.headPosition ?? 0 }})</span>
+                  <span class="text-[10px] text-amber-500"
+                    >(Head @ {{ step.headPosition ?? 0 }})</span
+                  >
                 </div>
-                
+
                 <!-- Tape Display (Window view with padding) -->
                 <div class="bg-amber-50 rounded-lg border-2 border-amber-300 p-2 overflow-x-auto">
                   <div class="flex gap-1 min-w-min">
@@ -300,9 +326,10 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
                       :key="cellIdx"
                       class="w-8 h-8 flex items-center justify-center font-mono font-bold text-sm rounded border-2"
                       :class="{
-                        'bg-amber-400 border-amber-600 text-amber-900 ring-2 ring-amber-600': cellIdx === 5, // Center = head position
+                        'bg-amber-400 border-amber-600 text-amber-900 ring-2 ring-amber-600':
+                          cellIdx === 5, // Center = head position
                         'bg-blue-100 border-blue-300 text-blue-600': cell === '#' && cellIdx !== 5,
-                        'bg-white border-amber-200 text-zinc-900': cell !== '#' && cellIdx !== 5
+                        'bg-white border-amber-200 text-zinc-900': cell !== '#' && cellIdx !== 5,
                       }"
                     >
                       {{ displaySymbol(cell) }}
@@ -310,14 +337,15 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
                   </div>
                 </div>
               </div>
-
             </div>
 
             <!-- NON-PDA/TM: Original Layout -->
             <template v-else>
               <!-- State(s) -->
               <div class="flex items-start gap-2">
-                <span class="text-xs text-zinc-500 font-semibold min-w-[70px]">State{{ isNFA && Array.isArray(step.currentState) ? 's' : '' }}:</span>
+                <span class="text-xs text-zinc-500 font-semibold min-w-[70px]"
+                  >State{{ isNFA && Array.isArray(step.currentState) ? 's' : '' }}:</span
+                >
                 <div class="flex flex-wrap gap-1.5">
                   <template v-if="Array.isArray(step.currentState)">
                     <span
@@ -329,7 +357,9 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
                     </span>
                   </template>
                   <template v-else>
-                    <span class="px-2 py-1 rounded-md bg-green-100 text-green-900 text-xs font-mono font-bold border border-green-300">
+                    <span
+                      class="px-2 py-1 rounded-md bg-green-100 text-green-900 text-xs font-mono font-bold border border-green-300"
+                    >
                       {{ step.currentState }}
                     </span>
                   </template>
@@ -337,13 +367,20 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
               </div>
 
               <!-- Transition (if exists) -->
-              <div v-if="step.transition" class="flex items-center gap-2 pl-2 border-l-2 border-blue-300">
+              <div
+                v-if="step.transition"
+                class="flex items-center gap-2 pl-2 border-l-2 border-blue-300"
+              >
                 <span class="text-xs text-zinc-500 font-semibold min-w-[60px]">Read:</span>
-                <code class="px-2 py-1 bg-blue-100 rounded text-blue-900 text-xs font-mono font-bold">
+                <code
+                  class="px-2 py-1 bg-blue-100 rounded text-blue-900 text-xs font-mono font-bold"
+                >
                   {{ step.transition.symbol }}
                 </code>
                 <ArrowRight class="w-3 h-3 text-zinc-400" />
-                <span class="px-2 py-1 rounded-md bg-green-100 text-green-900 text-xs font-mono font-bold">
+                <span
+                  class="px-2 py-1 rounded-md bg-green-100 text-green-900 text-xs font-mono font-bold"
+                >
                   {{ step.transition.to }}
                 </span>
               </div>
@@ -366,7 +403,10 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
             </div>
 
             <!-- Epsilon Closure (for NFA) -->
-            <div v-if="isNFA && step.epsilonClosure && step.epsilonClosure.length > 0" class="flex items-start gap-2 text-[11px] pt-1">
+            <div
+              v-if="isNFA && step.epsilonClosure && step.epsilonClosure.length > 0"
+              class="flex items-start gap-2 text-[11px] pt-1"
+            >
               <span class="text-zinc-500 font-semibold min-w-[70px]">ε-Closure:</span>
               <div class="flex flex-wrap gap-1">
                 <span
@@ -380,40 +420,43 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
             </div>
 
             <!-- Stuck Indicator -->
-            <div v-if="step.isStuck" class="flex items-center gap-2 px-2 py-1.5 bg-orange-50 rounded-lg border border-orange-300">
+            <div
+              v-if="step.isStuck"
+              class="flex items-center gap-2 px-2 py-1.5 bg-orange-50 rounded-lg border border-orange-300"
+            >
               <AlertCircle class="w-4 h-4 text-orange-600" />
               <span class="text-xs font-bold text-orange-900">Stuck - No transitions!</span>
             </div>
 
             <!-- Accepting Badge -->
-            <div v-if="step.isAccepting && !step.isStuck" class="flex items-center gap-2 px-2 py-1.5 bg-green-50 rounded-lg border border-green-300">
+            <div
+              v-if="step.isAccepting && !step.isStuck"
+              class="flex items-center gap-2 px-2 py-1.5 bg-green-50 rounded-lg border border-green-300"
+            >
               <Check class="w-4 h-4 text-green-600" />
               <span class="text-xs font-bold text-green-900">Accepting State</span>
             </div>
-
           </div>
         </div>
 
         <!-- Connector Line -->
-        <div 
-          v-if="idx < steps.length - 1"
-          class="flex justify-center py-2"
-        >
-          <div 
+        <div v-if="idx < steps.length - 1" class="flex justify-center py-2">
+          <div
             class="w-0.5 h-6 rounded-full"
             :class="idx < currentStepIndex ? 'bg-blue-400' : 'bg-zinc-300'"
           ></div>
         </div>
       </div>
-
     </div>
 
     <!-- FOOTER (Final Result) -->
     <div class="px-6 py-4 border-t border-zinc-200 bg-white">
-      
       <!-- PDA: Final Stack Info -->
       <!-- PDA: Final Stack Info -->
-      <div v-if="isPDA && simulation.finalStack" class="mb-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+      <div
+        v-if="isPDA && simulation.finalStack"
+        class="mb-3 p-3 bg-purple-50 rounded-lg border border-purple-200"
+      >
         <div class="flex items-center gap-2 mb-2">
           <Layers class="w-4 h-4 text-purple-600" />
           <span class="text-xs font-bold text-purple-900">Final Stack:</span>
@@ -428,12 +471,17 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
               {{ symbol }}
             </span>
           </template>
-          <span v-else class="text-xs text-purple-600 font-semibold">∅ (leer) - Accepted by empty stack!</span>
+          <span v-else class="text-xs text-purple-600 font-semibold"
+            >∅ (leer) - Accepted by empty stack!</span
+          >
         </div>
       </div>
-      
+
       <!-- TM: Final Tape Info -->
-      <div v-if="isTM && simulation.finalTape" class="mb-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+      <div
+        v-if="isTM && simulation.finalTape"
+        class="mb-3 p-3 bg-amber-50 rounded-lg border border-amber-200"
+      >
         <div class="flex items-center gap-2 mb-2">
           <span class="text-xs font-bold text-amber-900">📝 Final Tape:</span>
         </div>
@@ -442,26 +490,30 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
             v-for="(cell, idx) in simulation.finalTape"
             :key="idx"
             class="w-7 h-7 flex items-center justify-center font-mono font-bold text-[11px] rounded border"
-            :class="cell === '□'
-              ? 'bg-blue-100 border-blue-300 text-blue-600'
-              : 'bg-white border-amber-400 text-zinc-900'"
+            :class="
+              cell === '□'
+                ? 'bg-blue-100 border-blue-300 text-blue-600'
+                : 'bg-white border-amber-400 text-zinc-900'
+            "
           >
             {{ displaySymbol(cell) }}
           </div>
         </div>
         <div class="text-xs text-amber-700 font-mono mt-2 break-all">
-          {{ simulation.finalTape.map(c => displaySymbol(c)).join('') }}
+          {{ simulation.finalTape.map((c) => displaySymbol(c)).join('') }}
         </div>
       </div>
 
       <!-- Result Badge -->
-      <div 
+      <div
         class="p-4 rounded-xl flex items-center gap-3"
-        :class="simulation.accepted 
-          ? 'bg-green-50 border-2 border-green-500' 
-          : 'bg-red-50 border-2 border-red-500'"
+        :class="
+          simulation.accepted
+            ? 'bg-green-50 border-2 border-green-500'
+            : 'bg-red-50 border-2 border-red-500'
+        "
       >
-        <div 
+        <div
           class="w-10 h-10 rounded-full flex items-center justify-center"
           :class="simulation.accepted ? 'bg-green-600' : 'bg-red-600'"
         >
@@ -469,22 +521,18 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
           <X v-else class="w-6 h-6 text-white" />
         </div>
         <div>
-          <p 
+          <p
             class="text-sm font-bold"
             :class="simulation.accepted ? 'text-green-900' : 'text-red-900'"
           >
             {{ simulation.accepted ? 'ACCEPTED ✓' : 'REJECTED ✗' }}
           </p>
-          <p 
-            class="text-xs"
-            :class="simulation.accepted ? 'text-green-700' : 'text-red-700'"
-          >
+          <p class="text-xs" :class="simulation.accepted ? 'text-green-700' : 'text-red-700'">
             {{ simulation.error || 'Input successfully processed' }}
           </p>
         </div>
       </div>
     </div>
-
   </aside>
 </template>
 

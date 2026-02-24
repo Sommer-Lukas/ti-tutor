@@ -3,6 +3,7 @@
 ## 📋 Übersicht
 
 Diese CI/CD Pipeline automatisiert:
+
 - ✅ **Unit Tests** mit Vitest
 - ✅ **Type Checking** mit Vue TSC
 - ✅ **Linting** mit ESLint und Oxlint
@@ -24,13 +25,16 @@ Diese CI/CD Pipeline automatisiert:
 ## 🚀 Wie es funktioniert
 
 ### Trigger Events
+
 Die Pipeline wird automatisch ausgelöst bei:
+
 - **Push** auf `main` oder `develop` Branches
 - **Pull Requests** gegen `main` oder `develop` Branches
 
 ### Jobs
 
 #### 1. **tests** (Tests & Quality Checks)
+
 - Testet auf Node.js 18.x und 20.x parallel
 - TypeScript Typ-Überprüfung
 - ESLint Linting
@@ -39,10 +43,12 @@ Die Pipeline wird automatisch ausgelöst bei:
 - Artifact Upload
 
 #### 2. **lint-and-format** (Code Quality)
+
 - Oxlint Analyse
 - Prettier Format-Checks
 
 #### 3. **build** (Build & Deploy)
+
 - Läuft nur nach erfolgreichen Tests (`needs: [tests]`)
 - Baut das Projekt
 - Speichert Build-Artifact
@@ -52,6 +58,7 @@ Die Pipeline wird automatisch ausgelöst bei:
 ## ⚙️ Konfiguration
 
 ### Node.js Versionen
+
 ```yaml
 matrix:
   node-version: [18.x, 20.x]
@@ -60,16 +67,19 @@ matrix:
 Ändere die Versionen in `.github/workflows/ci-cd.yml` um andere Node.js Versionen zu testen.
 
 ### Branches
+
 In der `on:` Sektion kannst du die Branches anpassen:
+
 ```yaml
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 ```
 
 ### Artifact Retention
+
 - Test Results: **7 Tage**
 - Build Artifact: **30 Tage**
 
@@ -88,12 +98,14 @@ Füge diesen Badge zu deiner `README.md` hinzu:
 ## 🧪 Test Suite
 
 ### App Component Tests (`App.spec.ts`)
+
 - Rendering Tests
 - Layout Tests
 - Header Tests
 - Navigation Tests
 
 ### Automaton Simulator Tests (`automatonSimulator.spec.ts`)
+
 - DFA Simulation Tests
 - NFA Simulation Tests
 - Error Handling Tests
@@ -168,6 +180,7 @@ npm run build
 ## 🚀 Erste Schritte
 
 1. **Commit und Push:**
+
 ```bash
 git add .github/
 git add src/__tests__/
@@ -188,23 +201,28 @@ git push origin main
 ## 💡 Anpassungen
 
 ### Nur auf main Branch
+
 Wenn du nur PR/Push auf main überprüfen willst:
+
 ```yaml
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 ```
 
 ### Schedules (Optional)
+
 Tägliche Tests um 2 AM:
+
 ```yaml
 schedule:
   - cron: '0 2 * * *'
 ```
 
 ### Deployment
+
 Um automatisch zu deployen nach erfolgreichen Tests, füge einen Job hinzu
 
 ---

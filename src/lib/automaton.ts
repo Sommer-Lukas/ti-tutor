@@ -12,20 +12,20 @@ export interface Transition {
   id: string
   from: string
   to: string
-  symbol: string  // Für NEA: kann "ε" sein, für DEA: muss reguläres Symbol sein
-  
+  symbol: string // Für NEA: kann "ε" sein, für DEA: muss reguläres Symbol sein
+
   // ✅ PDA-specific fields (optional - nur für PDA verwendet)
-  pdaInput?: string        // Input symbol (empty string = epsilon)
-  pdaStackTop?: string     // Stack symbol to pop (empty string = epsilon)
-  pdaStackPush?: string    // Stack symbols to push (empty string = epsilon, can be multiple chars like "AB")
-  
+  pdaInput?: string // Input symbol (empty string = epsilon)
+  pdaStackTop?: string // Stack symbol to pop (empty string = epsilon)
+  pdaStackPush?: string // Stack symbols to push (empty string = epsilon, can be multiple chars like "AB")
+
   // ✅ TM-specific fields
-  tmWrite?: string         // Symbol schreiben (single char) - falls undefined: kein Schreiben
-  tmMove?: 'L' | 'R'      // Kopfbewegung: nur Links oder Rechts, kein N!
+  tmWrite?: string // Symbol schreiben (single char) - falls undefined: kein Schreiben
+  tmMove?: 'L' | 'R' // Kopfbewegung: nur Links oder Rechts, kein N!
 }
 
 // ✅ TM: Blank Symbol Konstante
-export const TM_BLANK = '□'  // Unicode Blank (U+25A1)
+export const TM_BLANK = '□' // Unicode Blank (U+25A1)
 
 // 📝 TM BLANK Symbol Aliases (alle werden zu '□' intern normalisiert, aber als '#' angezeigt):
 //   - '#'      (Hashtag) ← Recommended!
@@ -43,9 +43,9 @@ export function getTransitionLabel(t: Transition, type: AutomatonType): string {
       // Wenn nur Bewegung (kein Schreiben): read/direction
       // Wenn Schreiben: read/write (direction ist separates Feld im Store)
       if (t.tmWrite !== undefined && t.tmWrite !== '') {
-        return `${read}/${t.tmWrite}`      // z.B. "c/d"
+        return `${read}/${t.tmWrite}` // z.B. "c/d"
       }
-      return `${read}/${t.tmMove ?? 'R'}`  // z.B. "c/L", "w/R"
+      return `${read}/${t.tmMove ?? 'R'}` // z.B. "c/L", "w/R"
     }
 
     case 'PDA': {
@@ -74,10 +74,10 @@ export interface AutomatonProject {
     alphabet?: string[]
   }
   pdaConfig?: {
-    startStackSymbol: string  // Default: "$"
+    startStackSymbol: string // Default: "$"
   }
   // ✅ TM Config
   tmConfig?: {
-    blankSymbol: string       // Default: "□"
+    blankSymbol: string // Default: "□"
   }
 }

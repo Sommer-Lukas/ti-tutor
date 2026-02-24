@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { 
-  currentProject, 
-  projects, 
-  validationResult
-} from '../lib/automatonStore'
+import { currentProject, projects, validationResult } from '../lib/automatonStore'
 
 describe('AutomatonStore', () => {
   describe('Project Management', () => {
@@ -28,7 +24,7 @@ describe('AutomatonStore', () => {
 
     it('validation result has expected properties', () => {
       const result = validationResult.value
-      result.errors.forEach(error => {
+      result.errors.forEach((error) => {
         expect(error).toHaveProperty('message')
         expect(error).toHaveProperty('affectedElements')
       })

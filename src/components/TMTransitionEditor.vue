@@ -17,12 +17,16 @@ const tmRead = ref('')
 const action = ref('')
 
 // Beim Öffnen: bestehende Werte laden
-watch(() => props.transition, (t) => {
-  if (t) {
-    tmRead.value = t.symbol || ''
-    action.value = t.tmWrite ?? t.tmMove ?? ''
-  }
-}, { immediate: true })
+watch(
+  () => props.transition,
+  (t) => {
+    if (t) {
+      tmRead.value = t.symbol || ''
+      action.value = t.tmWrite ?? t.tmMove ?? ''
+    }
+  },
+  { immediate: true },
+)
 
 // Immer nur 1 Zeichen erlauben
 const onReadInput = (e: Event) => {
@@ -75,24 +79,28 @@ const handleSave = () => {
       >
         <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="$emit('close')"></div>
 
-        <div class="relative w-full max-w-xs bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden">
-
+        <div
+          class="relative w-full max-w-xs bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden"
+        >
           <!-- Header -->
-          <div class="px-5 py-4 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
+          <div
+            class="px-5 py-4 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between"
+          >
             <h3 class="font-bold text-zinc-900 text-sm flex items-center gap-2">
               <span>⚙️</span> TM Transition
             </h3>
-            <button @click="$emit('close')" class="p-1.5 rounded-lg hover:bg-zinc-200 transition-colors">
+            <button
+              @click="$emit('close')"
+              class="p-1.5 rounded-lg hover:bg-zinc-200 transition-colors"
+            >
               <X class="w-4 h-4 text-zinc-600" />
             </button>
           </div>
 
           <!-- Body -->
           <div class="p-5 space-y-4">
-
             <!-- Zwei Felder nebeneinander: X / Y -->
             <div class="flex items-center gap-3">
-              
               <!-- Read Symbol -->
               <div class="flex-1 space-y-1.5">
                 <label class="text-xs font-bold text-zinc-500 uppercase tracking-wide">Lesen</label>
@@ -110,37 +118,46 @@ const handleSave = () => {
 
               <!-- Action -->
               <div class="flex-1 space-y-1.5">
-                <label class="text-xs font-bold text-zinc-500 uppercase tracking-wide">Aktion</label>
+                <label class="text-xs font-bold text-zinc-500 uppercase tracking-wide"
+                  >Aktion</label
+                >
                 <input
                   :value="action"
                   @input="onActionInput"
                   maxlength="2"
                   placeholder="L, R, b..."
                   class="w-full px-3 py-3 border-2 rounded-lg font-mono text-2xl text-center focus:outline-none transition-colors"
-                  :class="action === 'L' || action === 'R'
-                    ? 'border-blue-400 bg-blue-50 focus:border-blue-500'
-                    : action
-                      ? 'border-orange-400 bg-orange-50 focus:border-orange-500'
-                      : 'border-zinc-300 focus:border-blue-500'"
+                  :class="
+                    action === 'L' || action === 'R'
+                      ? 'border-blue-400 bg-blue-50 focus:border-blue-500'
+                      : action
+                        ? 'border-orange-400 bg-orange-50 focus:border-orange-500'
+                        : 'border-zinc-300 focus:border-blue-500'
+                  "
                 />
               </div>
             </div>
 
             <!-- Hint was die Action bedeutet -->
-            <div v-if="actionHint" class="px-3 py-2 rounded-lg text-xs font-medium"
-              :class="action === 'L' || action === 'R'
-                ? 'bg-blue-50 text-blue-700'
-                : 'bg-orange-50 text-orange-700'"
+            <div
+              v-if="actionHint"
+              class="px-3 py-2 rounded-lg text-xs font-medium"
+              :class="
+                action === 'L' || action === 'R'
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'bg-orange-50 text-orange-700'
+              "
             >
               {{ actionHint }}
             </div>
 
             <!-- Preview -->
             <div class="p-3 bg-zinc-50 rounded-lg border border-zinc-200 text-center">
-              <p class="text-[10px] text-zinc-400 font-semibold mb-1 uppercase tracking-wide">Kantenvorschau</p>
+              <p class="text-[10px] text-zinc-400 font-semibold mb-1 uppercase tracking-wide">
+                Kantenvorschau
+              </p>
               <code class="text-3xl font-mono font-bold text-zinc-900">{{ preview }}</code>
             </div>
-
           </div>
 
           <!-- Footer -->

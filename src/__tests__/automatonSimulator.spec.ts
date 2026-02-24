@@ -4,7 +4,11 @@ import type { State, Transition } from '../lib/automaton'
 
 // Helper: Create a state with required fields
 const makeState = (id: string, isStart: boolean, isFinal: boolean): State => ({
-  id, label: id, isStart, isFinal, position: { x: 0, y: 0 }
+  id,
+  label: id,
+  isStart,
+  isFinal,
+  position: { x: 0, y: 0 },
 })
 
 describe('AutomatonSimulator', () => {
@@ -14,14 +18,11 @@ describe('AutomatonSimulator', () => {
 
     beforeEach(() => {
       // Simple DFA: accepts strings ending with 'a'
-      states = [
-        makeState('q0', true, false),
-        makeState('q1', false, true)
-      ]
+      states = [makeState('q0', true, false), makeState('q1', false, true)]
 
       transitions = [
         { id: '1', from: 'q0', to: 'q1', symbol: 'a' },
-        { id: '2', from: 'q1', to: 'q0', symbol: 'b' }
+        { id: '2', from: 'q1', to: 'q0', symbol: 'b' },
       ]
     })
 
@@ -50,14 +51,11 @@ describe('AutomatonSimulator', () => {
     let transitions: Transition[]
 
     beforeEach(() => {
-      states = [
-        makeState('q0', true, false),
-        makeState('q1', false, true)
-      ]
+      states = [makeState('q0', true, false), makeState('q1', false, true)]
 
       transitions = [
         { id: '1', from: 'q0', to: 'q0', symbol: 'a' },
-        { id: '2', from: 'q0', to: 'q1', symbol: 'a' }
+        { id: '2', from: 'q0', to: 'q1', symbol: 'a' },
       ]
     })
 
@@ -70,7 +68,7 @@ describe('AutomatonSimulator', () => {
     it('handles epsilon transitions', () => {
       const epsilonTransitions: Transition[] = [
         ...transitions,
-        { id: '3', from: 'q0', to: 'q1', symbol: 'ε' }
+        { id: '3', from: 'q0', to: 'q1', symbol: 'ε' },
       ]
       const simulator = new AutomatonSimulator(states, epsilonTransitions, 'NFA')
       const result = simulator.simulate('')
@@ -80,9 +78,7 @@ describe('AutomatonSimulator', () => {
 
   describe('Error Handling', () => {
     it('returns error for missing start state', () => {
-      const states: State[] = [
-        makeState('q0', false, true)
-      ]
+      const states: State[] = [makeState('q0', false, true)]
       const simulator = new AutomatonSimulator(states, [], 'DFA')
       const result = simulator.simulate('a')
       expect(result.accepted).toBe(false)
@@ -90,10 +86,7 @@ describe('AutomatonSimulator', () => {
     })
 
     it('returns error for multiple start states in DFA', () => {
-      const states: State[] = [
-        makeState('q0', true, false),
-        makeState('q1', true, false)
-      ]
+      const states: State[] = [makeState('q0', true, false), makeState('q1', true, false)]
       const simulator = new AutomatonSimulator(states, [], 'DFA')
       const result = simulator.simulate('a')
       expect(result.accepted).toBe(false)
@@ -103,16 +96,14 @@ describe('AutomatonSimulator', () => {
 
   describe('Test Runner', () => {
     it('runs multiple test cases', () => {
-      const states: State[] = [
-        makeState('q0', true, true)
-      ]
+      const states: State[] = [makeState('q0', true, true)]
       const simulator = new AutomatonSimulator(states, [], 'DFA')
-      
+
       const testCases = [
         { input: 'a', expected: true },
-        { input: 'b', expected: false }
+        { input: 'b', expected: false },
       ]
-      
+
       const results = simulator.runTests(testCases)
       expect(results.length).toBe(2)
       expect(results[0]).toHaveProperty('passed')

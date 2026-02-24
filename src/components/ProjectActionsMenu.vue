@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { MoreVertical, Trash2, Copy, Edit, X, Check } from 'lucide-vue-next'
-import { deleteProject, duplicateProject, renameProject, setCurrentProject } from '@/lib/automatonStore'
+import {
+  deleteProject,
+  duplicateProject,
+  renameProject,
+  setCurrentProject,
+} from '@/lib/automatonStore'
 import { openMenu, closeMenu, isMenuOpen } from '@/lib/menuState'
 
 const props = defineProps<{
@@ -54,7 +59,7 @@ const handleRename = () => {
   renameInput.value = props.projectName
   renameError.value = false
   showRenameDialog.value = true
-  
+
   // Focus input after dialog opens
   setTimeout(() => {
     renameInputRef.value?.focus()
@@ -65,19 +70,19 @@ const handleRename = () => {
 const confirmRename = () => {
   // Reset error
   renameError.value = false
-  
+
   // Validate
   if (!renameInput.value.trim()) {
     renameError.value = true
     return
   }
-  
+
   // Check if name is unchanged
   if (renameInput.value.trim() === props.projectName) {
     cancelRename()
     return
   }
-  
+
   // Rename
   renameProject(props.projectId, renameInput.value.trim())
   showRenameDialog.value = false
@@ -182,9 +187,13 @@ onUnmounted(() => {
         <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="cancelRename"></div>
 
         <!-- Dialog -->
-        <div class="relative w-full max-w-md bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden">
+        <div
+          class="relative w-full max-w-md bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden"
+        >
           <!-- Header -->
-          <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <div
+            class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-gradient-to-r from-blue-50 to-indigo-50"
+          >
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
                 <Edit class="w-5 h-5 text-blue-600" />
@@ -201,9 +210,7 @@ onUnmounted(() => {
 
           <!-- Content -->
           <div class="p-6">
-            <label class="block text-sm font-semibold text-zinc-700 mb-2">
-              Neuer Name
-            </label>
+            <label class="block text-sm font-semibold text-zinc-700 mb-2"> Neuer Name </label>
             <div class="relative">
               <input
                 ref="renameInputRef"
@@ -214,11 +221,13 @@ onUnmounted(() => {
                 type="text"
                 placeholder="Projektname eingeben..."
                 class="w-full px-4 py-3 bg-zinc-50 border-2 rounded-lg outline-none transition-all text-sm"
-                :class="renameError 
-                  ? 'border-red-500 bg-red-50 focus:border-red-600 focus:bg-red-50 shake' 
-                  : 'border-zinc-300 focus:border-blue-500 focus:bg-white'"
+                :class="
+                  renameError
+                    ? 'border-red-500 bg-red-50 focus:border-red-600 focus:bg-red-50 shake'
+                    : 'border-zinc-300 focus:border-blue-500 focus:bg-white'
+                "
               />
-              
+
               <!-- Error Icon -->
               <Transition
                 enter-active-class="transition-all duration-200"
@@ -228,15 +237,12 @@ onUnmounted(() => {
                 leave-from-class="opacity-100 scale-100"
                 leave-to-class="opacity-0 scale-0"
               >
-                <div 
-                  v-if="renameError"
-                  class="absolute right-3 top-1/2 -translate-y-1/2"
-                >
+                <div v-if="renameError" class="absolute right-3 top-1/2 -translate-y-1/2">
                   <X class="w-5 h-5 text-red-500" />
                 </div>
               </Transition>
             </div>
-            
+
             <!-- Error Message -->
             <Transition
               enter-active-class="transition-all duration-200 ease-out"
@@ -246,7 +252,7 @@ onUnmounted(() => {
               leave-from-class="opacity-100 translate-y-0"
               leave-to-class="opacity-0 -translate-y-1"
             >
-              <div 
+              <div
                 v-if="renameError"
                 class="flex items-center gap-2 mt-2 text-xs text-red-600 font-medium"
               >
@@ -257,8 +263,16 @@ onUnmounted(() => {
 
             <!-- Hint -->
             <p class="text-xs text-zinc-500 mt-2">
-              <kbd class="px-1.5 py-0.5 bg-zinc-100 rounded text-[10px] font-mono border border-zinc-300">Enter</kbd> zum Speichern, 
-              <kbd class="px-1.5 py-0.5 bg-zinc-100 rounded text-[10px] font-mono border border-zinc-300">Esc</kbd> zum Abbrechen
+              <kbd
+                class="px-1.5 py-0.5 bg-zinc-100 rounded text-[10px] font-mono border border-zinc-300"
+                >Enter</kbd
+              >
+              zum Speichern,
+              <kbd
+                class="px-1.5 py-0.5 bg-zinc-100 rounded text-[10px] font-mono border border-zinc-300"
+                >Esc</kbd
+              >
+              zum Abbrechen
             </p>
           </div>
 
@@ -300,19 +314,20 @@ onUnmounted(() => {
         <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="cancelDelete"></div>
 
         <!-- Dialog -->
-        <div class="relative w-full max-w-md bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden">
+        <div
+          class="relative w-full max-w-md bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden"
+        >
           <!-- Header -->
-          <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-red-50">
+          <div
+            class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-red-50"
+          >
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
                 <Trash2 class="w-5 h-5 text-red-600" />
               </div>
               <h2 class="text-base font-bold text-red-900">Projekt löschen?</h2>
             </div>
-            <button
-              @click="cancelDelete"
-              class="p-2 rounded-lg hover:bg-red-100 transition-colors"
-            >
+            <button @click="cancelDelete" class="p-2 rounded-lg hover:bg-red-100 transition-colors">
               <X class="w-5 h-5 text-red-600" />
             </button>
           </div>
@@ -323,7 +338,8 @@ onUnmounted(() => {
               Möchtest du <span class="font-bold">{{ projectName }}</span> wirklich löschen?
             </p>
             <p class="text-xs text-zinc-500">
-              Diese Aktion kann nicht rückgängig gemacht werden. Alle Zustände, Übergänge und Test Cases werden permanent gelöscht.
+              Diese Aktion kann nicht rückgängig gemacht werden. Alle Zustände, Übergänge und Test
+              Cases werden permanent gelöscht.
             </p>
           </div>
 
@@ -351,9 +367,23 @@ onUnmounted(() => {
 <style scoped>
 /* Shake Animation for Error */
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
-  20%, 40%, 60%, 80% { transform: translateX(4px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-4px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(4px);
+  }
 }
 
 .shake {

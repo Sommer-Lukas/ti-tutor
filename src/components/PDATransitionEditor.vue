@@ -10,7 +10,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  save: [transition: { pdaInput: string, pdaStackTop: string, pdaStackPush: string }]
+  save: [transition: { pdaInput: string; pdaStackTop: string; pdaStackPush: string }]
 }>()
 
 // Local state
@@ -37,85 +37,89 @@ const clearAllErrors = () => {
 }
 
 // ✅ STRICT VALIDATION FUNCTIONS (also define before watch)
-const validateSingleChar = (value: string): { valid: boolean, error: string, cleaned: string } => {
+const validateSingleChar = (value: string): { valid: boolean; error: string; cleaned: string } => {
   // Remove all whitespace
   const trimmed = value.trim()
-  
+
   // Check for whitespace in middle
   if (value !== trimmed && value.length > 0) {
     return { valid: false, error: 'Keine Leerzeichen erlaubt', cleaned: trimmed }
   }
-  
+
   // Empty or epsilon is valid
   if (trimmed === '' || trimmed === 'ε') {
     return { valid: true, error: '', cleaned: trimmed }
   }
-  
+
   // Must be exactly 1 character
   if (trimmed.length > 1) {
     return { valid: false, error: 'Max. 1 Zeichen', cleaned: trimmed.charAt(0) }
   }
-  
+
   // No whitespace allowed
   if (/\s/.test(trimmed)) {
     return { valid: false, error: 'Keine Leerzeichen', cleaned: trimmed.replace(/\s/g, '') }
   }
-  
+
   return { valid: true, error: '', cleaned: trimmed }
 }
 
-const validateStackPush = (value: string): { valid: boolean, error: string, cleaned: string } => {
+const validateStackPush = (value: string): { valid: boolean; error: string; cleaned: string } => {
   // Remove leading/trailing whitespace
   const trimmed = value.trim()
-  
+
   // Check for whitespace
   if (value !== trimmed && value.length > 0) {
     return { valid: false, error: 'Keine Leerzeichen am Rand', cleaned: trimmed }
   }
-  
+
   // Check for whitespace in middle
   if (/\s/.test(trimmed)) {
     return { valid: false, error: 'Keine Leerzeichen erlaubt', cleaned: trimmed.replace(/\s/g, '') }
   }
-  
+
   // Empty or epsilon is valid
   if (trimmed === '' || trimmed === 'ε') {
     return { valid: true, error: '', cleaned: trimmed }
   }
-  
+
   return { valid: true, error: '', cleaned: trimmed }
 }
 
 // Watch for transition changes
-watch(() => props.transition, (newTransition) => {
-  if (newTransition) {
-    input.value = newTransition.pdaInput || ''
-    stackTop.value = newTransition.pdaStackTop || ''
-    stackPush.value = newTransition.pdaStackPush || ''
-    
-    // Build quick input from existing values
-    const i = input.value || 'ε'
-    const s = stackTop.value || 'ε'
-    const p = stackPush.value || 'ε'
-    quickInput.value = `${i},${s}/${p}`
-    
-    // Clear errors
-    clearAllErrors()
-  } else {
-    // Reset when closing
-    input.value = ''
-    stackTop.value = ''
-    stackPush.value = ''
-    quickInput.value = ''
-    clearAllErrors()
-  }
-}, { immediate: true })
+watch(
+  () => props.transition,
+  (newTransition) => {
+    if (newTransition) {
+      input.value = newTransition.pdaInput || ''
+      stackTop.value = newTransition.pdaStackTop || ''
+      stackPush.value = newTransition.pdaStackPush || ''
+
+      // Build quick input from existing values
+      const i = input.value || 'ε'
+      const s = stackTop.value || 'ε'
+      const p = stackPush.value || 'ε'
+      quickInput.value = `${i},${s}/${p}`
+
+      // Clear errors
+      clearAllErrors()
+    } else {
+      // Reset when closing
+      input.value = ''
+      stackTop.value = ''
+      stackPush.value = ''
+      quickInput.value = ''
+      clearAllErrors()
+    }
+  },
+  { immediate: true },
+)
 
 // ✅ WATCH: Validate input field in real-time
 watch(input, (newValue) => {
   const result = validateSingleChar(newValue)
   inputError.value = result.error
-  
+
   // Auto-correct after 500ms
   if (!result.valid) {
     setTimeout(() => {
@@ -128,7 +132,7 @@ watch(input, (newValue) => {
 watch(stackTop, (newValue) => {
   const result = validateSingleChar(newValue)
   stackTopError.value = result.error
-  
+
   // Auto-correct after 500ms
   if (!result.valid) {
     setTimeout(() => {
@@ -141,7 +145,7 @@ watch(stackTop, (newValue) => {
 watch(stackPush, (newValue) => {
   const result = validateStackPush(newValue)
   stackPushError.value = result.error
-  
+
   // Auto-correct after 500ms
   if (!result.valid) {
     setTimeout(() => {
@@ -155,11 +159,11 @@ watch(stackPush, (newValue) => {
 const parseQuickInput = (value: string) => {
   // Format: input,stackTop/stackPush
   // Examples: "a,$/aa", "ε,a/", "b,$/ba$", "a,e/aa"
-  
+
   quickInputError.value = ''
-  
+
   // ✅ NO AUTO-REPLACE for 'e' - it stays as 'e'
-  
+
   // Check for invalid characters (whitespace)
   if (/\s/.test(value)) {
     quickInputError.value = '⚠️ Keine Leerzeichen erlaubt'
@@ -169,49 +173,49 @@ const parseQuickInput = (value: string) => {
     }, 500)
     return
   }
-  
+
   // Split by '/'
   const parts = value.split('/')
-  
+
   // Check if format is correct
   if (parts.length > 2) {
     quickInputError.value = '⚠️ Zu viele "/" Zeichen'
     return
   }
-  
+
   const leftSide = parts[0] || ''
   const rightSide = parts[1] || ''
-  
+
   // Split left side by ','
   const leftParts = leftSide.split(',')
-  
+
   // Check if format is correct
   if (leftParts.length > 2) {
     quickInputError.value = '⚠️ Zu viele "," Zeichen'
     return
   }
-  
+
   let inputSymbol = leftParts[0] || ''
   let stackTopSymbol = leftParts[1] || ''
-  
+
   // ✅ VALIDATION: Max 1 character for input and stackTop (except ε)
   if (inputSymbol.length > 1 && inputSymbol !== 'ε') {
     quickInputError.value = `⚠️ Input zu lang: "${inputSymbol}"`
     inputSymbol = inputSymbol.charAt(0)
   }
-  
+
   if (stackTopSymbol.length > 1 && stackTopSymbol !== 'ε') {
     quickInputError.value = `⚠️ Stack Top zu lang: "${stackTopSymbol}"`
     stackTopSymbol = stackTopSymbol.charAt(0)
   }
-  
+
   // ✅ Set values (OPTION 2):
   // - Empty string = epsilon (empty in store)
   // - "ε" explicitly = epsilon (empty in store)
   // - Any other character (including "e") = that character
-  input.value = (inputSymbol === 'ε' || inputSymbol === '') ? '' : inputSymbol
-  stackTop.value = (stackTopSymbol === 'ε' || stackTopSymbol === '') ? '' : stackTopSymbol
-  stackPush.value = (rightSide === 'ε' || rightSide === '') ? '' : rightSide
+  input.value = inputSymbol === 'ε' || inputSymbol === '' ? '' : inputSymbol
+  stackTop.value = stackTopSymbol === 'ε' || stackTopSymbol === '' ? '' : stackTopSymbol
+  stackPush.value = rightSide === 'ε' || rightSide === '' ? '' : rightSide
 }
 
 watch(quickInput, (newValue) => {
@@ -232,7 +236,7 @@ const isValid = computed(() => {
   if (inputError.value || stackTopError.value || stackPushError.value || quickInputError.value) {
     return false
   }
-  
+
   // At least one field must be filled
   return input.value.length > 0 || stackTop.value.length > 0 || stackPush.value.length > 0
 })
@@ -258,11 +262,11 @@ const stackPushStatus = computed(() => {
 
 const handleSave = () => {
   if (!isValid.value) return
-  
+
   emit('save', {
     pdaInput: input.value.trim(),
     pdaStackTop: stackTop.value.trim(),
-    pdaStackPush: stackPush.value.trim()
+    pdaStackPush: stackPush.value.trim(),
   })
   emit('close')
 }
@@ -300,7 +304,7 @@ const applyTemplate = (template: string) => {
 // Keyboard handler
 const handleKeyDown = (e: KeyboardEvent) => {
   if (!props.visible) return
-  
+
   if (e.key === 'Escape') {
     handleClose()
   } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -309,13 +313,16 @@ const handleKeyDown = (e: KeyboardEvent) => {
 }
 
 // Mount/unmount keyboard listener
-watch(() => props.visible, (visible) => {
-  if (visible) {
-    window.addEventListener('keydown', handleKeyDown)
-  } else {
-    window.removeEventListener('keydown', handleKeyDown)
-  }
-})
+watch(
+  () => props.visible,
+  (visible) => {
+    if (visible) {
+      window.addEventListener('keydown', handleKeyDown)
+    } else {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  },
+)
 </script>
 
 <template>
@@ -327,14 +334,14 @@ watch(() => props.visible, (visible) => {
     leave-from-class="opacity-100"
     leave-to-class="opacity-0"
   >
-    <div 
+    <div
       v-if="visible"
       class="fixed inset-0 z-[100] flex items-center justify-center p-4"
       @click.self="handleClose"
     >
       <!-- Backdrop -->
       <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="handleClose"></div>
-      
+
       <!-- Modal Content -->
       <Transition
         enter-active-class="transition-all duration-200 ease-out"
@@ -344,23 +351,31 @@ watch(() => props.visible, (visible) => {
         leave-from-class="opacity-100 scale-100 translate-y-0"
         leave-to-class="opacity-0 scale-95 translate-y-4"
       >
-        <div 
+        <div
           v-if="visible"
           class="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-zinc-200 overflow-hidden"
         >
-          
           <!-- Header -->
-          <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-gradient-to-r from-emerald-50 to-teal-50">
+          <div
+            class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-gradient-to-r from-emerald-50 to-teal-50"
+          >
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xl shadow-lg">
+              <div
+                class="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xl shadow-lg"
+              >
                 📚
               </div>
               <div>
                 <h2 class="text-base font-bold text-zinc-900">PDA Transition Editor</h2>
-                <p class="text-xs text-zinc-600">Format: <code class="bg-white px-1.5 py-0.5 rounded font-mono text-emerald-700">(input, stackTop) / stackPush</code></p>
+                <p class="text-xs text-zinc-600">
+                  Format:
+                  <code class="bg-white px-1.5 py-0.5 rounded font-mono text-emerald-700"
+                    >(input, stackTop) / stackPush</code
+                  >
+                </p>
               </div>
             </div>
-            <button 
+            <button
               @click="handleClose"
               class="p-2 rounded-lg hover:bg-emerald-100 transition-colors group"
             >
@@ -370,21 +385,18 @@ watch(() => props.visible, (visible) => {
 
           <!-- Content -->
           <div class="p-6 space-y-5">
-            
             <!-- ✨ QUICK INPUT MODE (POWER USER) -->
             <div class="space-y-3">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                   <Zap class="w-4 h-4 text-emerald-600" />
-                  <label class="text-sm font-bold text-emerald-700">
-                    Quick Input
-                  </label>
+                  <label class="text-sm font-bold text-emerald-700"> Quick Input </label>
                 </div>
                 <span class="text-xs text-zinc-500 bg-zinc-100 px-2 py-1 rounded-full font-mono">
                   Format: a,$/aa
                 </span>
               </div>
-              
+
               <div class="relative">
                 <input
                   v-model="quickInput"
@@ -393,22 +405,25 @@ watch(() => props.visible, (visible) => {
                   autofocus
                   class="w-full px-4 py-3 border-2 rounded-lg focus:ring-4 focus:outline-none font-mono text-xl transition-all shadow-sm"
                   :class="[
-                    quickInputError 
-                      ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
-                      : 'border-emerald-300 bg-emerald-50 focus:border-emerald-500 focus:ring-emerald-200'
+                    quickInputError
+                      ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                      : 'border-emerald-300 bg-emerald-50 focus:border-emerald-500 focus:ring-emerald-200',
                   ]"
                 />
                 <!-- Validation Badge -->
                 <div v-if="quickInputError" class="absolute right-3 top-1/2 -translate-y-1/2">
                   <XCircle class="w-5 h-5 text-red-500" />
                 </div>
-                <div v-else-if="quickInput.length > 0" class="absolute right-3 top-1/2 -translate-y-1/2">
+                <div
+                  v-else-if="quickInput.length > 0"
+                  class="absolute right-3 top-1/2 -translate-y-1/2"
+                >
                   <CheckCircle class="w-5 h-5 text-emerald-500" />
                 </div>
               </div>
-              
+
               <!-- Error Message -->
-              <div 
+              <div
                 v-if="quickInputError"
                 class="p-2 bg-red-50 rounded-lg border border-red-200 flex items-start gap-2 animate-shake"
               >
@@ -417,7 +432,7 @@ watch(() => props.visible, (visible) => {
                   {{ quickInputError }}
                 </p>
               </div>
-              
+
               <!-- Quick Templates -->
               <div class="flex gap-2 flex-wrap">
                 <button
@@ -445,7 +460,7 @@ watch(() => props.visible, (visible) => {
                   Clear
                 </button>
               </div>
-              
+
               <p class="text-xs text-zinc-500 flex items-center gap-1.5">
                 <AlertCircle class="w-3 h-3" />
                 Verwende ε-Symbol für Epsilon • Keine Leerzeichen • Max 1 Zeichen für Input/StackTop
@@ -473,17 +488,22 @@ watch(() => props.visible, (visible) => {
               leave-to-class="opacity-0 -translate-y-4 scale-95"
             >
               <div v-if="showAdvancedMode" class="space-y-4 pt-4">
-                
                 <!-- Input Symbol -->
                 <div class="space-y-2">
                   <label class="block text-sm font-semibold text-zinc-700 flex items-center gap-2">
                     Input Symbol
                     <span class="text-zinc-400 font-normal">(von Band gelesen)</span>
-                    <component 
-                      :is="inputStatus === 'success' ? CheckCircle : inputStatus === 'error' ? XCircle : null"
+                    <component
+                      :is="
+                        inputStatus === 'success'
+                          ? CheckCircle
+                          : inputStatus === 'error'
+                            ? XCircle
+                            : null
+                      "
                       :class="[
                         'w-4 h-4',
-                        inputStatus === 'success' ? 'text-emerald-500' : 'text-red-500'
+                        inputStatus === 'success' ? 'text-emerald-500' : 'text-red-500',
                       ]"
                       v-if="inputStatus !== 'neutral'"
                     />
@@ -496,11 +516,11 @@ watch(() => props.visible, (visible) => {
                       placeholder="z.B. a"
                       class="flex-1 px-4 py-2.5 border-2 rounded-lg focus:ring-2 focus:outline-none font-mono text-lg transition-all"
                       :class="[
-                        inputError 
-                          ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
-                          : input.length > 0 
-                            ? 'bg-emerald-50 border-emerald-300 focus:border-emerald-500 focus:ring-emerald-200' 
-                            : 'border-zinc-200 focus:border-emerald-500 focus:ring-emerald-200'
+                        inputError
+                          ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          : input.length > 0
+                            ? 'bg-emerald-50 border-emerald-300 focus:border-emerald-500 focus:ring-emerald-200'
+                            : 'border-zinc-200 focus:border-emerald-500 focus:ring-emerald-200',
                       ]"
                     />
                     <button
@@ -531,11 +551,17 @@ watch(() => props.visible, (visible) => {
                   <label class="block text-sm font-semibold text-zinc-700 flex items-center gap-2">
                     Stack Top
                     <span class="text-zinc-400 font-normal">(muss oben im Keller sein)</span>
-                    <component 
-                      :is="stackTopStatus === 'success' ? CheckCircle : stackTopStatus === 'error' ? XCircle : null"
+                    <component
+                      :is="
+                        stackTopStatus === 'success'
+                          ? CheckCircle
+                          : stackTopStatus === 'error'
+                            ? XCircle
+                            : null
+                      "
                       :class="[
                         'w-4 h-4',
-                        stackTopStatus === 'success' ? 'text-purple-500' : 'text-red-500'
+                        stackTopStatus === 'success' ? 'text-purple-500' : 'text-red-500',
                       ]"
                       v-if="stackTopStatus !== 'neutral'"
                     />
@@ -548,11 +574,11 @@ watch(() => props.visible, (visible) => {
                       placeholder="z.B. $"
                       class="flex-1 px-4 py-2.5 border-2 rounded-lg focus:ring-2 focus:outline-none font-mono text-lg transition-all"
                       :class="[
-                        stackTopError 
-                          ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
-                          : stackTop.length > 0 
-                            ? 'bg-purple-50 border-purple-300 focus:border-purple-500 focus:ring-purple-200' 
-                            : 'border-zinc-200 focus:border-emerald-500 focus:ring-emerald-200'
+                        stackTopError
+                          ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          : stackTop.length > 0
+                            ? 'bg-purple-50 border-purple-300 focus:border-purple-500 focus:ring-purple-200'
+                            : 'border-zinc-200 focus:border-emerald-500 focus:ring-emerald-200',
                       ]"
                     />
                     <button
@@ -583,11 +609,17 @@ watch(() => props.visible, (visible) => {
                   <label class="block text-sm font-semibold text-zinc-700 flex items-center gap-2">
                     Stack Push
                     <span class="text-zinc-400 font-normal">(wird auf Keller gelegt)</span>
-                    <component 
-                      :is="stackPushStatus === 'success' ? CheckCircle : stackPushStatus === 'error' ? XCircle : null"
+                    <component
+                      :is="
+                        stackPushStatus === 'success'
+                          ? CheckCircle
+                          : stackPushStatus === 'error'
+                            ? XCircle
+                            : null
+                      "
                       :class="[
                         'w-4 h-4',
-                        stackPushStatus === 'success' ? 'text-blue-500' : 'text-red-500'
+                        stackPushStatus === 'success' ? 'text-blue-500' : 'text-red-500',
                       ]"
                       v-if="stackPushStatus !== 'neutral'"
                     />
@@ -599,11 +631,11 @@ watch(() => props.visible, (visible) => {
                       placeholder="z.B. aa oder ε"
                       class="flex-1 px-4 py-2.5 border-2 rounded-lg focus:ring-2 focus:outline-none font-mono text-lg transition-all"
                       :class="[
-                        stackPushError 
-                          ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
-                          : stackPush.length > 0 
-                            ? 'bg-blue-50 border-blue-300 focus:border-blue-500 focus:ring-blue-200' 
-                            : 'border-zinc-200 focus:border-emerald-500 focus:ring-emerald-200'
+                        stackPushError
+                          ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          : stackPush.length > 0
+                            ? 'bg-blue-50 border-blue-300 focus:border-blue-500 focus:ring-blue-200'
+                            : 'border-zinc-200 focus:border-emerald-500 focus:ring-emerald-200',
                       ]"
                     />
                     <button
@@ -628,12 +660,13 @@ watch(() => props.visible, (visible) => {
                     Beliebig viele Zeichen oder ε (keine Leerzeichen)
                   </p>
                 </div>
-
               </div>
             </Transition>
 
             <!-- Preview -->
-            <div class="p-4 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border-2 border-emerald-200 shadow-inner">
+            <div
+              class="p-4 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border-2 border-emerald-200 shadow-inner"
+            >
               <p class="text-xs font-semibold text-emerald-700 mb-2 flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 Live Preview:
@@ -644,7 +677,7 @@ watch(() => props.visible, (visible) => {
             </div>
 
             <!-- Validation Error -->
-            <div 
+            <div
               v-if="!isValid"
               class="p-3 bg-orange-50 rounded-lg border border-orange-200 flex items-start gap-2"
             >
@@ -653,23 +686,27 @@ watch(() => props.visible, (visible) => {
                 Mindestens ein Feld muss ausgefüllt sein und alle Fehler behoben!
               </p>
             </div>
-
           </div>
 
           <!-- Footer -->
-          <div class="px-6 py-4 border-t border-zinc-200 bg-zinc-50 flex justify-between items-center">
+          <div
+            class="px-6 py-4 border-t border-zinc-200 bg-zinc-50 flex justify-between items-center"
+          >
             <p class="text-xs text-zinc-500">
-              💡 <kbd class="px-1.5 py-0.5 bg-white rounded border text-[10px] font-mono">ESC</kbd> zum Schließen • 
-              <kbd class="px-1.5 py-0.5 bg-white rounded border text-[10px] font-mono">⌘+Enter</kbd> zum Speichern
+              💡
+              <kbd class="px-1.5 py-0.5 bg-white rounded border text-[10px] font-mono">ESC</kbd> zum
+              Schließen •
+              <kbd class="px-1.5 py-0.5 bg-white rounded border text-[10px] font-mono">⌘+Enter</kbd>
+              zum Speichern
             </p>
             <div class="flex gap-2">
-              <button 
+              <button
                 @click="handleClose"
                 class="px-4 py-2 bg-zinc-200 hover:bg-zinc-300 text-zinc-700 text-sm font-semibold rounded-lg transition-colors"
               >
                 Abbrechen
               </button>
-              <button 
+              <button
                 @click="handleSave"
                 :disabled="!isValid"
                 class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors shadow-lg hover:shadow-xl disabled:shadow-none"
@@ -678,10 +715,8 @@ watch(() => props.visible, (visible) => {
               </button>
             </div>
           </div>
-
         </div>
       </Transition>
-
     </div>
   </Transition>
 </template>
@@ -699,9 +734,23 @@ kbd {
 
 /* Shake animation for errors */
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
-  20%, 40%, 60%, 80% { transform: translateX(2px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-2px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(2px);
+  }
 }
 
 .animate-shake {

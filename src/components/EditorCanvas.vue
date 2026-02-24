@@ -7,7 +7,7 @@ import { currentProject, validationResult } from '@/lib/automatonStore'
 import { formatTransitionLabel, requiresModalEditor } from '@/lib/automatonTypes'
 import type { Transition } from '@/lib/automaton'
 import PDATransitionEditor from './PDATransitionEditor.vue'
-import TMTransitionEditor from './TMTransitionEditor.vue'  // ✅ NEU
+import TMTransitionEditor from './TMTransitionEditor.vue' // ✅ NEU
 
 // --- PROPS ---
 const props = defineProps<{
@@ -31,34 +31,37 @@ const tmEditorVisible = ref(false)
 const tmInputBuffer = ref('')
 
 // Watch for project changes and force re-render
-watch(() => currentProject.value.id, (newId, oldId) => {
-  if (newId !== oldId) {
-    console.log('🔄 Project switched in Canvas:', oldId, '->', newId)
-    canvasKey.value++
-    
-    if (cy) {
-      cy.destroy()
-      cy = null
+watch(
+  () => currentProject.value.id,
+  (newId, oldId) => {
+    if (newId !== oldId) {
+      console.log('🔄 Project switched in Canvas:', oldId, '->', newId)
+      canvasKey.value++
+
+      if (cy) {
+        cy.destroy()
+        cy = null
+      }
+
+      selectedNodeIds.value.clear()
+      selectedEdgeId.value = null
+      sourceNodeForEdge.value = null
+      pdaEditorVisible.value = false
+      editingTransition.value = null
+      pdaInputBuffer.value = ''
+      // ✅ NEU: Reset TM state
+      tmEditorVisible.value = false
+      tmInputBuffer.value = ''
+
+      setTimeout(() => {
+        initializeCytoscape()
+      }, 0)
     }
-    
-    selectedNodeIds.value.clear()
-    selectedEdgeId.value = null
-    sourceNodeForEdge.value = null
-    pdaEditorVisible.value = false
-    editingTransition.value = null
-    pdaInputBuffer.value = ''
-    // ✅ NEU: Reset TM state
-    tmEditorVisible.value = false
-    tmInputBuffer.value = ''
-    
-    setTimeout(() => {
-      initializeCytoscape()
-    }, 0)
-  }
-})
+  },
+)
 
 // --- LOCAL STATE ---
-let nodeIdCounter = 1  // TODO: Use for dynamic node generation
+let _nodeIdCounter = 1 // TODO: Use for dynamic node generation
 let edgeIdCounter = 0
 
 const cyContainer = ref<HTMLElement | null>(null)
@@ -70,74 +73,82 @@ const sourceNodeForEdge = ref<string | null>(null)
 
 // --- MULTI-DRAG STATE ---
 let isDragging = false
-let dragStartPositions: Map<string, { x: number, y: number }> = new Map()
+let dragStartPositions: Map<string, { x: number; y: number }> = new Map()
 
 // --- WATCH: Simulation State Changes ---
-watch(() => props.currentSimulationState, () => {
-  updateAllStyles()
-})
+watch(
+  () => props.currentSimulationState,
+  () => {
+    updateAllStyles()
+  },
+)
 
-watch(() => props.isSimulating, (newVal) => {
-  if (newVal) {
-    selectedNodeIds.value.clear()
-    selectedEdgeId.value = null
-    sourceNodeForEdge.value = null
-    pdaEditorVisible.value = false
-    editingTransition.value = null
-    pdaInputBuffer.value = ''
-    // ✅ NEU: Reset TM state
-    tmEditorVisible.value = false
-    tmInputBuffer.value = ''
-    
-    if (cy) {
-      cy.nodes().forEach(node => {
-        if (!node.id().startsWith('__start_')) {
-          node.ungrabify()
-        }
-      })
-      cy.boxSelectionEnabled(false)
+watch(
+  () => props.isSimulating,
+  (newVal) => {
+    if (newVal) {
+      selectedNodeIds.value.clear()
+      selectedEdgeId.value = null
+      sourceNodeForEdge.value = null
+      pdaEditorVisible.value = false
+      editingTransition.value = null
+      pdaInputBuffer.value = ''
+      // ✅ NEU: Reset TM state
+      tmEditorVisible.value = false
+      tmInputBuffer.value = ''
+
+      if (cy) {
+        cy.nodes().forEach((node) => {
+          if (!node.id().startsWith('__start_')) {
+            node.ungrabify()
+          }
+        })
+        cy.boxSelectionEnabled(false)
+      }
+    } else {
+      if (cy) {
+        cy.nodes().forEach((node) => {
+          if (!node.id().startsWith('__start_')) {
+            node.grabify()
+          }
+        })
+        cy.boxSelectionEnabled(true)
+      }
     }
-  } else {
-    if (cy) {
-      cy.nodes().forEach(node => {
-        if (!node.id().startsWith('__start_')) {
-          node.grabify()
-        }
-      })
-      cy.boxSelectionEnabled(true)
-    }
-  }
-  updateAllStyles()
-})
+    updateAllStyles()
+  },
+)
 
 // Clear buffers when edge selection changes
 watch(selectedEdgeId, () => {
   pdaInputBuffer.value = ''
-  tmInputBuffer.value = ''  // ✅ NEU
+  tmInputBuffer.value = '' // ✅ NEU
 })
 
 // --- STYLES ---
 const updateNodeStyles = () => {
   if (!cy) return
-  
-  cy.nodes().forEach(node => {
+
+  cy.nodes().forEach((node) => {
     const nodeId = node.id()
     if (nodeId.startsWith('__start_')) return
-    
-    const state = currentProject.value.states.find(s => s.id === nodeId)
+
+    const state = currentProject.value.states.find((s) => s.id === nodeId)
     if (!state) return
-    
+
     const isSelected = selectedNodeIds.value.has(nodeId)
     const isConnecting = sourceNodeForEdge.value === nodeId
     const isSimulating = props.currentSimulationState === nodeId
-    
-    const hasError = validationResult.value.errors.some(e => e.affectedElements.includes(nodeId))
-    const hasWarning = validationResult.value.warnings.some(w => w.affectedElements.includes(nodeId))
-    
+
+    const hasError = validationResult.value.errors.some((e) => e.affectedElements.includes(nodeId))
+    const hasWarning = validationResult.value.warnings.some((w) =>
+      w.affectedElements.includes(nodeId),
+    )
+
     let borderColor = '#000'
     let bgColor = '#fff'
     let borderWidth = state.isFinal ? 6 : 2
-    
+
     if (hasError) {
       borderColor = '#dc2626'
       bgColor = '#fee2e2'
@@ -145,7 +156,7 @@ const updateNodeStyles = () => {
       borderColor = '#f59e0b'
       bgColor = '#fef3c7'
     }
-    
+
     if (isSimulating) {
       borderColor = '#10b981'
       bgColor = '#d1fae5'
@@ -162,36 +173,36 @@ const updateNodeStyles = () => {
         bgColor = '#cffafe'
       }
     }
-    
+
     node.style({
       'background-color': bgColor,
       'border-color': borderColor,
       'border-width': borderWidth,
       'border-style': state.isFinal ? 'double' : 'solid',
-      'opacity': props.isSimulating && !isSimulating ? 0.4 : 1
+      opacity: props.isSimulating && !isSimulating ? 0.4 : 1,
     })
   })
 }
 
 const updateEdgeStyles = () => {
   if (!cy) return
-  
-  cy.edges().forEach(edge => {
+
+  cy.edges().forEach((edge) => {
     const edgeId = edge.id()
     if (edgeId.startsWith('__start_edge_')) return
-    
+
     const isSelected = selectedEdgeId.value === edgeId
-    const hasError = validationResult.value.errors.some(e => e.affectedElements.includes(edgeId))
-    
-    const color = hasError ? '#dc2626' : (isSelected ? '#3b82f6' : '#000')
-    
+    const hasError = validationResult.value.errors.some((e) => e.affectedElements.includes(edgeId))
+
+    const color = hasError ? '#dc2626' : isSelected ? '#3b82f6' : '#000'
+
     edge.style({
       'line-color': color,
       'target-arrow-color': color,
-      'width': isSelected ? 4 : (hasError ? 3 : 2),
-      'color': color,
+      width: isSelected ? 4 : hasError ? 3 : 2,
+      color: color,
       'font-weight': isSelected ? 'bold' : 'normal',
-      'opacity': props.isSimulating ? 0.5 : 1
+      opacity: props.isSimulating ? 0.5 : 1,
     })
   })
 }
@@ -211,31 +222,31 @@ const getEdgeLabel = (transition: Transition): string => {
     symbol: transition.symbol,
     input: transition.pdaInput,
     stackTop: transition.pdaStackTop,
-    stackPush: transition.pdaStackPush
+    stackPush: transition.pdaStackPush,
   })
 }
 
 // --- ACTIONS ---
 const addNode = () => {
   if (isLocked.value) return
-  
+
   const existingNumbers = currentProject.value.states
-    .map(s => {
+    .map((s) => {
       const match = s.id.match(/^q(\d+)$/)
-      return (match?.[1]) ? parseInt(match[1]) : -1
+      return match?.[1] ? parseInt(match[1]) : -1
     })
-    .filter(n => n >= 0)
-  
+    .filter((n) => n >= 0)
+
   const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : -1
   const nextNumber = maxNumber + 1
-  
+
   const id = `q${nextNumber}`
   currentProject.value.states.push({
     id,
     label: id,
     isStart: false,
     isFinal: false,
-    position: { x: 150 + Math.random() * 300, y: 100 + Math.random() * 200 }
+    position: { x: 150 + Math.random() * 300, y: 100 + Math.random() * 200 },
   })
   currentProject.value.updatedAt = new Date()
   syncToCytoscape()
@@ -243,9 +254,9 @@ const addNode = () => {
 
 const toggleFinalState = () => {
   if (isLocked.value || selectedNodeIds.value.size === 0) return
-  
-  selectedNodeIds.value.forEach(nodeId => {
-    const state = currentProject.value.states.find(s => s.id === nodeId)
+
+  selectedNodeIds.value.forEach((nodeId) => {
+    const state = currentProject.value.states.find((s) => s.id === nodeId)
     if (state) state.isFinal = !state.isFinal
   })
   currentProject.value.updatedAt = new Date()
@@ -254,9 +265,9 @@ const toggleFinalState = () => {
 
 const setStartState = () => {
   if (isLocked.value || selectedNodeIds.value.size === 0) return
-  
-  selectedNodeIds.value.forEach(nodeId => {
-    const state = currentProject.value.states.find(s => s.id === nodeId)
+
+  selectedNodeIds.value.forEach((nodeId) => {
+    const state = currentProject.value.states.find((s) => s.id === nodeId)
     if (state) state.isStart = !state.isStart
   })
   currentProject.value.updatedAt = new Date()
@@ -265,19 +276,21 @@ const setStartState = () => {
 
 const deleteSelected = () => {
   if (isLocked.value) return
-  
+
   if (selectedNodeIds.value.size > 0) {
-    selectedNodeIds.value.forEach(nodeId => {
-      currentProject.value.states = currentProject.value.states.filter(s => s.id !== nodeId)
+    selectedNodeIds.value.forEach((nodeId) => {
+      currentProject.value.states = currentProject.value.states.filter((s) => s.id !== nodeId)
       currentProject.value.transitions = currentProject.value.transitions.filter(
-        t => t.from !== nodeId && t.to !== nodeId
+        (t) => t.from !== nodeId && t.to !== nodeId,
       )
     })
     selectedNodeIds.value.clear()
   }
-  
+
   if (selectedEdgeId.value) {
-    currentProject.value.transitions = currentProject.value.transitions.filter(t => t.id !== selectedEdgeId.value)
+    currentProject.value.transitions = currentProject.value.transitions.filter(
+      (t) => t.id !== selectedEdgeId.value,
+    )
     selectedEdgeId.value = null
   }
   currentProject.value.updatedAt = new Date()
@@ -286,7 +299,7 @@ const deleteSelected = () => {
 
 const startConnection = () => {
   if (isLocked.value || selectedNodeIds.value.size !== 1) return
-  
+
   const nodeId = Array.from(selectedNodeIds.value)[0]
   if (nodeId !== undefined) {
     sourceNodeForEdge.value = nodeId
@@ -297,7 +310,7 @@ const startConnection = () => {
 
 const toggleNodeSelection = (nodeId: string, multiSelect: boolean) => {
   if (isLocked.value) return
-  
+
   if (multiSelect) {
     if (selectedNodeIds.value.has(nodeId)) {
       selectedNodeIds.value.delete(nodeId)
@@ -314,32 +327,36 @@ const toggleNodeSelection = (nodeId: string, multiSelect: boolean) => {
 // --- PDA EDITOR ACTIONS ---
 const openPDAEditor = (transitionId: string) => {
   if (!requiresModalEditor(currentProject.value.type)) return
-  
-  const transition = currentProject.value.transitions.find(t => t.id === transitionId)
+
+  const transition = currentProject.value.transitions.find((t) => t.id === transitionId)
   if (!transition) return
-  
+
   editingTransition.value = transition
   pdaEditorVisible.value = true
 }
 
-const savePDATransition = (data: { pdaInput: string, pdaStackTop: string, pdaStackPush: string }) => {
+const savePDATransition = (data: {
+  pdaInput: string
+  pdaStackTop: string
+  pdaStackPush: string
+}) => {
   if (!editingTransition.value) return
-  
+
   editingTransition.value.pdaInput = data.pdaInput
   editingTransition.value.pdaStackTop = data.pdaStackTop
   editingTransition.value.pdaStackPush = data.pdaStackPush
-  
+
   currentProject.value.updatedAt = new Date()
   syncToCytoscape()
-  
+
   editingTransition.value = null
 }
 
 // --- ✅ NEU: TM EDITOR ACTIONS ---
 const openTMEditor = (transitionId: string) => {
-  const transition = currentProject.value.transitions.find(t => t.id === transitionId)
+  const transition = currentProject.value.transitions.find((t) => t.id === transitionId)
   if (!transition) return
-  
+
   editingTransition.value = transition
   tmEditorVisible.value = true
 }
@@ -364,14 +381,14 @@ const saveTMTransition = (data: { tmRead: string; action: string }) => {
 
 const parseTMInput = (input: string, transition: Transition) => {
   // input ist immer genau "X/Y" — 3 Zeichen
-  const read = input.charAt(0)   // Position 0: Lese-Symbol
+  const read = input.charAt(0) // Position 0: Lese-Symbol
   // Position 1: immer '/'
   const action = input.charAt(2) // Position 2: L, R oder Schreib-Symbol
-  
+
   if (!read || !action) return
-  
+
   transition.symbol = read
-  
+
   if (action === 'L' || action === 'R') {
     transition.tmMove = action as 'L' | 'R'
     transition.tmWrite = undefined
@@ -413,7 +430,6 @@ const handleTMKeyboardInput = (e: KeyboardEvent, transition: Transition) => {
     if (bufLen === 0) {
       // Erstes Zeichen: das Lese-Symbol
       tmInputBuffer.value = e.key
-
     } else if (bufLen === 1) {
       // Zweites Zeichen: MUSS '/' sein — alles andere: Buffer reset
       if (e.key !== '/') {
@@ -421,14 +437,15 @@ const handleTMKeyboardInput = (e: KeyboardEvent, transition: Transition) => {
         return
       }
       tmInputBuffer.value += e.key
-
     } else if (bufLen === 2) {
       // Drittes Zeichen: Action (L/R oder Schreib-Symbol) → AUTO APPLY!
-      tmInputBuffer.value += e.key          // Buffer: "c/L"
+      tmInputBuffer.value += e.key // Buffer: "c/L"
       parseTMInput(tmInputBuffer.value, transition)
       currentProject.value.updatedAt = new Date()
       syncToCytoscape()
-      setTimeout(() => { tmInputBuffer.value = '' }, 400)  // Kurzes visuelles Feedback
+      setTimeout(() => {
+        tmInputBuffer.value = ''
+      }, 400) // Kurzes visuelles Feedback
     }
   }
 }
@@ -438,7 +455,7 @@ const handlePDAKeyboardInput = (e: KeyboardEvent, transition: Transition) => {
   if (e.key === 'Backspace') {
     e.preventDefault()
     pdaInputBuffer.value = pdaInputBuffer.value.slice(0, -1)
-    
+
     if (pdaInputBuffer.value === '') {
       transition.pdaInput = ''
       transition.pdaStackTop = ''
@@ -446,7 +463,7 @@ const handlePDAKeyboardInput = (e: KeyboardEvent, transition: Transition) => {
     } else {
       parsePDAInput(pdaInputBuffer.value, transition)
     }
-    
+
     currentProject.value.updatedAt = new Date()
     syncToCytoscape()
     return
@@ -463,12 +480,12 @@ const handlePDAKeyboardInput = (e: KeyboardEvent, transition: Transition) => {
 
   if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault()
-    
+
     if (/\s/.test(e.key)) {
       console.warn('⚠️ Leerzeichen sind nicht erlaubt!')
       return
     }
-    
+
     pdaInputBuffer.value += e.key
     parsePDAInput(pdaInputBuffer.value, transition)
     currentProject.value.updatedAt = new Date()
@@ -478,26 +495,26 @@ const handlePDAKeyboardInput = (e: KeyboardEvent, transition: Transition) => {
 
 const parsePDAInput = (input: string, transition: Transition) => {
   input = input.replace(/\s/g, '')
-  
+
   const parts = input.split('/')
   const leftSide = parts[0] || ''
   const rightSide = parts[1] || ''
-  
+
   const leftParts = leftSide.split(',')
   let inputSymbol = leftParts[0] || ''
   let stackTopSymbol = leftParts[1] || ''
-  
+
   if (inputSymbol.length > 1 && inputSymbol !== 'ε') {
     inputSymbol = inputSymbol.charAt(0)
   }
-  
+
   if (stackTopSymbol.length > 1 && stackTopSymbol !== 'ε') {
     stackTopSymbol = stackTopSymbol.charAt(0)
   }
-  
-  transition.pdaInput = (inputSymbol === 'ε' || inputSymbol === '') ? '' : inputSymbol
-  transition.pdaStackTop = (stackTopSymbol === 'ε' || stackTopSymbol === '') ? '' : stackTopSymbol
-  transition.pdaStackPush = (rightSide === 'ε' || rightSide === '') ? '' : rightSide
+
+  transition.pdaInput = inputSymbol === 'ε' || inputSymbol === '' ? '' : inputSymbol
+  transition.pdaStackTop = stackTopSymbol === 'ε' || stackTopSymbol === '' ? '' : stackTopSymbol
+  transition.pdaStackPush = rightSide === 'ε' || rightSide === '' ? '' : rightSide
 }
 
 // --- CYTOSCAPE INITIALIZATION ---
@@ -513,59 +530,59 @@ const initializeCytoscape = () => {
           'background-color': '#fff',
           'border-width': 2,
           'border-color': '#000',
-          'label': 'data(label)',
-          'width': 56,
-          'height': 56,
+          label: 'data(label)',
+          width: 56,
+          height: 56,
           'text-valign': 'center',
           'text-halign': 'center',
           'font-size': 12,
           'font-family': 'monospace',
-          'font-weight': 'bold'
-        }
+          'font-weight': 'bold',
+        },
       },
       {
         selector: 'node[?isStartMarker]',
         style: {
-          'width': 1,
-          'height': 1,
+          width: 1,
+          height: 1,
           'background-color': '#000',
           'border-width': 0,
-          'label': ''
-        }
+          label: '',
+        },
       },
       {
         selector: 'edge',
         style: {
-          'width': 2,
+          width: 2,
           'line-color': '#000',
           'target-arrow-color': '#000',
           'target-arrow-shape': 'triangle',
           'curve-style': 'bezier',
-          'label': 'data(label)',
+          label: 'data(label)',
           'font-size': 14,
           'text-background-opacity': 1,
           'text-background-color': '#fff',
-          'text-background-padding': '3px'
-        }
+          'text-background-padding': '3px',
+        },
       },
       {
         selector: 'edge[?isStartEdge]',
         style: {
-          'width': 2.5,
+          width: 2.5,
           'line-color': '#000',
           'target-arrow-color': '#000',
           'target-arrow-shape': 'triangle',
           'curve-style': 'straight',
-          'label': ''
-        }
-      }
+          label: '',
+        },
+      },
     ],
     layout: { name: 'preset' },
     userZoomingEnabled: true,
     userPanningEnabled: true,
     boxSelectionEnabled: true,
     autoungrabify: false,
-    autounselectify: true
+    autounselectify: true,
   })
 
   registerCytoscapeEvents()
@@ -582,24 +599,24 @@ const registerCytoscapeEvents = () => {
       event.preventDefault()
       return
     }
-    
+
     const grabbedNode = event.target
     if (grabbedNode.id().startsWith('__start_')) return
-    
+
     if (!selectedNodeIds.value.has(grabbedNode.id())) {
       isDragging = false
       return
     }
-    
+
     isDragging = true
     dragStartPositions.clear()
-    
-    selectedNodeIds.value.forEach(nodeId => {
+
+    selectedNodeIds.value.forEach((nodeId) => {
       const node = cy!.$id(nodeId)
       if (node.length > 0) {
         dragStartPositions.set(nodeId, {
           x: node.position('x'),
-          y: node.position('y')
+          y: node.position('y'),
         })
       }
     })
@@ -608,28 +625,28 @@ const registerCytoscapeEvents = () => {
   // --- DRAG ---
   cy.on('drag', 'node', (event) => {
     if (isLocked.value || !isDragging || selectedNodeIds.value.size <= 1) return
-    
+
     const draggedNode = event.target
     const draggedNodeId = draggedNode.id()
     if (draggedNodeId.startsWith('__start_')) return
-    
+
     const startPos = dragStartPositions.get(draggedNodeId)
     if (!startPos) return
-    
+
     const currentPos = draggedNode.position()
     const deltaX = currentPos.x - startPos.x
     const deltaY = currentPos.y - startPos.y
-    
-    selectedNodeIds.value.forEach(nodeId => {
+
+    selectedNodeIds.value.forEach((nodeId) => {
       if (nodeId === draggedNodeId) return
-      
+
       const node = cy!.$id(nodeId)
       const nodeStartPos = dragStartPositions.get(nodeId)
-      
+
       if (node.length > 0 && nodeStartPos) {
         node.position({
           x: nodeStartPos.x + deltaX,
-          y: nodeStartPos.y + deltaY
+          y: nodeStartPos.y + deltaY,
         })
       }
     })
@@ -638,15 +655,15 @@ const registerCytoscapeEvents = () => {
   // --- DRAG END ---
   cy.on('dragfree', 'node', (event) => {
     if (isLocked.value) return
-    
+
     const node = event.target
     const nodeId = node.id()
     if (nodeId.startsWith('__start_')) return
-    
+
     if (isDragging && selectedNodeIds.value.size > 1) {
-      selectedNodeIds.value.forEach(id => {
+      selectedNodeIds.value.forEach((id) => {
         const cyNode = cy!.$id(id)
-        const state = currentProject.value.states.find(s => s.id === id)
+        const state = currentProject.value.states.find((s) => s.id === id)
         if (state && cyNode.length > 0) {
           state.position = cyNode.position()
         }
@@ -656,7 +673,7 @@ const registerCytoscapeEvents = () => {
       currentProject.value.updatedAt = new Date()
       syncToCytoscape()
     } else {
-      const state = currentProject.value.states.find(s => s.id === nodeId)
+      const state = currentProject.value.states.find((s) => s.id === nodeId)
       if (state) {
         state.position = node.position()
         currentProject.value.updatedAt = new Date()
@@ -667,12 +684,12 @@ const registerCytoscapeEvents = () => {
 
   cy.on('tap', 'node', (event) => {
     if (isLocked.value) return
-    
+
     const node = event.target
     if (node.id().startsWith('__start_')) return
-    
+
     const shiftPressed = event.originalEvent?.shiftKey || false
-    
+
     if (sourceNodeForEdge.value) {
       const targetId = node.id()
       const edgeId = `e${edgeIdCounter++}`
@@ -683,7 +700,7 @@ const registerCytoscapeEvents = () => {
         symbol: '',
         pdaInput: '',
         pdaStackTop: '',
-        pdaStackPush: ''
+        pdaStackPush: '',
         // tmWrite and tmMove are optional → undefined by default ✅
       })
       selectedEdgeId.value = edgeId
@@ -693,18 +710,18 @@ const registerCytoscapeEvents = () => {
       syncToCytoscape()
       return
     }
-    
+
     toggleNodeSelection(node.id(), shiftPressed)
     selectedEdgeId.value = null
   })
 
   cy.on('cxttap', 'node', (event) => {
     if (isLocked.value) return
-    
+
     event.preventDefault()
     const node = event.target
     if (node.id().startsWith('__start_')) return
-    
+
     sourceNodeForEdge.value = node.id()
     selectedNodeIds.value.clear()
     selectedEdgeId.value = null
@@ -713,10 +730,10 @@ const registerCytoscapeEvents = () => {
 
   cy.on('tap', 'edge', (event) => {
     if (isLocked.value) return
-    
+
     const edge = event.target
     if (edge.id().startsWith('__start_edge_')) return
-    
+
     selectedEdgeId.value = edge.id()
     selectedNodeIds.value.clear()
     updateAllStyles()
@@ -724,7 +741,7 @@ const registerCytoscapeEvents = () => {
 
   cy.on('tap', (event) => {
     if (isLocked.value) return
-    
+
     if (event.target === cy) {
       selectedNodeIds.value.clear()
       selectedEdgeId.value = null
@@ -735,14 +752,14 @@ const registerCytoscapeEvents = () => {
 
   cy.on('boxend', () => {
     if (isLocked.value) return
-    
+
     const cySelected = cy!.$('node:selected')
-    const realNodes = cySelected.filter(node => !node.id().startsWith('__start_'))
-    
-    realNodes.forEach(node => {
+    const realNodes = cySelected.filter((node) => !node.id().startsWith('__start_'))
+
+    realNodes.forEach((node) => {
       selectedNodeIds.value.add(node.id())
     })
-    
+
     cy!.nodes().unselect()
     selectedEdgeId.value = null
     updateAllStyles()
@@ -750,27 +767,27 @@ const registerCytoscapeEvents = () => {
 
   cy.on('dbltap', (event) => {
     if (isLocked.value) return
-    
+
     if (event.target !== cy) return
     const pos = event.position
-    
+
     const existingNumbers = currentProject.value.states
-      .map(s => {
+      .map((s) => {
         const match = s.id.match(/^q(\d+)$/)
-        return (match?.[1]) ? parseInt(match[1]) : -1
+        return match?.[1] ? parseInt(match[1]) : -1
       })
-      .filter(n => n >= 0)
-    
+      .filter((n) => n >= 0)
+
     const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : -1
     const nextNumber = maxNumber + 1
-    
+
     const id = `q${nextNumber}`
     currentProject.value.states.push({
       id,
       label: id,
       isStart: currentProject.value.states.length === 0,
       isFinal: false,
-      position: { x: pos.x, y: pos.y }
+      position: { x: pos.x, y: pos.y },
     })
     currentProject.value.updatedAt = new Date()
     syncToCytoscape()
@@ -778,11 +795,11 @@ const registerCytoscapeEvents = () => {
 
   cy.on('dbltap', 'node', (event) => {
     if (isLocked.value) return
-    
+
     const node = event.target
     if (node.id().startsWith('__start_')) return
-    
-    const state = currentProject.value.states.find(s => s.id === node.id())
+
+    const state = currentProject.value.states.find((s) => s.id === node.id())
     if (state) {
       state.isFinal = !state.isFinal
       currentProject.value.updatedAt = new Date()
@@ -793,10 +810,10 @@ const registerCytoscapeEvents = () => {
   // ✅ Double-click on edge: PDA → PDA Modal, TM → TM Modal
   cy.on('dbltap', 'edge', (event) => {
     if (isLocked.value) return
-    
+
     const edge = event.target
     if (edge.id().startsWith('__start_edge_')) return
-    
+
     if (currentProject.value.type === 'PDA' && requiresModalEditor(currentProject.value.type)) {
       openPDAEditor(edge.id())
     } else if (currentProject.value.type === 'TM') {
@@ -821,62 +838,62 @@ const syncToCytoscape = () => {
   if (!cy) return
 
   // --- 1. REMOVE deleted nodes/edges ---
-  cy.nodes().forEach(node => {
+  cy.nodes().forEach((node) => {
     const nodeId = node.id()
     if (nodeId.startsWith('__start_')) {
       const targetId = nodeId.replace('__start_', '')
-      const targetExists = currentProject.value.states.some(s => s.id === targetId && s.isStart)
+      const targetExists = currentProject.value.states.some((s) => s.id === targetId && s.isStart)
       if (!targetExists) {
         node.remove()
       }
     } else {
-      if (!currentProject.value.states.some(s => s.id === nodeId)) {
+      if (!currentProject.value.states.some((s) => s.id === nodeId)) {
         node.remove()
       }
     }
   })
 
-  cy.edges().forEach(edge => {
+  cy.edges().forEach((edge) => {
     const edgeId = edge.id()
     if (edgeId.startsWith('__start_edge_')) {
       const targetId = edgeId.replace('__start_edge_', '')
-      const targetExists = currentProject.value.states.some(s => s.id === targetId && s.isStart)
+      const targetExists = currentProject.value.states.some((s) => s.id === targetId && s.isStart)
       if (!targetExists) {
         edge.remove()
       }
     } else {
-      if (!currentProject.value.transitions.some(t => t.id === edgeId)) {
+      if (!currentProject.value.transitions.some((t) => t.id === edgeId)) {
         edge.remove()
       }
     }
   })
 
   // --- 2. ADD/UPDATE nodes ---
-  currentProject.value.states.forEach(state => {
+  currentProject.value.states.forEach((state) => {
     const existingNode = cy!.$id(state.id)
-    
+
     if (existingNode.length > 0) {
       existingNode.data('label', state.label)
       existingNode.position(state.position)
     } else {
       cy!.add({
         data: { id: state.id, label: state.label },
-        position: state.position
+        position: state.position,
       })
     }
 
     const markerId = `__start_${state.id}`
     const existingMarker = cy!.$id(markerId)
-    
+
     if (state.isStart) {
       const markerPos = { x: state.position.x - 80, y: state.position.y }
-      
+
       if (existingMarker.length > 0) {
         existingMarker.position(markerPos)
       } else {
         cy!.add({
           data: { id: markerId, label: '', isStartMarker: true },
-          position: markerPos
+          position: markerPos,
         })
         cy!.$id(markerId).ungrabify()
       }
@@ -885,7 +902,7 @@ const syncToCytoscape = () => {
       const existingStartEdge = cy!.$id(startEdgeId)
       if (existingStartEdge.length === 0) {
         cy!.add({
-          data: { id: startEdgeId, source: markerId, target: state.id, isStartEdge: true }
+          data: { id: startEdgeId, source: markerId, target: state.id, isStartEdge: true },
         })
       }
     } else {
@@ -901,12 +918,12 @@ const syncToCytoscape = () => {
   })
 
   // --- 3. ADD/UPDATE edges ---
-  currentProject.value.transitions.forEach(transition => {
+  currentProject.value.transitions.forEach((transition) => {
     const existingEdge = cy!.$id(transition.id)
-    
+
     // ✅ NEU: Use getEdgeLabel() für alle Typen (inkl. TM)
     const label = getEdgeLabel(transition)
-    
+
     if (existingEdge.length > 0) {
       existingEdge.data('label', label)
       existingEdge.data('source', transition.from)
@@ -917,8 +934,8 @@ const syncToCytoscape = () => {
           id: transition.id,
           source: transition.from,
           target: transition.to,
-          label: label
-        }
+          label: label,
+        },
       })
     }
   })
@@ -930,7 +947,7 @@ const syncToCytoscape = () => {
 const handleKeyDown = (e: KeyboardEvent) => {
   // ✅ UPDATED: Don't process when ANY modal is open
   if (pdaEditorVisible.value || tmEditorVisible.value) return
-  
+
   if (!cy || isLocked.value) return
 
   if (e.key === 'Escape' && sourceNodeForEdge.value) {
@@ -947,7 +964,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
 
   // ✅ EDGE EDITING
   if (selectedEdgeId.value) {
-    const transition = currentProject.value.transitions.find(t => t.id === selectedEdgeId.value)
+    const transition = currentProject.value.transitions.find((t) => t.id === selectedEdgeId.value)
     if (!transition) return
 
     // PDA: Keyboard Parser
@@ -983,7 +1000,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
   // NODE LABEL EDITING
   if (selectedNodeIds.value.size === 1) {
     const nodeId = Array.from(selectedNodeIds.value)[0]!
-    const state = currentProject.value.states.find(s => s.id === nodeId)
+    const state = currentProject.value.states.find((s) => s.id === nodeId)
     if (!state) return
 
     if (e.key === 'Backspace') {
@@ -1007,10 +1024,9 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
 
 <template>
   <div :key="canvasKey" class="relative w-full h-full">
-
     <!-- Grid -->
-    <div 
-      class="absolute inset-0 pointer-events-none" 
+    <div
+      class="absolute inset-0 pointer-events-none"
       style="
         background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
         background-size: 20px 20px;
@@ -1018,7 +1034,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
     ></div>
 
     <!-- Simulation Status Badge -->
-    <div 
+    <div
       v-if="isSimulating"
       class="absolute top-4 right-4 z-40 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-pulse"
     >
@@ -1027,62 +1043,80 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
     </div>
 
     <!-- Toolbar -->
-    <div class="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur-md rounded-full shadow-xl border border-zinc-200/50 px-3 py-2.5 flex items-center gap-2">
-      
-      <button 
-        @click="addNode" 
+    <div
+      class="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur-md rounded-full shadow-xl border border-zinc-200/50 px-3 py-2.5 flex items-center gap-2"
+    >
+      <button
+        @click="addNode"
         :disabled="isSimulating"
         class="p-2.5 rounded-full transition-colors"
-        :class="isSimulating ? 'text-zinc-300 cursor-not-allowed' : 'hover:bg-zinc-100 text-zinc-700'"
+        :class="
+          isSimulating ? 'text-zinc-300 cursor-not-allowed' : 'hover:bg-zinc-100 text-zinc-700'
+        "
       >
         <Plus class="w-6 h-6" />
       </button>
 
       <div class="w-px h-6 bg-zinc-200"></div>
 
-      <button 
+      <button
         @click="setStartState"
         :disabled="selectedNodeIds.size === 0 || isSimulating"
         class="p-2.5 rounded-full transition-colors"
-        :class="(selectedNodeIds.size > 0 && !isSimulating) ? 'hover:bg-green-50 text-green-600' : 'text-zinc-300 cursor-not-allowed'"
+        :class="
+          selectedNodeIds.size > 0 && !isSimulating
+            ? 'hover:bg-green-50 text-green-600'
+            : 'text-zinc-300 cursor-not-allowed'
+        "
       >
         <Flag class="w-6 h-6" />
       </button>
 
-      <button 
+      <button
         @click="toggleFinalState"
         :disabled="selectedNodeIds.size === 0 || isSimulating"
         class="p-2.5 rounded-full transition-colors"
-        :class="(selectedNodeIds.size > 0 && !isSimulating) ? 'hover:bg-purple-50 text-purple-600' : 'text-zinc-300 cursor-not-allowed'"
+        :class="
+          selectedNodeIds.size > 0 && !isSimulating
+            ? 'hover:bg-purple-50 text-purple-600'
+            : 'text-zinc-300 cursor-not-allowed'
+        "
       >
         <CircleDot class="w-6 h-6" />
       </button>
 
-      <button 
+      <button
         @click="startConnection"
         :disabled="selectedNodeIds.size !== 1 || isSimulating"
         class="p-2.5 rounded-full transition-colors"
-        :class="(selectedNodeIds.size === 1 && !isSimulating) ? 'hover:bg-cyan-50 text-cyan-600' : 'text-zinc-300 cursor-not-allowed'"
+        :class="
+          selectedNodeIds.size === 1 && !isSimulating
+            ? 'hover:bg-cyan-50 text-cyan-600'
+            : 'text-zinc-300 cursor-not-allowed'
+        "
       >
         <ArrowRightCircle class="w-6 h-6" />
       </button>
 
       <div class="w-px h-6 bg-zinc-200"></div>
 
-      <button 
+      <button
         @click="deleteSelected"
         :disabled="(selectedNodeIds.size === 0 && !selectedEdgeId) || isSimulating"
         class="p-2.5 rounded-full transition-colors"
-        :class="((selectedNodeIds.size > 0 || selectedEdgeId) && !isSimulating) ? 'hover:bg-red-50 text-red-600' : 'text-zinc-300 cursor-not-allowed'"
+        :class="
+          (selectedNodeIds.size > 0 || selectedEdgeId) && !isSimulating
+            ? 'hover:bg-red-50 text-red-600'
+            : 'text-zinc-300 cursor-not-allowed'
+        "
       >
         <Trash2 class="w-6 h-6" />
       </button>
-
     </div>
 
     <!-- Connection Banner -->
-    <div 
-      v-if="sourceNodeForEdge && !isSimulating" 
+    <div
+      v-if="sourceNodeForEdge && !isSimulating"
       class="absolute bottom-4 right-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-2 rounded-full shadow-lg z-40 text-xs font-medium flex items-center gap-2"
     >
       <ArrowRightCircle class="w-3 h-3" />
@@ -1090,8 +1124,14 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
     </div>
 
     <!-- PDA Keyboard Input Buffer -->
-    <div 
-      v-if="selectedEdgeId && currentProject.type === 'PDA' && pdaInputBuffer.length > 0 && !isSimulating && !pdaEditorVisible"
+    <div
+      v-if="
+        selectedEdgeId &&
+        currentProject.type === 'PDA' &&
+        pdaInputBuffer.length > 0 &&
+        !isSimulating &&
+        !pdaEditorVisible
+      "
       class="absolute bottom-4 right-4 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl z-40 border-2 border-emerald-400"
     >
       <div class="flex items-center gap-3">
@@ -1106,8 +1146,14 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
     </div>
 
     <!-- PDA Editing Hint (buffer empty) -->
-    <div 
-      v-if="selectedEdgeId && currentProject.type === 'PDA' && pdaInputBuffer.length === 0 && !isSimulating && !pdaEditorVisible"
+    <div
+      v-if="
+        selectedEdgeId &&
+        currentProject.type === 'PDA' &&
+        pdaInputBuffer.length === 0 &&
+        !isSimulating &&
+        !pdaEditorVisible
+      "
       class="absolute bottom-4 right-4 bg-emerald-600 text-white px-4 py-2 rounded-full shadow-lg z-40 text-xs font-medium flex items-center gap-2"
     >
       <span>⚡</span>
@@ -1115,8 +1161,14 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
     </div>
 
     <!-- ✅ NEU: TM Keyboard Input Buffer -->
-    <div 
-      v-if="selectedEdgeId && currentProject.type === 'TM' && tmInputBuffer.length > 0 && !isSimulating && !tmEditorVisible"
+    <div
+      v-if="
+        selectedEdgeId &&
+        currentProject.type === 'TM' &&
+        tmInputBuffer.length > 0 &&
+        !isSimulating &&
+        !tmEditorVisible
+      "
       class="absolute bottom-4 right-4 bg-blue-600 text-white px-4 py-3 rounded-xl shadow-2xl z-40 border-2 border-blue-400"
     >
       <div class="flex items-center gap-3">
@@ -1131,8 +1183,14 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
     </div>
 
     <!-- ✅ NEU: TM Editing Hint (buffer empty) -->
-    <div 
-      v-if="selectedEdgeId && currentProject.type === 'TM' && tmInputBuffer.length === 0 && !isSimulating && !tmEditorVisible"
+    <div
+      v-if="
+        selectedEdgeId &&
+        currentProject.type === 'TM' &&
+        tmInputBuffer.length === 0 &&
+        !isSimulating &&
+        !tmEditorVisible
+      "
       class="absolute bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg z-40 text-xs font-medium flex items-center gap-2"
     >
       <span>⚙️</span>
@@ -1140,13 +1198,14 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
     </div>
 
     <!-- Multi-Select Counter -->
-    <div 
+    <div
       v-if="selectedNodeIds.size > 0 && !isSimulating"
       class="absolute bottom-4 left-4 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg z-40 text-xs font-bold"
     >
-      {{ selectedNodeIds.size }} Node{{ selectedNodeIds.size > 1 ? 's' : '' }} • SHIFT+Click • Drag to move all
+      {{ selectedNodeIds.size }} Node{{ selectedNodeIds.size > 1 ? 's' : '' }} • SHIFT+Click • Drag
+      to move all
     </div>
-    
+
     <!-- Cytoscape -->
     <div ref="cyContainer" class="w-full h-full relative z-10"></div>
 
@@ -1165,6 +1224,5 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
       @close="tmEditorVisible = false; editingTransition = null"
       @save="saveTMTransition"
     />
-
   </div>
 </template>
