@@ -240,7 +240,6 @@ export function formatTransitionLabel(
   }
 ): string {
   const config = AUTOMATON_TYPES[type]
-  const template = config.transitionFormat.labelTemplate
   const epsilon = config.editorHints.epsilonSymbol
   
   switch (config.transitionFormat.type) {

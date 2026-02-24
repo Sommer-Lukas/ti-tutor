@@ -50,7 +50,7 @@ jobs:
       # Upload coverage (optional)
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.node-version }}
           path: dist/
@@ -101,7 +101,7 @@ jobs:
         run: npm run build
       
       - name: Upload build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-artifact
           path: dist/

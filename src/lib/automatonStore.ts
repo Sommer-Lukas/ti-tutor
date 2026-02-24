@@ -23,7 +23,7 @@ export interface TestCase {
 export const testCases = ref<TestCase[]>([])
 
 // --- HELPER: Create Default Project ---
-function createDefaultProject(): AutomatonProject {
+function _createDefaultProject(): AutomatonProject {
   return {
     id: crypto.randomUUID(),
     name: 'Mein erster DFA',
@@ -53,7 +53,7 @@ function createEmptyDummyProject(): AutomatonProject {
 // --- COMPUTED: Current Project (GUARANTEED NON-NULL!) ---
 export const currentProject: ComputedRef<AutomatonProject> = computed((): AutomatonProject => {
   // This dependency ensures re-computation when counter changes
-  projectSwitchCounter.value
+  void projectSwitchCounter.value
   
   // If no projects exist, return dummy project
   if (projects.value.length === 0) {

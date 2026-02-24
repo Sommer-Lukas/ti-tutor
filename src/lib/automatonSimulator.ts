@@ -1,4 +1,4 @@
-import type { State, Transition, AutomatonProject } from './automaton'
+import type { State, Transition } from './automaton'
 import type { AutomatonType } from './automatonTypes'
 
 export interface SimulationStep {
@@ -513,7 +513,6 @@ export class AutomatonSimulator {
     const BLANK = '□'
 
     // Initial Step
-    const currentCell = tape[headPosition] || BLANK
     steps.push({
       step: 0,
       currentState: currentState.id,
@@ -658,7 +657,6 @@ export class AutomatonSimulator {
    * Helper: Find TM transition for (state, readSymbol)
    */
   private findTMTransition(stateId: string, readSymbol: string): Transition | undefined {
-    const BLANK = '□'
     const normalizedReadSymbol = this.normalizeBLANK(readSymbol)
     
     return this.transitions.find(t => {

@@ -83,7 +83,7 @@ export class AutomatonValidator {
     }
     
     // ========== 3. VALIDATE TRANSITIONS (KRITISCH FÜR DEA!) ==========
-    const alphabet = this.extractAlphabet(transitions)
+    this.extractAlphabet(transitions)
     
     for (const state of states) {
       const outgoingTransitions = transitions.filter(t => t.from === state.id)
