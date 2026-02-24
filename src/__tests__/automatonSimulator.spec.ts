@@ -74,6 +74,92 @@ describe('AutomatonSimulator', () => {
       const result = simulator.simulate('')
       expect(result.steps.length).toBeGreaterThan(0)
     })
+
+    it('tracks multiple current states across steps', () => {
+      const multiTransitions: Transition[] = [
+        { id: '1', from: 'q0', to: 'q0', symbol: 'a' },
+        { id: '2', from: 'q0', to: 'q1', symbol: 'a' },
+        { id: '3', from: 'q1', to: 'q1', symbol: 'a' },
+      ]
+      const simulator = new AutomatonSimulator(states, multiTransitions, 'NFA')
+      const result = simulator.simulate('aa')
+      expect(result.accepted).toBe(true)
+      expect(Array.isArray(result.steps[1]?.currentState)).toBe(true)
+    })
+  })
+
+  describe('PDA Simulation', () => {
+    let states: State[]
+    let transitions: Transition[]
+
+    beforeEach(() => {
+      states = [
+        makeState('q0', true, false),
+        makeState('q1', false, false),
+        makeState('qAccept', false, true),
+      ]
+
+      transitions = [
+        // Push A for each 'a'
+        { id: '1', from: 'q0', to: 'q0', symbol: '', pdaInput: 'a', pdaStackTop: '$', pdaStackPush: '$A' },
+        { id: '2', from: 'q0', to: 'q0', symbol: '', pdaInput: 'a', pdaStackTop: 'A', pdaStackPush: 'AA' },
+
+        // On 'b', move to q1 and pop A
+        { id: '3', from: 'q0', to: 'q1', symbol: '', pdaInput: 'b', pdaStackTop: 'A', pdaStackPush: '' },
+        { id: '4', from: 'q1', to: 'q1', symbol: '', pdaInput: 'b', pdaStackTop: 'A', pdaStackPush: '' },
+
+        // When input consumed and stack has only '$', accept by final state
+        { id: '5', from: 'q1', to: 'qAccept', symbol: '', pdaInput: '', pdaStackTop: '$', pdaStackPush: '$' },
+      ]
+    })
+
+    it('accepts balanced a^n b^n via stack', () => {
+      const simulator = new AutomatonSimulator(states, transitions, 'PDA', {
+        startStackSymbol: '$',
+      })
+      const result = simulator.simulate('aaabbb')
+      expect(result.accepted).toBe(true)
+      expect(result.steps.length).toBeGreaterThan(0)
+      expect(result.steps.some((step) => Array.isArray(step.stack))).toBe(true)
+    })
+
+    it('rejects when stack does not match input', () => {
+      const simulator = new AutomatonSimulator(states, transitions, 'PDA', {
+        startStackSymbol: '$',
+      })
+      const result = simulator.simulate('aabbb')
+      expect(result.accepted).toBe(false)
+      expect(result.error).toBeDefined()
+    })
+  })
+
+  describe('TM Simulation', () => {
+    let states: State[]
+    let transitions: Transition[]
+
+    beforeEach(() => {
+      states = [
+        makeState('q0', true, false),
+        makeState('q1', false, false),
+        makeState('qAccept', false, true),
+      ]
+
+      transitions = [
+        // Read 1, move right into new blank cell
+        { id: '1', from: 'q0', to: 'q1', symbol: '1', tmWrite: '1', tmMove: 'R' },
+        // On blank (use # alias), write 1 and accept
+        { id: '2', from: 'q1', to: 'qAccept', symbol: '#', tmWrite: '1', tmMove: 'L' },
+      ]
+    })
+
+    it('expands tape and writes on blank', () => {
+      const simulator = new AutomatonSimulator(states, transitions, 'TM')
+      const result = simulator.simulate('1')
+      expect(result.accepted).toBe(true)
+      expect(result.finalTape).toBeDefined()
+      expect(result.finalTape?.join('')).toBe('11')
+      expect(result.steps.length).toBeGreaterThan(1)
+    })
   })
 
   describe('Error Handling', () => {
