@@ -41,17 +41,13 @@ describe('AutomatonStore', () => {
     })
 
     it('current project has states array', () => {
-      if (currentProject.value) {
-        expect(currentProject.value).toHaveProperty('states')
-        expect(Array.isArray(currentProject.value.states)).toBe(true)
-      }
+      expect(currentProject.value).toHaveProperty('states')
+      expect(Array.isArray(currentProject.value.states)).toBe(true)
     })
 
     it('current project has transitions array', () => {
-      if (currentProject.value) {
-        expect(currentProject.value).toHaveProperty('transitions')
-        expect(Array.isArray(currentProject.value.transitions)).toBe(true)
-      }
+      expect(currentProject.value).toHaveProperty('transitions')
+      expect(Array.isArray(currentProject.value.transitions)).toBe(true)
     })
   })
 

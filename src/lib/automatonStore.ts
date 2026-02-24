@@ -99,7 +99,7 @@ function loadFromStorage() {
     const storedProjects = localStorage.getItem(STORAGE_KEY_PROJECTS)
     if (storedProjects) {
       const parsed = JSON.parse(storedProjects)
-      projects.value = parsed.map((p: any) => ({
+      projects.value = parsed.map((p: AutomatonProject) => ({
         ...p,
         createdAt: new Date(p.createdAt),
         updatedAt: new Date(p.updatedAt)

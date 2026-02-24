@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
 import { ChevronRight, AlertCircle } from 'lucide-vue-next'
-import type { SimulationResult, SimulationStep } from '@/lib/automatonSimulator'
+import type { SimulationResult } from '@/lib/automatonSimulator'
 import type { AutomatonType } from '@/lib/automatonTypes'
 
 const props = defineProps<{

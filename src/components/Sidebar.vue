@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup lang="ts" name="SidebarPanel">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Button } from '@/components/ui/button'
 import { PanelLeftClose, PanelLeftOpen, Plus, Settings, FileText } from 'lucide-vue-next'

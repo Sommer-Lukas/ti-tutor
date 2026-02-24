@@ -77,7 +77,7 @@ jobs:
         run: npm run lint:oxlint
       
       - name: Check formatting
-        run: npm run format -- --check
+        run: npx prettier --check --experimental-cli src/
 
   build:
     name: Build & Deploy

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup lang="ts" name="AppButton">
 import type { PrimitiveProps } from "reka-ui"
 import type { HTMLAttributes } from "vue"
 import type { ButtonVariants } from "."

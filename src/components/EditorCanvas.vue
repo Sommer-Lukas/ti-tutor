@@ -58,7 +58,7 @@ watch(() => currentProject.value.id, (newId, oldId) => {
 })
 
 // --- LOCAL STATE ---
-let nodeIdCounter = 1
+let nodeIdCounter = 1  // TODO: Use for dynamic node generation
 let edgeIdCounter = 0
 
 const cyContainer = ref<HTMLElement | null>(null)

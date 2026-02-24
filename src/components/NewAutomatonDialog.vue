@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { X, AlertCircle } from 'lucide-vue-next'
-import { createProject, setCurrentProject, projects } from '@/lib/automatonStore'
+import { createProject, setCurrentProject } from '@/lib/automatonStore'
 import { AUTOMATON_TYPES } from '@/lib/automatonTypes'
 import type { AutomatonType } from '@/lib/automatonTypes'
 
-const props = defineProps<{
+defineProps<{
   open: boolean
 }>()
 

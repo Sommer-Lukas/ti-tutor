@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
-import { GitBranch, ArrowRight, Check, X, AlertCircle, Layers, Zap } from 'lucide-vue-next'
+import { GitBranch, ArrowRight, Check, X, AlertCircle, Layers } from 'lucide-vue-next'
 import type { SimulationResult } from '@/lib/automatonSimulator'
 import type { AutomatonType } from '@/lib/automatonTypes'
 
@@ -12,7 +12,6 @@ const props = defineProps<{
 
 // Computed: Current and previous steps for tree building
 const steps = computed(() => props.simulation.steps)
-const currentStep = computed(() => steps.value[props.currentStepIndex])
 const isNFA = computed(() => props.automatonType === 'NFA')
 const isPDA = computed(() => props.automatonType === 'PDA')
 const isTM = computed(() => props.automatonType === 'TM')
@@ -22,8 +21,8 @@ const stepRefs = ref<HTMLElement[]>([])
 const scrollContainer = ref<HTMLElement | null>(null)
 
 // Set ref for each step card
-const setStepRef = (el: any, idx: number) => {
-  if (el) {
+const setStepRef = (el: unknown, idx: number) => {
+  if (el instanceof HTMLElement) {
     stepRefs.value[idx] = el
   }
 }
@@ -43,15 +42,15 @@ watch(() => props.currentStepIndex, async (newIndex) => {
   }
 }, { immediate: true })
 
-// Helper: Format stack for display (bottom to top)
-const formatStack = (stack: string[] | undefined): string => {
+// Helper: Format stack for display (bottom to top) - TODO: Use in template if needed
+const _formatStack = (stack: string[] | undefined): string => {
   if (!stack || stack.length === 0) return '∅ (leer)'
   // Show from bottom to top (reverse for display)
   return stack.join(' ')
 }
 
-// Helper: Get stack top
-const getStackTop = (stack: string[] | undefined): string => {
+// Helper: Get stack top - TODO: Use in template if needed
+const _getStackTop = (stack: string[] | undefined): string => {
   if (!stack || stack.length === 0) return '∅'
   return stack[stack.length - 1] || '∅'
 }
@@ -104,7 +103,8 @@ const getTapeWindow = (tape: string[] | undefined, headPos: number | undefined):
 <template>
   <aside 
     class="border-l bg-gradient-to-br from-zinc-50 to-zinc-100 flex flex-col overflow-hidden shadow-xl"
-      :class="(isPDA || isTM) ? 'w-[600px]' : 'w-[400px]'"
+    :class="(isPDA || isTM) ? 'w-[600px]' : 'w-[400px]'"
+  >
     <!-- HEADER -->
     <div class="px-6 py-4 border-b border-zinc-200 bg-white">
       <div class="flex items-center gap-3 mb-2">

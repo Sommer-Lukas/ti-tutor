@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { MoreVertical, Trash2, Copy, Edit, X, Check } from 'lucide-vue-next'
 import { deleteProject, duplicateProject, renameProject, setCurrentProject } from '@/lib/automatonStore'
-import { openMenuId, openMenu, closeMenu, isMenuOpen } from '@/lib/menuState'
+import { openMenu, closeMenu, isMenuOpen } from '@/lib/menuState'
 
 const props = defineProps<{
   projectId: string
