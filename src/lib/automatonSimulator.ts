@@ -1,5 +1,5 @@
 import type { State, Transition } from './automaton'
-import type { AutomatonType } from './automatonTypes'
+import type { AutomatonType, TMHeadEnd } from './automatonTypes'
 
 export interface SimulationStep {
   step: number
@@ -33,6 +33,12 @@ export interface SimulationResult {
   error?: string
   finalStack?: string[]
   finalTape?: string[]
+  finalOutput?: string
+}
+
+export interface SimulationOptions {
+  expectedOutput?: string
+  tmHeadEnd?: TMHeadEnd
 }
 
 export class AutomatonSimulator {
@@ -52,7 +58,7 @@ export class AutomatonSimulator {
   /**
    * Simuliert einen Testfall Schritt für Schritt
    */
-  simulate(input: string): SimulationResult {
+  simulate(input: string, options?: SimulationOptions): SimulationResult {
     const steps: SimulationStep[] = []
 
     // Finde Startzustand
@@ -88,14 +94,14 @@ export class AutomatonSimulator {
       return this.simulateNFA(input, startStates, steps)
     }
 
-    // ✅ PDA Simulation
+    // PDA Simulation
     if (this.type === 'PDA') {
       return this.simulatePDA(input, startStates[0]!, steps)
     }
 
-    // ✅ TM Simulation
+    // TM Simulation
     if (this.type === 'TM') {
-      return this.simulateTM(input, startStates[0]!, steps)
+      return this.simulateTM(input, startStates[0]!, options)
     }
 
     return {
@@ -193,7 +199,7 @@ export class AutomatonSimulator {
       })
     }
 
-    // ✅ CRITICAL CHECK: Input must be fully consumed AND in final state!
+    // CRITICAL CHECK: Input must be fully consumed AND in final state!
     const accepted = currentState.isFinal && remainingInput === ''
 
     return {
@@ -253,7 +259,7 @@ export class AutomatonSimulator {
         }
       }
 
-      // ❌ STUCK CHECK: Keine Transitionen möglich!
+      // STUCK CHECK: Keine Transitionen möglich!
       if (nextStates.size === 0) {
         steps.push({
           step: i + 1,
@@ -297,7 +303,7 @@ export class AutomatonSimulator {
       })
     }
 
-    // ✅ ACCEPT CHECK: Input vollständig konsumiert UND mindestens ein Endzustand
+    // ACCEPT CHECK: Input vollständig konsumiert UND mindestens ein Endzustand
     const accepted =
       remainingInput === '' &&
       Array.from(currentStates).some((stateId) => {
@@ -369,7 +375,7 @@ export class AutomatonSimulator {
         transition = this.findPDATransition(currentState.id, '', stackTop)
       }
 
-      // ❌ STUCK: No transition possible
+      // STUCK: No transition possible
       if (!transition) {
         steps.push({
           step: stepCounter,
@@ -392,7 +398,7 @@ export class AutomatonSimulator {
         }
       }
 
-      // ✅ Apply transition
+      // Apply transition
       const consumesInput = transition.pdaInput !== undefined && transition.pdaInput !== ''
       const inputSymbol = transition.pdaInput || 'ε'
       const stackTopSymbol = transition.pdaStackTop || 'ε'
@@ -462,7 +468,7 @@ export class AutomatonSimulator {
       })
     }
 
-    // ✅ ACCEPTANCE CHECK (Two modes!)
+    // ACCEPTANCE CHECK (Two modes)
     const acceptedByFinalState = currentState.isFinal && remainingInput === ''
     const acceptedByEmptyStack = stack.length === 0 && remainingInput === ''
     const accepted = acceptedByFinalState || acceptedByEmptyStack
@@ -492,14 +498,46 @@ export class AutomatonSimulator {
    * - In einem Endzustand
    * (Nicht: "Tape ist leer" wie bei manchen TM Definitionen)
    */
-  private simulateTM(input: string, startState: State, steps: SimulationStep[]): SimulationResult {
+  private simulateTM(
+    input: string,
+    startState: State,
+    options?: SimulationOptions,
+  ): SimulationResult {
+    if (options?.expectedOutput === undefined) {
+      return {
+        input,
+        steps: [],
+        accepted: false,
+        finalState: null,
+        error: 'TM-Testfall braucht eine erwartete Ausgabe (Expected Output).',
+      }
+    }
+
+    const headEnd = options?.tmHeadEnd ?? 'start'
+
+    return this.simulateTMFromPosition(input, startState, headEnd, options.expectedOutput)
+  }
+
+  private simulateTMFromPosition(
+    input: string,
+    startState: State,
+    headEnd: TMHeadEnd,
+    expectedOutput: string,
+  ): SimulationResult {
     let currentState = startState
     let tape: string[] = input.split('') // Tape starts with input
-    let headPosition = 0 // Head starts at position 0
+    let headPosition = 0
+    let originIndex = 0
     let consumedInput = ''
+    const steps: SimulationStep[] = []
 
     // BLANK symbol (Unicode: U+25A1)
     const BLANK = '□'
+
+    if (tape.length === 0) {
+      tape = [BLANK]
+      headPosition = 0
+    }
 
     // Initial Step
     steps.push({
@@ -527,7 +565,7 @@ export class AutomatonSimulator {
       const transition = this.findTMTransition(currentState.id, readSymbol)
 
       if (!transition) {
-        // ❌ STUCK: No transition found
+        // STUCK: No transition found
         steps.push({
           step: stepCounter,
           currentState: currentState.id,
@@ -540,30 +578,67 @@ export class AutomatonSimulator {
           headPosition: headPosition,
         })
 
+        const outputInfo = this.getTapeOutputInfo(tape)
+        const finalOutput = outputInfo.output
+
+        if (currentState.isFinal) {
+          const outputMatches = finalOutput === expectedOutput
+          const headMatches = this.isTMHeadEndMatch(
+            headEnd,
+            headPosition,
+            originIndex,
+            outputInfo.leftIndex,
+            outputInfo.rightIndex,
+          )
+          const accepted = outputMatches && headMatches
+          steps[steps.length - 1]!.isAccepting = accepted
+          return {
+            input,
+            steps,
+            accepted,
+            finalState: currentState.id,
+            finalTape: [...tape],
+            finalOutput,
+            error: accepted
+              ? undefined
+              : this.buildTMRejectionReason(
+                  expectedOutput,
+                  finalOutput,
+                  headEnd,
+                  headPosition,
+                  originIndex,
+                  outputInfo.leftIndex,
+                  outputInfo.rightIndex,
+                ),
+          }
+        }
+
         return {
           input,
           steps,
           accepted: false,
           finalState: currentState.id,
           finalTape: [...tape],
-          error: `Keine Transition für Symbol '${this.normalizeBLANK(readSymbol) === '□' ? '#' : this.normalizeBLANK(readSymbol)}' in Zustand ${currentState.id}. Du benötigst eine Transition mit Symbol '#', 'BLANK', 'ε', '.', oder '_' für Blank-Zellen!`,
+          finalOutput,
+          error: `Keine Transition fuer Symbol '${this.normalizeBLANK(readSymbol) === '□' ? '#' : this.normalizeBLANK(readSymbol)}' in Zustand ${currentState.id}. Du benoetigst eine Transition mit Symbol '#', 'BLANK', 'epsilon', '.', oder '_' fuer Blank-Zellen!`,
         }
       }
 
-      // ✅ Apply transition
+      // Apply transition
 
-      // 1️⃣ Write to tape (if specified)
+      // 1) Write to tape (if specified)
       if (transition.tmWrite !== undefined && transition.tmWrite !== '') {
         tape[headPosition] = this.normalizeBLANK(transition.tmWrite)
       }
 
-      // 2️⃣ Move head (if specified)
+      // 2) Move head (if specified)
       if (transition.tmMove === 'L') {
         headPosition--
         // Expand tape to the left if needed
         if (headPosition < 0) {
           tape.unshift(BLANK)
           headPosition = 0
+          originIndex += 1
         }
       } else if (transition.tmMove === 'R') {
         headPosition++
@@ -573,15 +648,18 @@ export class AutomatonSimulator {
         }
       }
 
-      // 3️⃣ Move to next state
+      // 3) Move to next state
       const nextState = this.states.find((s) => s.id === transition.to)
       if (!nextState) {
+        const finalOutput = this.getTapeOutputInfo(tape).output
+
         return {
           input,
           steps,
           accepted: false,
           finalState: null,
           finalTape: [...tape],
+          finalOutput,
           error: `Zielzustand ${transition.to} nicht gefunden`,
         }
       }
@@ -609,25 +687,129 @@ export class AutomatonSimulator {
 
       // Check if in accepting state
       if (currentState.isFinal) {
+        const outputInfo = this.getTapeOutputInfo(tape)
+        const finalOutput = outputInfo.output
+        const outputMatches = finalOutput === expectedOutput
+        const headMatches = this.isTMHeadEndMatch(
+          headEnd,
+          headPosition,
+          originIndex,
+          outputInfo.leftIndex,
+          outputInfo.rightIndex,
+        )
+        const accepted = outputMatches && headMatches
+        steps[steps.length - 1]!.isAccepting = accepted
+
         return {
           input,
           steps,
-          accepted: true,
+          accepted,
           finalState: currentState.id,
           finalTape: [...tape],
-          error: undefined,
+          finalOutput,
+          error: accepted
+            ? undefined
+            : this.buildTMRejectionReason(
+                expectedOutput,
+                finalOutput,
+                headEnd,
+                headPosition,
+                originIndex,
+                outputInfo.leftIndex,
+                outputInfo.rightIndex,
+              ),
         }
       }
     }
 
     // Max steps exceeded
+    const finalOutput = this.getTapeOutputInfo(tape).output
+
     return {
       input,
       steps,
       accepted: false,
       finalState: currentState.id,
       finalTape: [...tape],
-      error: `Simulation abgebrochen: Zu viele Schritte (${MAX_STEPS}). Mögliche Endlosschleife!`,
+      finalOutput,
+      error: `Simulation abgebrochen: Zu viele Schritte (${MAX_STEPS}). Moegliche Endlosschleife!`,
+    }
+  }
+
+  private isTMHeadEndMatch(
+    headEnd: TMHeadEnd,
+    headPosition: number,
+    originIndex: number,
+    outputLeftIndex: number | null,
+    outputRightIndex: number | null,
+  ): boolean {
+    if (headEnd === 'any') return true
+
+    const startIndex = outputLeftIndex ?? originIndex
+    const endIndex = outputRightIndex ?? originIndex
+    const expectedIndex = headEnd === 'end' ? endIndex : startIndex
+
+    return headPosition === expectedIndex
+  }
+
+  private buildTMRejectionReason(
+    expectedOutput: string,
+    finalOutput: string,
+    headEnd: TMHeadEnd,
+    headPosition: number,
+    originIndex: number,
+    outputLeftIndex: number | null,
+    outputRightIndex: number | null,
+  ): string {
+    const outputMatches = finalOutput === expectedOutput
+    const headMatches = this.isTMHeadEndMatch(
+      headEnd,
+      headPosition,
+      originIndex,
+      outputLeftIndex,
+      outputRightIndex,
+    )
+
+    if (outputMatches && !headMatches && headEnd !== 'any') {
+      const startIndex = outputLeftIndex ?? originIndex
+      const endIndex = outputRightIndex ?? originIndex
+      const expectedIndex = headEnd === 'end' ? endIndex : startIndex
+      const expectedLabel = headEnd === 'end' ? 'Ende' : 'Anfang'
+      return `Kopfposition stimmt nicht: erwartet ${expectedLabel} (Index ${expectedIndex}), bekommen Index ${headPosition}`
+    }
+
+    if (!outputMatches) {
+      return `Output passt nicht: erwartet "${expectedOutput}", bekommen "${finalOutput}"`
+    }
+
+    return 'TM akzeptiert nicht'
+  }
+
+  private getTapeOutputInfo(tape: string[]): {
+    output: string
+    leftIndex: number | null
+    rightIndex: number | null
+  } {
+    const BLANK = '□'
+    let left = 0
+    let right = tape.length - 1
+
+    while (left <= right && tape[left] === BLANK) {
+      left++
+    }
+
+    while (right >= left && tape[right] === BLANK) {
+      right--
+    }
+
+    if (left > right) {
+      return { output: '', leftIndex: null, rightIndex: null }
+    }
+
+    return {
+      output: tape.slice(left, right + 1).join(''),
+      leftIndex: left,
+      rightIndex: right,
     }
   }
 
@@ -705,7 +887,7 @@ export class AutomatonSimulator {
   }
 
   /**
-   * 🔄 Berechnet die ε-Closure einer Zustandsmenge
+   * Berechnet die ε-Closure einer Zustandsmenge
    * (Alle Zustände die über ε-Transitionen erreichbar sind)
    */
   private getEpsilonClosure(states: Set<string>): Set<string> {
@@ -747,10 +929,18 @@ export class AutomatonSimulator {
    * Führt mehrere Testfälle aus
    */
   runTests(
-    testCases: Array<{ input: string; expected: boolean }>,
+    testCases: Array<{
+      input: string
+      expected: boolean
+      expectedOutput?: string
+      tmHeadEnd?: TMHeadEnd
+    }>,
   ): Array<SimulationResult & { expected: boolean; passed: boolean }> {
     return testCases.map((test) => {
-      const result = this.simulate(test.input)
+      const result = this.simulate(test.input, {
+        expectedOutput: test.expectedOutput,
+        tmHeadEnd: test.tmHeadEnd,
+      })
       return {
         ...result,
         expected: test.expected,

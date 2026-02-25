@@ -161,7 +161,7 @@ const parseQuickInput = (value: string) => {
 
   quickInputError.value = ''
 
-  // ✅ NO AUTO-REPLACE for 'e' - it stays as 'e'
+  // NO AUTO-REPLACE for 'e' - it stays as 'e'
 
   // Check for invalid characters (whitespace)
   if (/\s/.test(value)) {
@@ -197,7 +197,7 @@ const parseQuickInput = (value: string) => {
   let inputSymbol = leftParts[0] || ''
   let stackTopSymbol = leftParts[1] || ''
 
-  // ✅ VALIDATION: Max 1 character for input and stackTop (except ε)
+  // VALIDATION: Max 1 character for input and stackTop (except ε)
   if (inputSymbol.length > 1 && inputSymbol !== 'ε') {
     quickInputError.value = `⚠️ Input zu lang: "${inputSymbol}"`
     inputSymbol = inputSymbol.charAt(0)
@@ -208,7 +208,7 @@ const parseQuickInput = (value: string) => {
     stackTopSymbol = stackTopSymbol.charAt(0)
   }
 
-  // ✅ Set values (OPTION 2):
+  // Set values (OPTION 2):
   // - Empty string = epsilon (empty in store)
   // - "ε" explicitly = epsilon (empty in store)
   // - Any other character (including "e") = that character

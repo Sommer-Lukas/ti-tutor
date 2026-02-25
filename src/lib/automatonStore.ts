@@ -1,7 +1,7 @@
 import { ref, computed, watch, triggerRef } from 'vue'
 import type { ComputedRef } from 'vue'
 import type { AutomatonProject } from './automaton'
-import type { AutomatonType } from './automatonTypes'
+import type { AutomatonType, TMHeadEnd } from './automatonTypes'
 import { AUTOMATON_TYPES } from './automatonTypes'
 import { AutomatonValidator } from './automatonValidator'
 
@@ -18,6 +18,8 @@ export interface TestCase {
   projectId: string
   input: string
   expectedAccepted: boolean
+  expectedOutput?: string
+  tmHeadEnd?: TMHeadEnd
 }
 
 export const testCases = ref<TestCase[]>([])
@@ -110,6 +112,22 @@ function loadFromStorage() {
     const storedTests = localStorage.getItem(STORAGE_KEY_TESTS)
     if (storedTests) {
       testCases.value = JSON.parse(storedTests)
+
+      // Normalize TM-specific fields for existing test cases
+      testCases.value.forEach((tc) => {
+        const project = projects.value.find((p) => p.id === tc.projectId)
+        if (project?.type === 'TM') {
+          if (tc.expectedOutput === undefined) {
+            tc.expectedOutput = ''
+          }
+          if ((tc as { tmHeadStart?: TMHeadEnd }).tmHeadStart && !tc.tmHeadEnd) {
+            tc.tmHeadEnd = (tc as { tmHeadStart?: TMHeadEnd }).tmHeadStart
+          }
+          if (!tc.tmHeadEnd) {
+            tc.tmHeadEnd = 'start'
+          }
+        }
+      })
     }
 
     // Load current project ID
@@ -167,7 +185,7 @@ export function createProject(name: string, type: AutomatonType): AutomatonProje
     transitions: [],
     createdAt: new Date(),
     updatedAt: new Date(),
-    // ✅ ADD: PDA config if type is PDA
+    // ADD: PDA config if type is PDA
     ...(type === 'PDA' && {
       pdaConfig: {
         startStackSymbol: '$',
@@ -329,11 +347,17 @@ export function addTestCase(input: string, expectedAccepted: boolean) {
     return
   }
 
+  const isTM = currentProject.value.type === 'TM'
+
   testCases.value.push({
     id: crypto.randomUUID(),
     projectId: currentProject.value.id,
     input,
     expectedAccepted,
+    ...(isTM && {
+      expectedOutput: '',
+      tmHeadEnd: 'start' as TMHeadEnd,
+    }),
   })
 }
 
@@ -341,11 +365,23 @@ export function removeTestCase(id: string) {
   testCases.value = testCases.value.filter((tc) => tc.id !== id)
 }
 
-export function updateTestCase(id: string, input: string, expectedAccepted: boolean) {
+export function updateTestCase(
+  id: string,
+  input: string,
+  expectedAccepted: boolean,
+  expectedOutput?: string,
+  tmHeadEnd?: TMHeadEnd,
+) {
   const tc = testCases.value.find((t) => t.id === id)
   if (tc) {
     tc.input = input
     tc.expectedAccepted = expectedAccepted
+    if (expectedOutput !== undefined) {
+      tc.expectedOutput = expectedOutput
+    }
+    if (tmHeadEnd !== undefined) {
+      tc.tmHeadEnd = tmHeadEnd
+    }
   }
 }
 

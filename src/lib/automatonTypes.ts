@@ -1,6 +1,8 @@
 // Automaton Type Definitions
 export type AutomatonType = 'DFA' | 'NFA' | 'PDA' | 'TM'
 
+export type TMHeadEnd = 'start' | 'end' | 'any'
+
 export interface AutomatonTypeConfig {
   id: AutomatonType
   name: string

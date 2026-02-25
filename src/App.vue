@@ -161,7 +161,10 @@ const startSimulation = () => {
     pdaConfig,
   )
 
-  currentSimulation.value = simulator.simulate(testCase.input)
+  currentSimulation.value = simulator.simulate(testCase.input, {
+    expectedOutput: testCase.expectedOutput,
+    tmHeadEnd: testCase.tmHeadEnd,
+  })
   currentStepIndex.value = 0
   isSimulating.value = true
 
@@ -227,6 +230,8 @@ const runAllTests = () => {
   const testsWithExpectations = currentTestCases.value.map((tc) => ({
     input: tc.input,
     expected: tc.expectedAccepted,
+    expectedOutput: tc.expectedOutput,
+    tmHeadEnd: tc.tmHeadEnd,
   }))
 
   allTestResults.value = simulator.runTests(testsWithExpectations)

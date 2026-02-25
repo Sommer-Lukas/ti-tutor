@@ -701,7 +701,7 @@ const registerCytoscapeEvents = () => {
         pdaInput: '',
         pdaStackTop: '',
         pdaStackPush: '',
-        // tmWrite and tmMove are optional → undefined by default ✅
+        // tmWrite and tmMove are optional - undefined by default
       })
       selectedEdgeId.value = edgeId
       selectedNodeIds.value.clear()
@@ -807,7 +807,7 @@ const registerCytoscapeEvents = () => {
     }
   })
 
-  // ✅ Double-click on edge: PDA → PDA Modal, TM → TM Modal
+  // Double-click on edge: PDA → PDA Modal, TM → TM Modal
   cy.on('dbltap', 'edge', (event) => {
     if (isLocked.value) return
 
@@ -921,7 +921,7 @@ const syncToCytoscape = () => {
   currentProject.value.transitions.forEach((transition) => {
     const existingEdge = cy!.$id(transition.id)
 
-    // ✅ NEU: Use getEdgeLabel() für alle Typen (inkl. TM)
+    // Use getEdgeLabel() for all types (incl. TM)
     const label = getEdgeLabel(transition)
 
     if (existingEdge.length > 0) {
@@ -1161,7 +1161,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
       Tippen: a,$/aa (verwende ε für Epsilon) • Doppelklick für Editor
     </div>
 
-    <!-- ✅ NEU: TM Keyboard Input Buffer -->
+    <!-- TM Keyboard Input Buffer -->
     <div
       v-if="
         selectedEdgeId &&

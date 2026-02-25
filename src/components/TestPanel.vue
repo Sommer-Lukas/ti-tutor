@@ -105,6 +105,20 @@ const updateExpected = (id: string, expectedAccepted: boolean) => {
   }
 }
 
+const updateExpectedOutput = (id: string, expectedOutput: string) => {
+  const tc = currentTestCases.value.find((t) => t.id === id)
+  if (tc) {
+    updateTestCase(id, tc.input, tc.expectedAccepted, expectedOutput, tc.tmHeadEnd)
+  }
+}
+
+const updateTMHeadEnd = (id: string, tmHeadEnd: 'start' | 'end' | 'any') => {
+  const tc = currentTestCases.value.find((t) => t.id === id)
+  if (tc) {
+    updateTestCase(id, tc.input, tc.expectedAccepted, tc.expectedOutput, tmHeadEnd)
+  }
+}
+
 // Test Summary
 const testSummary = computed(() => {
   if (!props.simulationResults || props.simulationResults.length === 0) return null
@@ -356,6 +370,34 @@ const onStatusLeave = () => {
             >
               <option value="accept">Accept</option>
               <option value="reject">Reject</option>
+            </select>
+          </div>
+
+          <!-- TM: Expected Output + Head Start -->
+          <div v-if="currentProject.type === 'TM'" class="mt-2">
+            <label class="text-xs text-zinc-500 mb-1 block">Expected Output</label>
+            <input
+              :value="tc.expectedOutput ?? ''"
+              @input="(e) => updateExpectedOutput(tc.id, (e.target as HTMLInputElement).value)"
+              class="w-full px-2 py-1 text-xs bg-zinc-50 border border-zinc-300 rounded outline-none focus:border-blue-500 focus:bg-white transition-colors font-mono"
+              placeholder="z.B. 1011"
+              @click.stop
+            />
+          </div>
+
+          <div v-if="currentProject.type === 'TM'" class="mt-2">
+            <label class="text-xs text-zinc-500 mb-1 block">Head End</label>
+            <select
+              :value="tc.tmHeadEnd ?? 'start'"
+              @change="
+                (e) => updateTMHeadEnd(tc.id, (e.target as HTMLSelectElement).value as 'start' | 'end' | 'any')
+              "
+              class="w-full px-2 py-1 text-xs bg-zinc-50 border border-zinc-300 rounded outline-none focus:border-blue-500 focus:bg-white transition-colors font-medium"
+              @click.stop
+            >
+              <option value="start">Am ersten Symbol</option>
+              <option value="end">Am letzten Symbol</option>
+              <option value="any">Egal (Ende beliebig)</option>
             </select>
           </div>
         </div>

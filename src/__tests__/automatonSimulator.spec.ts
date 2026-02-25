@@ -154,7 +154,10 @@ describe('AutomatonSimulator', () => {
 
     it('expands tape and writes on blank', () => {
       const simulator = new AutomatonSimulator(states, transitions, 'TM')
-      const result = simulator.simulate('1')
+      const result = simulator.simulate('1', {
+        expectedOutput: '11',
+        tmHeadEnd: 'start',
+      })
       expect(result.accepted).toBe(true)
       expect(result.finalTape).toBeDefined()
       expect(result.finalTape?.join('')).toBe('11')

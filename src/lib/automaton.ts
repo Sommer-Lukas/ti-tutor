@@ -14,12 +14,12 @@ export interface Transition {
   to: string
   symbol: string // Für NEA: kann "ε" sein, für DEA: muss reguläres Symbol sein
 
-  // ✅ PDA-specific fields (optional - nur für PDA verwendet)
+  // PDA-specific fields (optional - only used for PDA)
   pdaInput?: string // Input symbol (empty string = epsilon)
   pdaStackTop?: string // Stack symbol to pop (empty string = epsilon)
   pdaStackPush?: string // Stack symbols to push (empty string = epsilon, can be multiple chars like "AB")
 
-  // ✅ TM-specific fields
+  // TM-specific fields
   tmWrite?: string // Symbol schreiben (single char) - falls undefined: kein Schreiben
   tmMove?: 'L' | 'R' // Kopfbewegung: nur Links oder Rechts, kein N!
 }

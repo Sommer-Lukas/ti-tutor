@@ -104,7 +104,7 @@ export class AutomatonValidator {
       // Group transitions by symbol (for DFA/NFA)
       const transitionsBySymbol = new Map<string, Transition[]>()
 
-      // ✅ For PDA/TM: Use complex transition signature (input,stackTop/stackPush)
+      // For PDA/TM: Use complex transition signature (input,stackTop/stackPush)
       if (this.type === 'PDA') {
         for (const t of outgoingTransitions) {
           // PDA signature: "input,stackTop" (ignore stackPush for determinism check)
