@@ -7,26 +7,26 @@ import { currentProject, validationResult } from '@/lib/automatonStore'
 import { formatTransitionLabel, requiresModalEditor } from '@/lib/automatonTypes'
 import type { Transition } from '@/lib/automaton'
 import PDATransitionEditor from './PDATransitionEditor.vue'
-import TMTransitionEditor from './TMTransitionEditor.vue' // ✅ NEU
+import TMTransitionEditor from './TMTransitionEditor.vue'
 
-// --- PROPS ---
+// Props
 const props = defineProps<{
   currentSimulationState?: string | null
   isSimulating?: boolean
 }>()
 
-// --- COMPUTED: Is Editor Locked? ---
+// Computed: Is editor locked during simulation
 const isLocked = computed(() => props.isSimulating || false)
 
-// --- CANVAS KEY FOR REACTIVITY ---
+// Canvas re-render key
 const canvasKey = ref(0)
 
-// --- PDA EDITOR STATE ---
+// PDA editor state
 const pdaEditorVisible = ref(false)
 const editingTransition = ref<Transition | null>(null)
 const pdaInputBuffer = ref('')
 
-// --- ✅ TM EDITOR STATE ---
+// TM editor state
 const tmEditorVisible = ref(false)
 const tmInputBuffer = ref('')
 
@@ -35,7 +35,7 @@ watch(
   () => currentProject.value.id,
   (newId, oldId) => {
     if (newId !== oldId) {
-      console.log('🔄 Project switched in Canvas:', oldId, '->', newId)
+      console.log('Project switched:', oldId, '->', newId)
       canvasKey.value++
 
       if (cy) {
@@ -49,7 +49,7 @@ watch(
       pdaEditorVisible.value = false
       editingTransition.value = null
       pdaInputBuffer.value = ''
-      // ✅ NEU: Reset TM state
+      // Reset TM state on project switch
       tmEditorVisible.value = false
       tmInputBuffer.value = ''
 
@@ -60,7 +60,7 @@ watch(
   },
 )
 
-// --- LOCAL STATE ---
+// Local state
 let _nodeIdCounter = 1 // TODO: Use for dynamic node generation
 let edgeIdCounter = 0
 
@@ -71,7 +71,7 @@ const selectedNodeIds = ref<Set<string>>(new Set())
 const selectedEdgeId = ref<string | null>(null)
 const sourceNodeForEdge = ref<string | null>(null)
 
-// --- MULTI-DRAG STATE ---
+// Multi-drag state
 let isDragging = false
 let dragStartPositions: Map<string, { x: number; y: number }> = new Map()
 
@@ -93,7 +93,7 @@ watch(
       pdaEditorVisible.value = false
       editingTransition.value = null
       pdaInputBuffer.value = ''
-      // ✅ NEU: Reset TM state
+      // Reset TM editor state
       tmEditorVisible.value = false
       tmInputBuffer.value = ''
 
@@ -122,7 +122,7 @@ watch(
 // Clear buffers when edge selection changes
 watch(selectedEdgeId, () => {
   pdaInputBuffer.value = ''
-  tmInputBuffer.value = '' // ✅ NEU
+  tmInputBuffer.value = ''
 })
 
 // --- STYLES ---
@@ -352,7 +352,7 @@ const savePDATransition = (data: {
   editingTransition.value = null
 }
 
-// --- ✅ NEU: TM EDITOR ACTIONS ---
+// TM editor actions
 const openTMEditor = (transitionId: string) => {
   const transition = currentProject.value.transitions.find((t) => t.id === transitionId)
   if (!transition) return
@@ -398,7 +398,7 @@ const parseTMInput = (input: string, transition: Transition) => {
   }
 }
 
-// --- ✅ NEU: TM KEYBOARD INPUT HANDLER ---
+// TM keyboard input handler
 const handleTMKeyboardInput = (e: KeyboardEvent, transition: Transition) => {
   if (e.key === 'Backspace') {
     e.preventDefault()
@@ -817,7 +817,7 @@ const registerCytoscapeEvents = () => {
     if (currentProject.value.type === 'PDA' && requiresModalEditor(currentProject.value.type)) {
       openPDAEditor(edge.id())
     } else if (currentProject.value.type === 'TM') {
-      // ✅ NEU: TM Modal
+      // Open TM modal editor
       openTMEditor(edge.id())
     }
   })
@@ -944,8 +944,9 @@ const syncToCytoscape = () => {
 }
 
 // --- KEYBOARD ---
+// Prevent keyboard input when modals are open
 const handleKeyDown = (e: KeyboardEvent) => {
-  // ✅ UPDATED: Don't process when ANY modal is open
+  // Skip keyboard input if any modal is open
   if (pdaEditorVisible.value || tmEditorVisible.value) return
 
   if (!cy || isLocked.value) return
@@ -962,7 +963,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
     return
   }
 
-  // ✅ EDGE EDITING
+  // Edge editing with keyboard
   if (selectedEdgeId.value) {
     const transition = currentProject.value.transitions.find((t) => t.id === selectedEdgeId.value)
     if (!transition) return
@@ -973,7 +974,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
       return
     }
 
-    // ✅ NEU: TM Keyboard Parser
+    // TM keyboard input parser
     if (currentProject.value.type === 'TM') {
       handleTMKeyboardInput(e, transition)
       return
@@ -1135,7 +1136,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
       class="absolute bottom-4 right-4 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl z-40 border-2 border-emerald-400"
     >
       <div class="flex items-center gap-3">
-        <span class="text-xs font-semibold opacity-75">⚡ Eingabe:</span>
+        <span class="text-xs font-semibold opacity-75">Input:</span>
         <code class="text-lg font-mono font-bold bg-emerald-700 px-3 py-1 rounded">
           {{ pdaInputBuffer }}<span class="animate-pulse">|</span>
         </code>
@@ -1156,7 +1157,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
       "
       class="absolute bottom-4 right-4 bg-emerald-600 text-white px-4 py-2 rounded-full shadow-lg z-40 text-xs font-medium flex items-center gap-2"
     >
-      <span>⚡</span>
+      <span>+</span>
       Tippen: a,$/aa (verwende ε für Epsilon) • Doppelklick für Editor
     </div>
 
@@ -1182,7 +1183,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
       </p>
     </div>
 
-    <!-- ✅ NEU: TM Editing Hint (buffer empty) -->
+    <!-- TM editing hint when buffer is empty -->
     <div
       v-if="
         selectedEdgeId &&
@@ -1217,7 +1218,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
       @save="savePDATransition"
     />
 
-    <!-- ✅ NEU: TM Transition Editor Modal -->
+    <!-- TM transition editor modal -->
     <TMTransitionEditor
       :visible="tmEditorVisible"
       :transition="editingTransition"

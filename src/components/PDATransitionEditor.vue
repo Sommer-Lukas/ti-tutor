@@ -28,7 +28,6 @@ const stackTopError = ref('')
 const stackPushError = ref('')
 const quickInputError = ref('')
 
-// ✅ FIX: Define clearAllErrors BEFORE the watch!
 const clearAllErrors = () => {
   inputError.value = ''
   stackTopError.value = ''
@@ -36,7 +35,7 @@ const clearAllErrors = () => {
   quickInputError.value = ''
 }
 
-// ✅ STRICT VALIDATION FUNCTIONS (also define before watch)
+// Validation functions
 const validateSingleChar = (value: string): { valid: boolean; error: string; cleaned: string } => {
   // Remove all whitespace
   const trimmed = value.trim()
@@ -86,7 +85,7 @@ const validateStackPush = (value: string): { valid: boolean; error: string; clea
   return { valid: true, error: '', cleaned: trimmed }
 }
 
-// Watch for transition changes
+// Watch for transition changes and load values
 watch(
   () => props.transition,
   (newTransition) => {
@@ -115,7 +114,7 @@ watch(
   { immediate: true },
 )
 
-// ✅ WATCH: Validate input field in real-time
+// Validate input field in real-time
 watch(input, (newValue) => {
   const result = validateSingleChar(newValue)
   inputError.value = result.error
@@ -363,7 +362,7 @@ watch(
               <div
                 class="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xl shadow-lg"
               >
-                📚
+                PDA Configuration
               </div>
               <div>
                 <h2 class="text-base font-bold text-zinc-900">PDA Transition Editor</h2>
@@ -693,7 +692,7 @@ watch(
             class="px-6 py-4 border-t border-zinc-200 bg-zinc-50 flex justify-between items-center"
           >
             <p class="text-xs text-zinc-500">
-              💡
+              Tip: Instead of repeating, you can push "AB" to push multiple symbols
               <kbd class="px-1.5 py-0.5 bg-white rounded border text-[10px] font-mono">ESC</kbd> zum
               Schließen •
               <kbd class="px-1.5 py-0.5 bg-white rounded border text-[10px] font-mono">⌘+Enter</kbd>

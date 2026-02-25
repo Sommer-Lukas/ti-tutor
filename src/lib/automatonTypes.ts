@@ -8,8 +8,8 @@ export interface AutomatonTypeConfig {
   description: string
   rules: AutomatonRules
   features: AutomatonFeatures
-  transitionFormat: TransitionFormat // ← NEU!
-  editorHints: EditorHints // ← NEU!
+  transitionFormat: TransitionFormat
+  editorHints: EditorHints
 }
 
 export interface AutomatonRules {
@@ -38,7 +38,7 @@ export interface AutomatonFeatures {
   supportsNondeterminism: boolean
 }
 
-// ✅ NEU: Transition Format Definition
+// Transition Format Definition
 export interface TransitionFormat {
   type: 'simple' | 'stack' | 'tape'
   inputSymbolMaxLength: number | 'unlimited'
@@ -46,7 +46,7 @@ export interface TransitionFormat {
   labelTemplate: string // Template for displaying transition label
 }
 
-// ✅ NEU: Editor Hints
+// Editor Hints
 export interface EditorHints {
   transitionEditHint: string
   symbolInputPlaceholder: string
@@ -218,12 +218,12 @@ export const AUTOMATON_TYPES: Record<AutomatonType, AutomatonTypeConfig> = {
   },
 }
 
-// ✅ HELPER: Get current automaton config
+// Get current automaton configuration
 export function getAutomatonConfig(type: AutomatonType): AutomatonTypeConfig {
   return AUTOMATON_TYPES[type]
 }
 
-// ✅ HELPER: Check if automaton requires modal editor
+// Check if automaton type requires modal editor for transitions
 export function requiresModalEditor(type: AutomatonType): boolean {
   return AUTOMATON_TYPES[type].transitionFormat.requiresModal
 }

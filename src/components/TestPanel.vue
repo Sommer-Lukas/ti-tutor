@@ -28,18 +28,18 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:selected': [value: string | null]
   'update:visible': [value: boolean]
-  'update:pdaStartStackSymbol': [value: string] // ← NEU!
+  'update:pdaStartStackSymbol': [value: string]
 }>()
 
-// ✅ PDA Start Stack Symbol (Default: "$")
+// PDA start stack symbol state
 const pdaStartStackSymbol = ref('$')
 
 // Watch for project changes and reset stack symbol
 watch(
   () => currentProject.value.id,
   () => {
-    // TODO: Load from currentProject.pdaConfig?.startStackSymbol when store is ready
-    pdaStartStackSymbol.value = '$'
+  // TODO: Load from currentProject.pdaConfig?.startStackSymbol when store is ready
+  pdaStartStackSymbol.value = '$'
   },
 )
 
@@ -118,6 +118,23 @@ const testSummary = computed(() => {
 
 // Test Count for current project
 const testCount = computed(() => currentTestCases.value.length)
+
+// Tooltip positioning state
+const activeTooltipId = ref<string | null>(null)
+const tooltipPosition = ref({ top: 0, left: 0 })
+
+const onStatusHover = (e: MouseEvent, testCaseId: string) => {
+  activeTooltipId.value = testCaseId
+  const rect = (e.target as HTMLElement).getBoundingClientRect()
+  tooltipPosition.value = {
+    top: rect.top - 10,
+    left: rect.left - 330, // 320px (w-80) + 10px gap, appears on LEFT side
+  }
+}
+
+const onStatusLeave = () => {
+  activeTooltipId.value = null
+}
 </script>
 
 <template>
@@ -161,26 +178,26 @@ const testCount = computed(() => currentTestCases.value.length)
         </button>
       </div>
 
-      <!-- ✅ PDA CONFIG SECTION (Only visible for PDA) -->
+      <!-- PDA configuration section -->
       <div
         v-if="currentProject.type === 'PDA'"
         class="px-4 py-3 border-b border-zinc-200 bg-gradient-to-br from-purple-50 to-indigo-50 flex-shrink-0"
       >
         <div class="mb-2 flex items-center gap-2">
-          <span class="text-xs font-bold text-purple-900">📚 PDA Configuration</span>
+          <span class="text-xs font-bold text-purple-900">PDA Configuration</span>
         </div>
 
         <div>
           <label class="text-xs text-purple-700 font-semibold mb-1 block">
-            Start-Kellersymbol (Initial Stack)
+            Start stack symbol (Initial Stack)
           </label>
           <input
             v-model="pdaStartStackSymbol"
             class="w-full px-3 py-2 text-sm bg-white border-2 border-purple-300 rounded-lg outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all font-mono font-bold text-purple-900"
-            placeholder="$ oder Z0"
+            placeholder="$ or Z0"
             maxlength="3"
           />
-          <p class="text-[10px] text-purple-600 mt-1">💡 Wird zu Beginn auf den Stack gelegt</p>
+          <p class="text-[10px] text-purple-600 mt-1">Placed on the stack at the start of simulation</p>
         </div>
       </div>
 
@@ -201,10 +218,35 @@ const testCount = computed(() => currentTestCases.value.length)
 
             <div class="flex items-center gap-1">
               <!-- Status Icon -->
-              <div v-if="getTestStatus(tc.id) === 'passed'" class="relative group/status">
+              <div
+                v-if="getTestStatus(tc.id) === 'passed'"
+                @mouseenter="onStatusHover($event, tc.id)"
+                @mouseleave="onStatusLeave"
+                class="cursor-help"
+              >
                 <CheckCircle2 class="w-4 h-4 text-green-500" />
+              </div>
+
+              <div
+                v-else-if="getTestStatus(tc.id) === 'failed'"
+                @mouseenter="onStatusHover($event, tc.id)"
+                @mouseleave="onStatusLeave"
+                class="cursor-help"
+              >
+                <XCircle class="w-4 h-4 text-red-500" />
+              </div>
+
+              <Clock v-else class="w-4 h-4 text-zinc-400" />
+
+              <!-- Tooltip via Teleport (outside scroll area) -->
+              <Teleport to="body">
                 <div
-                  class="absolute right-0 top-full mt-1 w-80 p-3 bg-zinc-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover/status:opacity-100 group-hover/status:visible transition-all z-50 pointer-events-none"
+                  v-if="activeTooltipId === tc.id && getTestStatus(tc.id) === 'passed'"
+                  class="fixed w-80 p-3 bg-zinc-900 text-white text-xs rounded-lg shadow-2xl z-[9999] pointer-events-none"
+                  :style="{
+                    top: tooltipPosition.top + 'px',
+                    left: tooltipPosition.left + 'px',
+                  }"
                 >
                   <div class="font-bold mb-2 text-green-400 flex items-center gap-1">
                     <CheckCircle2 class="w-3 h-3" />
@@ -222,13 +264,17 @@ const testCount = computed(() => currentTestCases.value.length)
                     </div>
                   </div>
                 </div>
-              </div>
+              </Teleport>
 
-              <div v-else-if="getTestStatus(tc.id) === 'failed'" class="relative group/status">
-                <XCircle class="w-4 h-4 text-red-500" />
-                <!-- Error Tooltip -->
+              <!-- Error Tooltip via Teleport (outside scroll area) -->
+              <Teleport to="body">
                 <div
-                  class="absolute right-0 top-full mt-1 w-80 p-3 bg-zinc-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover/status:opacity-100 group-hover/status:visible transition-all z-50 pointer-events-none"
+                  v-if="activeTooltipId === tc.id && getTestStatus(tc.id) === 'failed'"
+                  class="fixed w-80 p-3 bg-zinc-900 text-white text-xs rounded-lg shadow-2xl z-[9999] pointer-events-none"
+                  :style="{
+                    top: tooltipPosition.top + 'px',
+                    left: tooltipPosition.left + 'px',
+                  }"
                 >
                   <div class="font-bold mb-1 text-red-400 flex items-center gap-1">
                     <AlertCircle class="w-3 h-3" />
@@ -274,9 +320,7 @@ const testCount = computed(() => currentTestCases.value.length)
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <Clock v-else class="w-4 h-4 text-zinc-400" />
+              </Teleport>
 
               <button
                 @click.stop="handleDeleteTest(tc.id)"
@@ -310,8 +354,8 @@ const testCount = computed(() => currentTestCases.value.length)
               class="w-full px-2 py-1 text-xs bg-zinc-50 border border-zinc-300 rounded outline-none focus:border-blue-500 focus:bg-white transition-colors font-medium"
               @click.stop
             >
-              <option value="accept">✅ Accept</option>
-              <option value="reject">❌ Reject</option>
+              <option value="accept">Accept</option>
+              <option value="reject">Reject</option>
             </select>
           </div>
         </div>

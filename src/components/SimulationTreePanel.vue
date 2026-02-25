@@ -127,7 +127,7 @@ const getTapeWindow = (
           v-if="isTM"
           class="px-2 py-1 rounded-full bg-amber-100 border border-amber-300 flex items-center gap-1"
         >
-          <span class="text-[10px] font-bold text-amber-900 uppercase tracking-wide">🎯 TM</span>
+          <span class="text-[10px] font-bold text-amber-900 uppercase tracking-wide">TM</span>
         </div>
       </div>
 
@@ -483,7 +483,7 @@ const getTapeWindow = (
         class="mb-3 p-3 bg-amber-50 rounded-lg border border-amber-200"
       >
         <div class="flex items-center gap-2 mb-2">
-          <span class="text-xs font-bold text-amber-900">📝 Final Tape:</span>
+          <span class="text-xs font-bold text-amber-900">Final Tape:</span>
         </div>
         <div class="flex flex-wrap gap-1">
           <div

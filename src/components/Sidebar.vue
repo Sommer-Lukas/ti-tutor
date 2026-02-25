@@ -1,7 +1,7 @@
 <script setup lang="ts" name="SidebarNavigation">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Button } from '@/components/ui/button'
-import { PanelLeftClose, PanelLeftOpen, Plus, Settings, FileText } from 'lucide-vue-next'
+import { PanelLeftClose, PanelLeftOpen, Plus, FileText } from 'lucide-vue-next'
 import NewAutomatonDialog from '@/components/NewAutomatonDialog.vue'
 import ProjectActionsMenu from '@/components/ProjectActionsMenu.vue'
 import { projects, currentProject, setCurrentProject } from '@/lib/automatonStore'
@@ -88,18 +88,6 @@ onUnmounted(() => {
           Erstes Projekt erstellen
         </button>
       </div>
-    </div>
-
-    <!-- Settings at bottom -->
-    <div class="p-2 border-t mt-auto">
-      <Button
-        variant="ghost"
-        class="w-full justify-start gap-3 h-12"
-        :class="{ 'justify-center px-0': !isOpen }"
-      >
-        <Settings class="h-5 h-5 text-zinc-600" />
-        <span v-if="isOpen">Einstellungen</span>
-      </Button>
     </div>
 
     <!-- New Automaton Dialog -->

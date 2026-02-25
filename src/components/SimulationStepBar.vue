@@ -124,7 +124,7 @@ const isStuck = computed(() => currentStep.value?.isStuck ?? false)
       v-if="isTM && currentStep.tape"
       class="flex-1 px-6 py-4 flex flex-col justify-center gap-2 border-r border-blue-200 bg-gradient-to-b from-amber-50 to-amber-100 overflow-hidden"
     >
-      <div class="text-xs text-amber-700 font-semibold">📝 Tape Window</div>
+      <div class="text-xs text-amber-700 font-semibold">Tape Window</div>
 
       <div ref="tapeContainer" class="flex gap-1 overflow-x-auto pb-1 scroll-smooth">
         <div
@@ -150,7 +150,7 @@ const isStuck = computed(() => currentStep.value?.isStuck ?? false)
       v-if="isPDA && currentStep.stack"
       class="flex-1 px-6 py-4 flex flex-col justify-center gap-2 border-r border-blue-200 bg-gradient-to-b from-purple-50 to-purple-100 overflow-hidden"
     >
-      <div class="text-xs text-purple-700 font-semibold">📚 Stack</div>
+      <div class="text-xs text-purple-700 font-semibold">Stack</div>
 
       <div class="flex gap-1 overflow-x-auto pb-1">
         <div v-if="currentStep.stack.length === 0" class="text-xs text-purple-600 font-semibold">

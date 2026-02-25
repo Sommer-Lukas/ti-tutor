@@ -3,50 +3,46 @@ import type { AutomatonType } from './automatonTypes'
 
 export interface SimulationStep {
   step: number
-  currentState: string | string[] // NEA/PDA: Array von Zuständen!
+  currentState: string | string[]
   remainingInput: string
   consumedInput: string
   transition?: {
     from: string
     to: string
     symbol: string
-    // ✅ PDA-specific
     pdaInput?: string
     pdaStackTop?: string
     pdaStackPush?: string
-    // ✅ TM-specific
     tmWrite?: string
     tmMove?: 'L' | 'R'
   }
   isAccepting: boolean
   possibleTransitions: string[]
   isStuck?: boolean
-  epsilonClosure?: string[] // NEA: ε-Closure Info
-  stack?: string[] // ✅ PDA: Current stack state (top = last element)
-  // ✅ TM-specific
-  tape?: string[] // TM: Current tape content
-  headPosition?: number // TM: Position of read/write head
+  epsilonClosure?: string[]
+  stack?: string[]
+  tape?: string[]
+  headPosition?: number
 }
 
 export interface SimulationResult {
   input: string
   steps: SimulationStep[]
   accepted: boolean
-  finalState: string | string[] | null // NEA/PDA: Array von Zuständen!
+  finalState: string | string[] | null
   error?: string
-  finalStack?: string[] // ✅ PDA: Final stack state
-  // ✅ TM-specific
-  finalTape?: string[] // TM: Final tape state
+  finalStack?: string[]
+  finalTape?: string[]
 }
 
 export class AutomatonSimulator {
-  private pdaStartStackSymbol: string = '$' // ✅ PDA: Initial stack symbol
+  private pdaStartStackSymbol: string = '$'
 
   constructor(
     private states: State[],
     private transitions: Transition[],
     private type: AutomatonType,
-    pdaConfig?: { startStackSymbol: string }, // ✅ PDA Config
+    pdaConfig?: { startStackSymbol: string },
   ) {
     if (pdaConfig) {
       this.pdaStartStackSymbol = pdaConfig.startStackSymbol || '$'
@@ -210,7 +206,7 @@ export class AutomatonSimulator {
   }
 
   /**
-   * ✨ NFA SIMULATION mit Zustandsmengen (Powerset Construction Prinzip)
+   * NFA simulation using powerset construction principle
    */
   private simulateNFA(
     input: string,
@@ -321,7 +317,7 @@ export class AutomatonSimulator {
   }
 
   /**
-   * 📚 PDA SIMULATION mit Stack-Management
+   * PDA simulation with stack management
    *
    * PDA akzeptiert auf zwei Arten:
    * 1. By Final State: Input verbraucht UND in Endzustand
@@ -484,7 +480,7 @@ export class AutomatonSimulator {
   }
 
   /**
-   * 🎯 TM SIMULATION mit Tape und Read/Write Head
+   * Turing machine simulation with tape and read/write head
    *
    * Eine Turing Machine hat:
    * - Ein unendliches Tape (wir begrenzen es auf Sicherheit)
@@ -502,7 +498,7 @@ export class AutomatonSimulator {
     let headPosition = 0 // Head starts at position 0
     let consumedInput = ''
 
-    // ✅ BLANK Symbol (Unicode: U+25A1)
+    // BLANK symbol (Unicode: U+25A1)
     const BLANK = '□'
 
     // Initial Step
@@ -520,7 +516,7 @@ export class AutomatonSimulator {
     let stepCounter = 0
     const MAX_STEPS = 1000 // Safety limit to prevent infinite loops
 
-    // 🔄 Main simulation loop
+    // Main simulation loop
     while (stepCounter < MAX_STEPS) {
       stepCounter++
 
@@ -611,7 +607,7 @@ export class AutomatonSimulator {
         headPosition: headPosition,
       })
 
-      // ✅ ACCEPTANCE CHECK: If in final state, accept!
+      // Check if in accepting state
       if (currentState.isFinal) {
         return {
           input,
@@ -624,7 +620,7 @@ export class AutomatonSimulator {
       }
     }
 
-    // ❌ MAX STEPS EXCEEDED
+    // Max steps exceeded
     return {
       input,
       steps,

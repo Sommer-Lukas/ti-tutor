@@ -67,7 +67,7 @@ export class AutomatonValidator {
       })
     }
 
-    // ✅ FIXED: PDA-specific acceptance mode warning
+    // PDA-specific: warning about acceptance modes
     if (finalStates.length === 0) {
       if (this.type === 'PDA') {
         // PDA can accept by empty stack OR by final state

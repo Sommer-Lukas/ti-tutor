@@ -118,12 +118,15 @@ function loadFromStorage() {
       currentProjectId.value = storedCurrentId
     }
 
-    // ✅ Only set currentProjectId if projects exist
-    if (projects.value.length > 0 && !currentProjectId.value && projects.value[0]) {
-      currentProjectId.value = projects.value[0]!.id
+    // Only set currentProjectId if projects exist
+    if (projects.value.length > 0 && !currentProjectId.value) {
+      const firstProject = projects.value[0]
+      if (firstProject) {
+        currentProjectId.value = firstProject.id
+      }
     }
 
-    console.log('✅ Loaded from storage:', projects.value.length, 'projects')
+    console.log('Loaded from storage:', projects.value.length, 'projects')
   } catch (error) {
     console.error('Failed to load from localStorage:', error)
     projects.value = []
@@ -181,7 +184,7 @@ export function createProject(name: string, type: AutomatonType): AutomatonProje
   projectSwitchCounter.value++
   triggerRef(projects)
 
-  console.log('✅ Created project:', newProject.name)
+  console.log('Project created:', newProject.name)
 
   return newProject
 }
@@ -194,18 +197,18 @@ export function setCurrentProject(projectId: string) {
     // Force reactivity update
     projectSwitchCounter.value++
 
-    console.log('✅ Project switched to:', project.name)
+    console.log('Project switched to:', project.name)
   }
 }
 
 export function deleteProject(projectId: string) {
   const index = projects.value.findIndex((p) => p.id === projectId)
   if (index === -1) {
-    console.error('❌ Project not found:', projectId)
+    console.error('Project not found:', projectId)
     return
   }
 
-  console.log('🗑️ Deleting project:', projectId)
+  console.log('Deleting project:', projectId)
 
   // Remove project
   projects.value.splice(index, 1)
@@ -220,12 +223,12 @@ export function deleteProject(projectId: string) {
       if (firstProject) {
         currentProjectId.value = firstProject.id
         projectSwitchCounter.value++
-        console.log('📌 Switched to project:', firstProject.name)
+        console.log('Switched to project:', firstProject.name)
       }
     } else {
       currentProjectId.value = null
       projectSwitchCounter.value++
-      console.log('📭 No projects left - showing empty state')
+      console.log('No projects left - showing empty state')
     }
   }
 }
@@ -235,7 +238,7 @@ export function renameProject(projectId: string, newName: string) {
   if (project) {
     project.name = newName
     project.updatedAt = new Date()
-    console.log('✏️ Renamed project to:', newName)
+    console.log('Project renamed to:', newName)
   }
 }
 
@@ -245,14 +248,14 @@ export function updateProjectType(projectId: string, newType: AutomatonType) {
     project.type = newType
     project.updatedAt = new Date()
 
-    // ✅ ADD: Initialize PDA config when converting to PDA
+    // Initialize PDA config when converting to PDA
     if (newType === 'PDA' && !project.pdaConfig) {
       project.pdaConfig = {
         startStackSymbol: '$',
       }
     }
 
-    console.log('🔄 Updated project type to:', newType)
+    console.log('Updated project type to:', newType)
   }
 }
 
@@ -294,7 +297,7 @@ export function createNewProject(type: AutomatonType, name?: string): AutomatonP
   return createProject(name || `Neuer ${AUTOMATON_TYPES[type].shortName}`, type)
 }
 
-// ✅ NEW: PDA Configuration Management
+// PDA Configuration Management
 export function updatePDAStartStackSymbol(projectId: string, symbol: string) {
   const project = projects.value.find((p) => p.id === projectId)
   if (project && project.type === 'PDA') {
@@ -304,7 +307,7 @@ export function updatePDAStartStackSymbol(projectId: string, symbol: string) {
       project.pdaConfig.startStackSymbol = symbol
     }
     project.updatedAt = new Date()
-    console.log('📚 Updated PDA start stack symbol to:', symbol)
+    console.log('Updated PDA start stack symbol to:', symbol)
   }
 }
 
@@ -322,7 +325,7 @@ export function getPDAStartStackSymbol(projectId?: string): string {
 
 export function addTestCase(input: string, expectedAccepted: boolean) {
   if (!currentProjectId.value || projects.value.length === 0) {
-    console.error('❌ Cannot add test case: No project selected')
+    console.error('Cannot add test case: No project selected')
     return
   }
 

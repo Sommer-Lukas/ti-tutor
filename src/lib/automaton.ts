@@ -24,28 +24,18 @@ export interface Transition {
   tmMove?: 'L' | 'R' // Kopfbewegung: nur Links oder Rechts, kein N!
 }
 
-// ✅ TM: Blank Symbol Konstante
-export const TM_BLANK = '□' // Unicode Blank (U+25A1)
+// Blank symbol for Turing machines
+export const TM_BLANK = '□'
 
-// 📝 TM BLANK Symbol Aliases (alle werden zu '□' intern normalisiert, aber als '#' angezeigt):
-//   - '#'      (Hashtag) ← Recommended!
-//   - 'BLANK'  (Wort)
-//   - 'ε'      (Epsilon)
-//   - '.'      (Punkt)
-//   - '_'      (Unterstrich)
-
-// ✅ Helper: Transition Label berechnen (für Canvas-Anzeige)
+// Get transition label for canvas display
 export function getTransitionLabel(t: Transition, type: AutomatonType): string {
   switch (type) {
     case 'TM': {
       const read = t.symbol || TM_BLANK
-      // Format: "c/L", "c/d", "w/R", "#/L"
-      // Wenn nur Bewegung (kein Schreiben): read/direction
-      // Wenn Schreiben: read/write (direction ist separates Feld im Store)
       if (t.tmWrite !== undefined && t.tmWrite !== '') {
-        return `${read}/${t.tmWrite}` // z.B. "c/d"
+        return `${read}/${t.tmWrite}`
       }
-      return `${read}/${t.tmMove ?? 'R'}` // z.B. "c/L", "w/R"
+      return `${read}/${t.tmMove ?? 'R'}`
     }
 
     case 'PDA': {
@@ -56,7 +46,6 @@ export function getTransitionLabel(t: Transition, type: AutomatonType): string {
     }
 
     default:
-      // DFA / NFA
       return t.symbol || 'ε'
   }
 }
@@ -74,10 +63,10 @@ export interface AutomatonProject {
     alphabet?: string[]
   }
   pdaConfig?: {
-    startStackSymbol: string // Default: "$"
+    startStackSymbol: string
   }
-  // ✅ TM Config
+  // TM Config
   tmConfig?: {
-    blankSymbol: string // Default: "□"
+    blankSymbol: string
   }
 }

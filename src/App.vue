@@ -61,7 +61,7 @@ watch(
   () => currentProject.value?.id,
   (newId, oldId) => {
     if (newId !== oldId) {
-      console.log('🔄 Project switched in App.vue, resetting simulation state')
+      console.log('Project switched, resetting simulation state')
 
       // Reset all simulation state
       stopSimulation()
@@ -150,7 +150,7 @@ const startSimulation = () => {
   const testCase = currentTestCases.value.find((tc) => tc.id === selectedTestCase.value)
   if (!testCase) return
 
-  // ✅ FIX: PDA Config übergeben
+  // Pass PDA config to simulator
   const pdaConfig =
     currentProject.value.type === 'PDA' ? { startStackSymbol: getPDAStartStackSymbol() } : undefined
 
@@ -158,17 +158,17 @@ const startSimulation = () => {
     currentProject.value.states,
     currentProject.value.transitions,
     currentProject.value.type,
-    pdaConfig, // ✅ NEU!
+    pdaConfig,
   )
 
   currentSimulation.value = simulator.simulate(testCase.input)
   currentStepIndex.value = 0
   isSimulating.value = true
 
-  // ✅ HIDE TEST PANEL!
+  // Hide test panel during simulation
   rightPanelOpen.value = false
 
-  console.log('🎬 Simulation started:', currentSimulation.value)
+  console.log('Simulation started:', currentSimulation.value)
 }
 
 const stepSimulation = () => {
@@ -177,7 +177,7 @@ const stepSimulation = () => {
   // If at end, close simulation
   if (currentStepIndex.value === currentSimulation.value.steps.length - 1) {
     console.log(
-      '✅ Simulation complete:',
+      'Simulation complete:',
       currentSimulation.value.accepted ? 'ACCEPTED' : 'REJECTED',
     )
     stopSimulation()
@@ -193,10 +193,10 @@ const stopSimulation = () => {
   currentSimulation.value = null
   currentStepIndex.value = 0
 
-  // ✅ SHOW TEST PANEL AGAIN!
+  // Show test panel again
   rightPanelOpen.value = true
 
-  console.log('⏹️ Simulation stopped')
+  console.log('Simulation stopped')
 }
 
 const runAllTests = () => {
@@ -209,11 +209,11 @@ const runAllTests = () => {
   }
 
   if (currentTestCases.value.length === 0) {
-    console.warn('⚠️ No test cases for current project')
+    console.warn('No test cases for current project')
     return
   }
 
-  // ✅ FIX: PDA Config übergeben
+  // Pass PDA config to simulator
   const pdaConfig =
     currentProject.value.type === 'PDA' ? { startStackSymbol: getPDAStartStackSymbol() } : undefined
 
@@ -221,7 +221,7 @@ const runAllTests = () => {
     currentProject.value.states,
     currentProject.value.transitions,
     currentProject.value.type,
-    pdaConfig, // ✅ NEU!
+    pdaConfig,
   )
 
   const testsWithExpectations = currentTestCases.value.map((tc) => ({
@@ -231,9 +231,9 @@ const runAllTests = () => {
 
   allTestResults.value = simulator.runTests(testsWithExpectations)
 
-  console.log('🧪 All Test Results:', allTestResults.value)
-  console.log(`✅ Passed: ${testSummary.value?.passed}/${testSummary.value?.total}`)
-  console.log(`❌ Failed: ${testSummary.value?.failed}/${testSummary.value?.total}`)
+  console.log('All test results:', allTestResults.value)
+  console.log(`Passed: ${testSummary.value?.passed}/${testSummary.value?.total}`)
+  console.log(`Failed: ${testSummary.value?.failed}/${testSummary.value?.total}`)
 }
 
 const toggleValidationModal = () => {
@@ -352,9 +352,6 @@ const triggerNewProject = () => {
           <FolderOpen class="w-5 h-5 text-zinc-400" />
           <h1 class="text-lg font-semibold text-zinc-500">Kein Projekt geöffnet</h1>
         </div>
-
-        <!-- User Avatar -->
-        <div class="h-8 w-8 rounded-full bg-zinc-200"></div>
       </header>
 
       <!-- WORKSPACE -->
