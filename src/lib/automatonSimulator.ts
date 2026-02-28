@@ -1,8 +1,29 @@
+/**
+ * automatonSimulator.ts — Step-by-step simulation engine for DFA, NFA, PDA,
+ * and Turing machines.
+ *
+ * The `AutomatonSimulator` class takes a snapshot of states and transitions
+ * and can:
+ *  - `simulate(input)`  — produce a full trace of `SimulationStep[]`
+ *  - `runTests(cases)`  — batch-run test cases and compare results
+ *  - `accepts(input)`   — quick accept/reject without storing steps
+ *
+ * Each automaton type has a dedicated private simulation method that
+ * faithfully models the theoretical computation model (deterministic
+ * transitions, powerset construction, stack operations, tape read/write).
+ */
+
 import type { State, Transition } from './automaton'
 import type { AutomatonType, TMHeadEnd } from './automatonTypes'
 
+// ---------------------------------------------------------------------------
+// Result types
+// ---------------------------------------------------------------------------
+
+/** A single snapshot of the machine’s configuration at one instant. */
 export interface SimulationStep {
   step: number
+  /** Current state ID(s) — a single string for DFA/PDA/TM, an array for NFA. */
   currentState: string | string[]
   remainingInput: string
   consumedInput: string
@@ -18,13 +39,19 @@ export interface SimulationStep {
   }
   isAccepting: boolean
   possibleTransitions: string[]
+  /** True if the current configuration is stuck (no transition available). */
   isStuck?: boolean
+  /** NFA only — the full ε-closure of the current state set. */
   epsilonClosure?: string[]
+  /** PDA only — snapshot of the stack (top is last element). */
   stack?: string[]
+  /** TM only — snapshot of the tape. */
   tape?: string[]
+  /** TM only — current head position on the tape. */
   headPosition?: number
 }
 
+/** Complete result of a simulation run. */
 export interface SimulationResult {
   input: string
   steps: SimulationStep[]
@@ -36,12 +63,18 @@ export interface SimulationResult {
   finalOutput?: string
 }
 
+/** Options that configure expected-output comparison (primarily for TM). */
 export interface SimulationOptions {
   expectedOutput?: string
   tmHeadEnd?: TMHeadEnd
 }
 
+// ---------------------------------------------------------------------------
+// Simulator
+// ---------------------------------------------------------------------------
+
 export class AutomatonSimulator {
+  /** Initial stack symbol for PDA simulations (default '$'). */
   private pdaStartStackSymbol: string = '$'
 
   constructor(
@@ -56,7 +89,8 @@ export class AutomatonSimulator {
   }
 
   /**
-   * Simuliert einen Testfall Schritt für Schritt
+   * Runs a full simulation of the given input string and returns the
+   * recorded steps together with the accept/reject verdict.
    */
   simulate(input: string, options?: SimulationOptions): SimulationResult {
     const steps: SimulationStep[] = []
@@ -113,6 +147,14 @@ export class AutomatonSimulator {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // DFA simulation
+  // -------------------------------------------------------------------------
+
+  /**
+   * Deterministic simulation: follows exactly one transition per input
+   * symbol.  Gets stuck (rejects) if no transition exists.
+   */
   private simulateDFA(input: string, startState: State, steps: SimulationStep[]): SimulationResult {
     let currentState = startState
     let remainingInput = input
@@ -211,8 +253,13 @@ export class AutomatonSimulator {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // NFA simulation (powerset / subset construction)
+  // -------------------------------------------------------------------------
+
   /**
-   * NFA simulation using powerset construction principle
+   * Non-deterministic simulation using the powerset approach: maintains
+   * a *set* of current states and computes the ε-closure after each step.
    */
   private simulateNFA(
     input: string,
@@ -322,12 +369,16 @@ export class AutomatonSimulator {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // PDA simulation
+  // -------------------------------------------------------------------------
+
   /**
-   * PDA simulation with stack management
+   * Pushdown automaton simulation with stack management.
    *
-   * PDA akzeptiert auf zwei Arten:
-   * 1. By Final State: Input verbraucht UND in Endzustand
-   * 2. By Empty Stack: Input verbraucht UND Stack leer
+   * Acceptance modes (both are recognised):
+   *  1. **By final state** — input consumed AND machine is in a final state.
+   *  2. **By empty stack** — input consumed AND the stack is empty.
    */
   private simulatePDA(input: string, startState: State, steps: SimulationStep[]): SimulationResult {
     let currentState = startState
@@ -485,18 +536,19 @@ export class AutomatonSimulator {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Turing machine simulation
+  // -------------------------------------------------------------------------
+
   /**
-   * Turing machine simulation with tape and read/write head
+   * Turing machine simulation with a read/write tape and a movable head.
    *
-   * Eine Turing Machine hat:
-   * - Ein unendliches Tape (wir begrenzen es auf Sicherheit)
-   * - Ein Read/Write Head (Position im Array)
-   * - Transitionen die schreiben können und den Kopf bewegen (L/R)
+   * Acceptance criterion:
+   *  - The machine reaches a final (accepting) state.
+   *  - The tape output matches the expected output.
+   *  - The head position matches the expected end position.
    *
-   * AKZEPTANZKRITERIUM:
-   * - Input vollständig verbraucht UND
-   * - In einem Endzustand
-   * (Nicht: "Tape ist leer" wie bei manchen TM Definitionen)
+   * A safety limit of 1 000 steps prevents runaway loops.
    */
   private simulateTM(
     input: string,
@@ -736,6 +788,11 @@ export class AutomatonSimulator {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // TM helper methods
+  // -------------------------------------------------------------------------
+
+  /** Checks whether the head ended at the expected position. */
   private isTMHeadEndMatch(
     headEnd: TMHeadEnd,
     headPosition: number,
@@ -752,6 +809,7 @@ export class AutomatonSimulator {
     return headPosition === expectedIndex
   }
 
+  /** Builds a human-readable rejection reason for a TM test failure. */
   private buildTMRejectionReason(
     expectedOutput: string,
     finalOutput: string,
@@ -785,6 +843,10 @@ export class AutomatonSimulator {
     return 'TM akzeptiert nicht'
   }
 
+  /**
+   * Extracts the meaningful (non-blank) content from the tape together
+   * with the bounding indices of the output region.
+   */
   private getTapeOutputInfo(tape: string[]): {
     output: string
     leftIndex: number | null
@@ -813,9 +875,13 @@ export class AutomatonSimulator {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Shared helper methods
+  // -------------------------------------------------------------------------
+
   /**
-   * Helper: Normalize BLANK symbol aliases to '□'
-   * Supports: '.', 'BLANK', 'ε', '#', '_'
+   * Normalises various blank-symbol aliases ('.', '#', '_', 'ε', 'BLANK')
+   * to the canonical Unicode blank '□'.
    */
   private normalizeBLANK(symbol: string): string {
     if (
@@ -832,9 +898,7 @@ export class AutomatonSimulator {
     return symbol
   }
 
-  /**
-   * Helper: Find TM transition for (state, readSymbol)
-   */
+  /** Finds the TM transition for the given state and tape symbol. */
   private findTMTransition(stateId: string, readSymbol: string): Transition | undefined {
     const normalizedReadSymbol = this.normalizeBLANK(readSymbol)
 
@@ -848,9 +912,7 @@ export class AutomatonSimulator {
     })
   }
 
-  /**
-   * Helper: Find PDA transition for (state, input, stackTop)
-   */
+  /** Finds the PDA transition for the given state, input symbol, and stack top. */
   private findPDATransition(
     stateId: string,
     input: string,
@@ -870,9 +932,7 @@ export class AutomatonSimulator {
     })
   }
 
-  /**
-   * Helper: Check if PDA has epsilon moves from current state with current stack
-   */
+  /** Returns `true` if the PDA has any ε-input transitions from the given state. */
   private hasPDAEpsilonMoves(stateId: string, stack: string[]): boolean {
     const stackTop = stack.length > 0 ? stack[stack.length - 1]! : ''
 
@@ -887,8 +947,8 @@ export class AutomatonSimulator {
   }
 
   /**
-   * Berechnet die ε-Closure einer Zustandsmenge
-   * (Alle Zustände die über ε-Transitionen erreichbar sind)
+   * Computes the ε-closure of a set of NFA states — i.e. all states
+   * reachable via zero or more ε-transitions.
    */
   private getEpsilonClosure(states: Set<string>): Set<string> {
     const closure = new Set(states)
@@ -914,9 +974,7 @@ export class AutomatonSimulator {
     return closure
   }
 
-  /**
-   * Helper: Get possible transitions from a state with a symbol
-   */
+  /** Lists target state IDs reachable from `stateId` via `symbol`. */
   private getPossibleTransitions(stateId: string, symbol: string | undefined): string[] {
     if (!symbol) return []
 
@@ -926,7 +984,8 @@ export class AutomatonSimulator {
   }
 
   /**
-   * Führt mehrere Testfälle aus
+   * Batch-runs an array of test cases and attaches pass/fail metadata
+   * to each result for display in the test panel.
    */
   runTests(
     testCases: Array<{
@@ -949,17 +1008,13 @@ export class AutomatonSimulator {
     })
   }
 
-  /**
-   * Prüft ob ein bestimmtes Wort akzeptiert wird (ohne Schritte zu speichern)
-   */
+  /** Quick accept/reject check without recording intermediate steps. */
   accepts(input: string): boolean {
     const result = this.simulate(input)
     return result.accepted
   }
 
-  /**
-   * Gibt alle erreichbaren Zustände zurück
-   */
+  /** Returns the set of state IDs reachable from any start state. */
   getReachableStates(): Set<string> {
     const startStates = this.states.filter((s) => s.isStart)
     if (startStates.length === 0) return new Set()

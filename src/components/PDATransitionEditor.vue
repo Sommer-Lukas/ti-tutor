@@ -1,3 +1,16 @@
+<!--
+  PDATransitionEditor.vue — Modal editor for PDA (pushdown automaton)
+  transitions.
+
+  Provides two input modes:
+   1. Quick-input: a single text field using the compact
+      `input,stackTop/stackPush` notation.
+   2. Advanced mode: individual fields for input symbol, stack-top
+      and stack-push, with real-time validation.
+
+  Includes a live preview, quick templates, and epsilon shortcuts.
+-->
+
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { X, AlertCircle, Zap, ChevronDown, ChevronUp, CheckCircle, XCircle } from 'lucide-vue-next'
@@ -13,16 +26,19 @@ const emit = defineEmits<{
   save: [transition: { pdaInput: string; pdaStackTop: string; pdaStackPush: string }]
 }>()
 
-// Local state
+// ---------------------------------------------------------------------------
+// Local form state
+// ---------------------------------------------------------------------------
+
 const input = ref('')
 const stackTop = ref('')
 const stackPush = ref('')
 
-// Quick input mode
+/** Quick-input text field value (compact notation). */
 const quickInput = ref('')
 const showAdvancedMode = ref(false)
 
-// Validation states
+// -- Per-field validation errors -------------------------------------------
 const inputError = ref('')
 const stackTopError = ref('')
 const stackPushError = ref('')
@@ -35,7 +51,11 @@ const clearAllErrors = () => {
   quickInputError.value = ''
 }
 
-// Validation functions
+// ---------------------------------------------------------------------------
+// Validation helpers
+// ---------------------------------------------------------------------------
+
+/** Validates a single-character input or stack-top symbol. */
 const validateSingleChar = (value: string): { valid: boolean; error: string; cleaned: string } => {
   // Remove all whitespace
   const trimmed = value.trim()
@@ -63,6 +83,7 @@ const validateSingleChar = (value: string): { valid: boolean; error: string; cle
   return { valid: true, error: '', cleaned: trimmed }
 }
 
+/** Validates the stack-push string (multi-character allowed). */
 const validateStackPush = (value: string): { valid: boolean; error: string; cleaned: string } => {
   // Remove leading/trailing whitespace
   const trimmed = value.trim()
@@ -85,7 +106,11 @@ const validateStackPush = (value: string): { valid: boolean; error: string; clea
   return { valid: true, error: '', cleaned: trimmed }
 }
 
-// Watch for transition changes and load values
+// ---------------------------------------------------------------------------
+// Watchers: Sync transition → form on open, validate fields live
+// ---------------------------------------------------------------------------
+
+/** Load values from the existing transition into the form fields. */
 watch(
   () => props.transition,
   (newTransition) => {
@@ -114,7 +139,7 @@ watch(
   { immediate: true },
 )
 
-// Validate input field in real-time
+// -- Real-time validation per field (auto-corrects after 500 ms) ----------
 watch(input, (newValue) => {
   const result = validateSingleChar(newValue)
   inputError.value = result.error
@@ -154,7 +179,10 @@ watch(stackPush, (newValue) => {
   }
 })
 
-// Parse quick input (live) with validation - OPTION 2
+/**
+ * Parses the compact quick-input notation (e.g. "a,$/aa") into the three
+ * individual fields.  Runs on every keystroke via watcher.
+ */
 const parseQuickInput = (value: string) => {
   // Format: input,stackTop/stackPush
   // Examples: "a,$/aa", "ε,a/", "b,$/ba$", "a,e/aa"
@@ -221,7 +249,11 @@ watch(quickInput, (newValue) => {
   parseQuickInput(newValue)
 })
 
-// Computed: Preview
+// ---------------------------------------------------------------------------
+// Computed: preview + validation status
+// ---------------------------------------------------------------------------
+
+/** Human-readable preview string shown in the modal footer. */
 const preview = computed(() => {
   const i = input.value || 'ε'
   const s = stackTop.value || 'ε'
@@ -229,7 +261,7 @@ const preview = computed(() => {
   return `(${i},${s}) / ${p}`
 })
 
-// Computed: Validation
+/** True when the form has no errors and at least one field is filled. */
 const isValid = computed(() => {
   // No errors
   if (inputError.value || stackTopError.value || stackPushError.value || quickInputError.value) {
@@ -240,7 +272,7 @@ const isValid = computed(() => {
   return input.value.length > 0 || stackTop.value.length > 0 || stackPush.value.length > 0
 })
 
-// Computed: Field validation status
+// -- Per-field validation icons -------------------------------------------
 const inputStatus = computed(() => {
   if (inputError.value) return 'error'
   if (input.value.length > 0) return 'success'
@@ -259,6 +291,11 @@ const stackPushStatus = computed(() => {
   return 'neutral'
 })
 
+// ---------------------------------------------------------------------------
+// Actions
+// ---------------------------------------------------------------------------
+
+/** Emits the final PDA transition data and closes the modal. */
 const handleSave = () => {
   if (!isValid.value) return
 
@@ -274,14 +311,14 @@ const handleClose = () => {
   emit('close')
 }
 
-// Epsilon shortcuts
+/** Inserts the ε symbol into one of the three fields. */
 const insertEpsilon = (field: 'input' | 'stackTop' | 'stackPush') => {
   if (field === 'input') input.value = 'ε'
   else if (field === 'stackTop') stackTop.value = 'ε'
   else stackPush.value = 'ε'
 }
 
-// Clear field
+/** Clears a field and its error state. */
 const clearField = (field: 'input' | 'stackTop' | 'stackPush') => {
   if (field === 'input') {
     input.value = ''
@@ -295,12 +332,12 @@ const clearField = (field: 'input' | 'stackTop' | 'stackPush') => {
   }
 }
 
-// Quick templates
+/** Pre-fills the quick-input field with a template string. */
 const applyTemplate = (template: string) => {
   quickInput.value = template
 }
 
-// Keyboard handler
+// -- Keyboard shortcuts (ESC → close, Ctrl+Enter → save) ------------------
 const handleKeyDown = (e: KeyboardEvent) => {
   if (!props.visible) return
 
@@ -311,7 +348,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
   }
 }
 
-// Mount/unmount keyboard listener
+// Register / unregister global keyboard listener when visibility changes.
 watch(
   () => props.visible,
   (visible) => {

@@ -1,5 +1,18 @@
+<!--
+  App.vue — Root application component and main orchestrator.
+
+  Responsibilities:
+   - Renders the top bar, sidebar, editor canvas, test panel, and simulation
+     controls depending on the current mode (normal editing vs. exercise).
+   - Owns all simulation lifecycle state (start / step / stop / run-all-tests).
+   - Shows modals (validation, guide, exercise completion popup).
+   - Registers global keyboard shortcuts (F5, F10, Shift+F5).
+-->
+
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+
+// -- Icon imports (lucide-vue-next) ----------------------------------------
 import {
   Play,
   StepForward,
@@ -11,12 +24,22 @@ import {
   ShieldAlert,
   FolderOpen,
   Plus,
+  HelpCircle,
+  BookOpen,
+  ArrowLeft,
+  Trophy,
+  FileText,
 } from 'lucide-vue-next'
+
+// -- Child components ------------------------------------------------------
 import Sidebar from '@/components/Sidebar.vue'
 import EditorCanvas from '@/components/EditorCanvas.vue'
 import TestPanel from '@/components/TestPanel.vue'
 import SimulationStepBar from '@/components/SimulationStepBar.vue'
 import SimulationTreePanel from '@/components/SimulationTreePanel.vue'
+import ExerciseListView from '@/components/ExerciseListView.vue'
+
+// -- Store / library imports -----------------------------------------------
 import {
   currentProject,
   validationResult,
@@ -24,46 +47,101 @@ import {
   projects,
   getPDAStartStackSymbol,
 } from '@/lib/automatonStore'
+import {
+  exerciseModeActive,
+  exerciseBrowsing,
+  activeExercise,
+  activeExerciseId,
+  backToExerciseList,
+  markExerciseCompleted,
+  isExerciseCompleted,
+  exerciseStates,
+  exerciseTransitions,
+} from '@/lib/exerciseStore'
 import { AUTOMATON_TYPES } from '@/lib/automatonTypes'
 import { AutomatonSimulator } from '@/lib/automatonSimulator'
 import type { SimulationResult } from '@/lib/automatonSimulator'
 
-// --- UI STATE ---
+// ---------------------------------------------------------------------------
+// UI state
+// ---------------------------------------------------------------------------
+
 const isSidebarOpen = ref(true)
 const rightPanelOpen = ref(true)
 const showValidationModal = ref(false)
+const showGuideModal = ref(false)
 const showErrorToast = ref(false)
+/** Toggles the floating exercise-description overlay on the canvas. */
+const showExerciseDescription = ref(false)
+/** Controls the "Geschafft!" (completed) celebration popup. */
+const exerciseCompleteToast = ref(false)
 
-// --- SIMULATION STATE ---
+// ---------------------------------------------------------------------------
+// Simulation state
+// ---------------------------------------------------------------------------
+
 const isSimulating = ref(false)
 const currentSimulation = ref<SimulationResult | null>(null)
 const currentStepIndex = ref(0)
+/** Aggregated results from the last "Run All Tests" invocation. */
 const allTestResults = ref<Array<SimulationResult & { expected: boolean; passed: boolean }>>([])
+/** ID of the test case selected for single-step simulation. */
 const selectedTestCase = ref<string | null>(null)
 
-// --- COMPUTED: Has Projects ---
+// ---------------------------------------------------------------------------
+// Computed properties
+// ---------------------------------------------------------------------------
+
 const hasProjects = computed(() => projects.value.length > 0)
 
-// --- COMPUTED: Automaton Type Checks ---
+/** True when the user is actively building an exercise (not just browsing). */
+const isExerciseWorking = computed(
+  () => exerciseModeActive.value && !exerciseBrowsing.value && activeExercise.value !== null,
+)
+
+/** True when the editor canvas should be rendered (project exists or exercising). */
+const showEditor = computed(() => hasProjects.value || isExerciseWorking.value)
+
+// -- Automaton-type convenience booleans -----------------------------------
 const isDFA = computed(() => currentProject.value?.type === 'DFA')
 const isNFA = computed(() => currentProject.value?.type === 'NFA')
 const isPDA = computed(() => currentProject.value?.type === 'PDA')
 const isTM = computed(() => currentProject.value?.type === 'TM')
+
+/** PDA/TM show the step bar (stack / tape) above the canvas during simulation. */
 const showSimulationStepBar = computed(
   () => (isPDA.value || isTM.value) && isSimulating.value && currentSimulation.value !== null,
 )
+/** DFA/NFA show the tree panel on the right during simulation. */
 const showSimulationTreePanel = computed(
   () => (isDFA.value || isNFA.value) && isSimulating.value && currentSimulation.value !== null,
 )
 
-// --- WATCH: Reset simulation on project switch ---
+/**
+ * Maps exercise test cases to the same shape expected by `TestPanel`,
+ * generating stable synthetic IDs.
+ */
+const exerciseTestCasesWithIds = computed(() => {
+  if (!activeExercise.value) return []
+  return activeExercise.value.testCases.map((tc, idx) => ({
+    id: `ex-tc-${idx}`,
+    input: tc.input,
+    expectedAccepted: tc.expectedAccepted,
+    expectedOutput: tc.expectedOutput,
+    tmHeadEnd: tc.tmHeadEnd,
+  }))
+})
+
+// ---------------------------------------------------------------------------
+// Watchers
+// ---------------------------------------------------------------------------
+
+/** Reset simulation state whenever the active project changes. */
 watch(
   () => currentProject.value?.id,
   (newId, oldId) => {
     if (newId !== oldId) {
       console.log('Project switched, resetting simulation state')
-
-      // Reset all simulation state
       stopSimulation()
       allTestResults.value = []
       selectedTestCase.value = null
@@ -71,7 +149,38 @@ watch(
   },
 )
 
-// --- COMPUTED: Validation Badge Status ---
+/** Open the exercise description panel when an exercise starts. */
+watch(
+  () => activeExerciseId.value,
+  (newId) => {
+    if (newId) {
+      showExerciseDescription.value = true
+    }
+  },
+)
+
+/**
+ * Auto-close the exercise description overlay whenever the user modifies
+ * states or transitions (i.e. starts interacting with the canvas).
+ */
+watch(
+  [exerciseStates, exerciseTransitions],
+  () => {
+    if (showExerciseDescription.value) {
+      showExerciseDescription.value = false
+    }
+  },
+  { deep: true },
+)
+
+/** Also close the description when a simulation begins. */
+watch(isSimulating, (val) => {
+  if (val && showExerciseDescription.value) {
+    showExerciseDescription.value = false
+  }
+})
+
+/** Summarised validation status for the badge in the top bar. */
 const validationStatus = computed(() => {
   if (!hasProjects.value) return 'valid'
   if (validationResult.value.errors.length > 0) return 'error'
@@ -79,13 +188,15 @@ const validationStatus = computed(() => {
   return 'valid'
 })
 
-// --- COMPUTED: Has Validation Errors ---
 const hasValidationErrors = computed(() => {
   return validationResult.value.errors.length > 0
 })
 
-// --- COMPUTED: Can Run Tests ---
+/** Determines whether the "Run All Tests" button should be enabled. */
 const canRunTests = computed(() => {
+  if (isExerciseWorking.value) {
+    return !hasValidationErrors.value && !isSimulating.value && exerciseTestCasesWithIds.value.length > 0
+  }
   return (
     hasProjects.value &&
     !hasValidationErrors.value &&
@@ -94,8 +205,11 @@ const canRunTests = computed(() => {
   )
 })
 
-// --- COMPUTED: Can Start Simulation ---
+/** Determines whether a single-step simulation can be started. */
 const canStartSimulation = computed(() => {
+  if (isExerciseWorking.value) {
+    return !hasValidationErrors.value && selectedTestCase.value !== null && !isSimulating.value
+  }
   return (
     hasProjects.value &&
     !hasValidationErrors.value &&
@@ -104,19 +218,19 @@ const canStartSimulation = computed(() => {
   )
 })
 
-// --- COMPUTED: Current Step ---
+/** The simulation step currently being displayed. */
 const currentStep = computed(() => {
   if (!currentSimulation.value) return null
   return currentSimulation.value.steps[currentStepIndex.value]
 })
 
-// --- COMPUTED: Is At End ---
+/** Whether the simulation has reached its final step. */
 const isAtEnd = computed(() => {
   if (!currentSimulation.value) return false
   return currentStepIndex.value === currentSimulation.value.steps.length - 1
 })
 
-// --- COMPUTED: Test Results Summary ---
+/** Aggregated pass/fail statistics from the last test run. */
 const testSummary = computed(() => {
   if (allTestResults.value.length === 0) return null
 
@@ -127,7 +241,11 @@ const testSummary = computed(() => {
   return { passed, failed, total }
 })
 
-// --- ERROR TOAST ---
+// ---------------------------------------------------------------------------
+// Actions
+// ---------------------------------------------------------------------------
+
+/** Briefly flash the error toast (auto-hides after 3 s). */
 const showErrorToastWithTimeout = () => {
   showErrorToast.value = true
   setTimeout(() => {
@@ -135,9 +253,12 @@ const showErrorToastWithTimeout = () => {
   }, 3000)
 }
 
-// --- SIMULATION ACTIONS ---
+/**
+ * Begin a step-by-step simulation for the currently selected test case.
+ * Hides the test panel and opens the simulation view.
+ */
 const startSimulation = () => {
-  if (!hasProjects.value) return
+  if (!showEditor.value) return
 
   // Validation Check
   if (hasValidationErrors.value) {
@@ -147,7 +268,9 @@ const startSimulation = () => {
 
   if (!selectedTestCase.value) return
 
-  const testCase = currentTestCases.value.find((tc) => tc.id === selectedTestCase.value)
+  // Find test case in exercise mode or normal mode
+  const testCaseSource = isExerciseWorking.value ? exerciseTestCasesWithIds.value : currentTestCases.value
+  const testCase = testCaseSource.find((tc) => tc.id === selectedTestCase.value)
   if (!testCase) return
 
   // Pass PDA config to simulator
@@ -174,10 +297,10 @@ const startSimulation = () => {
   console.log('Simulation started:', currentSimulation.value)
 }
 
+/** Advance one step or close the simulation if already at the end. */
 const stepSimulation = () => {
   if (!isSimulating.value || !currentSimulation.value) return
 
-  // If at end, close simulation
   if (currentStepIndex.value === currentSimulation.value.steps.length - 1) {
     console.log(
       'Simulation complete:',
@@ -187,23 +310,24 @@ const stepSimulation = () => {
     return
   }
 
-  // Otherwise, step forward
   currentStepIndex.value++
 }
 
+/** Abort the current simulation and restore the test panel. */
 const stopSimulation = () => {
   isSimulating.value = false
   currentSimulation.value = null
   currentStepIndex.value = 0
-
-  // Show test panel again
   rightPanelOpen.value = true
-
   console.log('Simulation stopped')
 }
 
+/**
+ * Execute all test cases at once and display aggregated results.
+ * In exercise mode, a full pass triggers the completion popup.
+ */
 const runAllTests = () => {
-  if (!hasProjects.value) return
+  if (!showEditor.value) return
 
   // Validation Check
   if (hasValidationErrors.value) {
@@ -211,8 +335,11 @@ const runAllTests = () => {
     return
   }
 
-  if (currentTestCases.value.length === 0) {
-    console.warn('No test cases for current project')
+  // Get test cases from exercise or normal mode
+  const testSource = isExerciseWorking.value ? exerciseTestCasesWithIds.value : currentTestCases.value
+
+  if (testSource.length === 0) {
+    console.warn('No test cases available')
     return
   }
 
@@ -227,7 +354,7 @@ const runAllTests = () => {
     pdaConfig,
   )
 
-  const testsWithExpectations = currentTestCases.value.map((tc) => ({
+  const testsWithExpectations = testSource.map((tc) => ({
     input: tc.input,
     expected: tc.expectedAccepted,
     expectedOutput: tc.expectedOutput,
@@ -236,13 +363,22 @@ const runAllTests = () => {
 
   allTestResults.value = simulator.runTests(testsWithExpectations)
 
+  // If every test passes in exercise mode, mark the exercise as completed.
+  if (isExerciseWorking.value && activeExerciseId.value) {
+    const allPassed = allTestResults.value.every((r) => r.passed)
+    if (allPassed && allTestResults.value.length > 0) {
+      markExerciseCompleted(activeExerciseId.value)
+      exerciseCompleteToast.value = true
+    }
+  }
+
   console.log('All test results:', allTestResults.value)
   console.log(`Passed: ${testSummary.value?.passed}/${testSummary.value?.total}`)
   console.log(`Failed: ${testSummary.value?.failed}/${testSummary.value?.total}`)
 }
 
 const toggleValidationModal = () => {
-  if (!hasProjects.value) return
+  if (!showEditor.value) return
   showValidationModal.value = !showValidationModal.value
 }
 
@@ -250,9 +386,21 @@ const closeValidationModal = () => {
   showValidationModal.value = false
 }
 
-// --- KEYBOARD SHORTCUTS ---
+const toggleGuideModal = () => {
+  if (!showEditor.value) return
+  showGuideModal.value = !showGuideModal.value
+}
+
+const closeGuideModal = () => {
+  showGuideModal.value = false
+}
+
+// ---------------------------------------------------------------------------
+// Keyboard shortcuts
+// ---------------------------------------------------------------------------
+
 const handleKeyDown = (e: KeyboardEvent) => {
-  if (!hasProjects.value) return
+  if (!showEditor.value) return
 
   // F5 - Start Simulation
   if (e.key === 'F5') {
@@ -282,12 +430,11 @@ const handleKeyDown = (e: KeyboardEvent) => {
   }
 }
 
-// Register keyboard shortcuts
 if (typeof window !== 'undefined') {
   window.addEventListener('keydown', handleKeyDown)
 }
 
-// Trigger sidebar to open new dialog
+/** Programmatically opens the sidebar and dispatches a custom event to show the new-project dialog. */
 const triggerNewProject = () => {
   isSidebarOpen.value = true
   setTimeout(() => {
@@ -299,17 +446,95 @@ const triggerNewProject = () => {
 
 <template>
   <div class="flex h-screen w-full bg-zinc-50 text-zinc-900 overflow-hidden relative">
-    <!-- LEFT SIDEBAR (Component) -->
-    <Sidebar v-model:is-open="isSidebarOpen" />
+    <!-- ============================================================= -->
+    <!-- LEFT SIDEBAR (hidden in exercise mode)                        -->
+    <!-- ============================================================= -->
+    <Sidebar v-if="!exerciseModeActive" v-model:is-open="isSidebarOpen" />
 
-    <!-- MAIN CONTENT -->
+    <!-- ============================================================= -->
+    <!-- MAIN CONTENT AREA                                             -->
+    <!-- ============================================================= -->
     <main class="flex-1 flex flex-col h-full min-w-0 bg-white">
-      <!-- TOP BAR -->
+      <!-- ----------------------------------------------------------- -->
+      <!-- TOP BAR (hidden when browsing exercises – that view has its   -->
+      <!-- own header)                                                  -->
+      <!-- ----------------------------------------------------------- -->
       <header
+        v-if="!(exerciseModeActive && exerciseBrowsing)"
         class="flex h-14 items-center justify-between px-6 border-b z-50 bg-white flex-shrink-0 relative"
       >
-        <!-- Project Name + Type Badge + Validation Status -->
-        <div v-if="hasProjects" class="flex items-center gap-3">
+        <!-- Exercise Working Mode – back button + title + badges -->
+        <div v-if="isExerciseWorking" class="flex items-center gap-3">
+          <button
+            @click="backToExerciseList(); allTestResults = []; selectedTestCase = null"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-100 hover:bg-zinc-200 text-zinc-700 transition-all"
+          >
+            <ArrowLeft class="w-3.5 h-3.5" />
+            Aufgaben
+          </button>
+
+          <h1 class="text-lg font-semibold text-zinc-900">{{ activeExercise?.title }}</h1>
+
+          <!-- Automaton Type Badge -->
+          <span
+            class="px-2.5 py-1 rounded-full text-xs font-bold"
+            :class="
+              currentProject.type === 'DFA'
+                ? 'bg-blue-100 text-blue-700'
+                : currentProject.type === 'NFA'
+                  ? 'bg-purple-100 text-purple-700'
+                  : currentProject.type === 'PDA'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-orange-100 text-orange-700'
+            "
+          >
+            {{ AUTOMATON_TYPES[currentProject.type].shortName }}
+          </span>
+
+          <!-- Validation Status Badge -->
+          <button
+            @click="toggleValidationModal"
+            class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:shadow-md"
+            :class="{
+              'bg-green-50 text-green-700 hover:bg-green-100': validationStatus === 'valid',
+              'bg-red-50 text-red-700 hover:bg-red-100 animate-pulse': validationStatus === 'error',
+              'bg-yellow-50 text-yellow-700 hover:bg-yellow-100': validationStatus === 'warning',
+            }"
+          >
+            <Check v-if="validationStatus === 'valid'" class="w-4 h-4" />
+            <X v-else-if="validationStatus === 'error'" class="w-4 h-4" />
+            <AlertTriangle v-else class="w-4 h-4" />
+            <span v-if="validationStatus === 'valid'">Valid</span>
+            <span v-else-if="validationStatus === 'error'">
+              {{ validationResult.errors.length }} Error{{ validationResult.errors.length > 1 ? 's' : '' }}
+            </span>
+            <span v-else>
+              {{ validationResult.warnings.length }} Warning{{ validationResult.warnings.length > 1 ? 's' : '' }}
+            </span>
+          </button>
+
+          <!-- Exercise Description Toggle -->
+          <button
+            @click="showExerciseDescription = !showExerciseDescription"
+            class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:shadow-md"
+            :class="showExerciseDescription ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'"
+          >
+            <FileText class="w-4 h-4" />
+            Aufgabe
+          </button>
+
+          <!-- Completed Badge -->
+          <div
+            v-if="activeExerciseId && isExerciseCompleted(activeExerciseId)"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-100 text-green-700 text-xs font-bold"
+          >
+            <Trophy class="w-3.5 h-3.5" />
+            Bestanden
+          </div>
+        </div>
+
+        <!-- Normal Project Header – name + type badge + validation + help -->
+        <div v-else-if="hasProjects && !exerciseModeActive" class="flex items-center gap-3">
           <h1 class="text-lg font-semibold text-zinc-900">{{ currentProject.name }}</h1>
 
           <!-- Automaton Type Badge -->
@@ -350,20 +575,37 @@ const triggerNewProject = () => {
               }}
             </span>
           </button>
+
+          <!-- Guide Button -->
+          <button
+            @click="toggleGuideModal"
+            class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:shadow-md bg-blue-50 text-blue-700 hover:bg-blue-100"
+            title="Hilfe & Shortcuts"
+          >
+            <HelpCircle class="w-4 h-4" />
+            <span>Hilfe</span>
+          </button>
         </div>
 
-        <!-- Empty State Header -->
+        <!-- Empty State Header (no projects, no exercise) -->
         <div v-else class="flex items-center gap-2">
           <FolderOpen class="w-5 h-5 text-zinc-400" />
           <h1 class="text-lg font-semibold text-zinc-500">Kein Projekt geöffnet</h1>
         </div>
       </header>
 
-      <!-- WORKSPACE -->
+      <!-- ----------------------------------------------------------- -->
+      <!-- WORKSPACE                                                    -->
+      <!-- ----------------------------------------------------------- -->
       <div class="flex-1 flex flex-col min-h-0">
-        <!-- EMPTY STATE (When no projects) -->
+        <!-- EXERCISE BROWSING VIEW (full-screen list) -->
+        <ExerciseListView
+          v-if="exerciseModeActive && exerciseBrowsing"
+        />
+
+        <!-- EMPTY STATE (no projects and not exercising) -->
         <div
-          v-if="!hasProjects"
+          v-else-if="!hasProjects && !isExerciseWorking"
           class="flex-1 flex items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100"
         >
           <div class="text-center max-w-md px-8">
@@ -394,9 +636,9 @@ const triggerNewProject = () => {
           </div>
         </div>
 
-        <!-- NORMAL WORKSPACE (When projects exist) -->
+        <!-- NORMAL / EXERCISE WORKSPACE -->
         <template v-else>
-          <!-- SIMULATION STEP BAR (For PDA & TM) -->
+          <!-- PDA / TM simulation step bar (stack or tape visualisation) -->
           <SimulationStepBar
             v-if="showSimulationStepBar"
             :simulation="currentSimulation!"
@@ -406,7 +648,7 @@ const triggerNewProject = () => {
 
           <!-- CANVAS + RIGHT PANEL ROW -->
           <div class="flex-1 flex min-h-0 overflow-hidden relative">
-            <!-- CANVAS with Simulation State -->
+            <!-- Cytoscape graph editor with simulation highlighting -->
             <EditorCanvas
               class="flex-1 min-w-0"
               :current-simulation-state="
@@ -419,15 +661,53 @@ const triggerNewProject = () => {
               :is-simulating="isSimulating"
             />
 
-            <!-- TEST PANEL (Hidden during simulation) -->
+            <!-- EXERCISE DESCRIPTION floating overlay -->
+            <Transition
+              enter-active-class="transition-all duration-300 ease-out"
+              leave-active-class="transition-all duration-200 ease-in"
+              enter-from-class="opacity-0 translate-y-2"
+              enter-to-class="opacity-100 translate-y-0"
+              leave-from-class="opacity-100 translate-y-0"
+              leave-to-class="opacity-0 translate-y-2"
+            >
+              <div
+                v-if="isExerciseWorking && showExerciseDescription"
+                class="absolute top-4 left-4 z-40 w-[420px] max-h-[70%] bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden"
+              >
+                <div class="px-5 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-zinc-200 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <BookOpen class="w-4 h-4 text-indigo-600" />
+                    <h3 class="text-sm font-bold text-zinc-900">Aufgabenstellung</h3>
+                  </div>
+                  <button
+                    @click="showExerciseDescription = false"
+                    class="p-1 rounded-lg hover:bg-white/50 transition-colors"
+                  >
+                    <X class="w-4 h-4 text-zinc-500" />
+                  </button>
+                </div>
+                <div class="p-5 overflow-y-auto max-h-[calc(70vh-48px)]">
+                  <p class="text-sm text-zinc-700 whitespace-pre-line leading-relaxed">{{ activeExercise?.description }}</p>
+                  <div v-if="activeExercise?.hint" class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p class="text-xs font-bold text-amber-800 mb-1">💡 Hinweis</p>
+                    <p class="text-xs text-amber-700 leading-relaxed">{{ activeExercise.hint }}</p>
+                  </div>
+                </div>
+              </div>
+            </Transition>
+
+            <!-- TEST PANEL (hidden while simulating) -->
             <TestPanel
               v-show="!isSimulating"
               v-model:selected="selectedTestCase"
               v-model:visible="rightPanelOpen"
               :simulation-results="allTestResults"
+              :readonly="isExerciseWorking"
+              :exercise-test-cases="isExerciseWorking ? exerciseTestCasesWithIds : undefined"
+              :exercise-automaton-type="isExerciseWorking ? activeExercise?.type : undefined"
             />
 
-            <!-- SIMULATION TREE PANEL (For DFA & NFA) -->
+            <!-- DFA / NFA simulation tree panel -->
             <SimulationTreePanel
               v-if="showSimulationTreePanel"
               :simulation="currentSimulation!"
@@ -436,7 +716,9 @@ const triggerNewProject = () => {
             />
           </div>
 
-          <!-- BOTTOM BAR -->
+          <!-- --------------------------------------------------------- -->
+          <!-- BOTTOM BAR – simulation controls + Run All Tests button   -->
+          <!-- --------------------------------------------------------- -->
           <div
             class="h-16 bg-white border-t border-zinc-200 flex items-center px-6 gap-4 shadow-lg flex-shrink-0 relative z-50"
           >
@@ -600,7 +882,11 @@ const triggerNewProject = () => {
       </div>
     </main>
 
-    <!-- ERROR TOAST -->
+    <!-- ============================================================= -->
+    <!-- GLOBAL OVERLAYS (toasts + modals)                             -->
+    <!-- ============================================================= -->
+
+    <!-- ERROR TOAST (validation errors prevent test execution) -->
     <Transition
       enter-active-class="transition-all duration-300 ease-out"
       leave-active-class="transition-all duration-200 ease-in"
@@ -632,7 +918,43 @@ const triggerNewProject = () => {
       </div>
     </Transition>
 
-    <!-- VALIDATION MODAL -->
+    <!-- EXERCISE COMPLETION POPUP (“Geschafft!”) -->
+    <Transition
+      enter-active-class="transition-all duration-300 ease-out"
+      leave-active-class="transition-all duration-200 ease-in"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="exerciseCompleteToast"
+        class="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40"
+        @click.self="exerciseCompleteToast = false"
+      >
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center relative">
+          <button
+            @click="exerciseCompleteToast = false"
+            class="absolute top-4 right-4 p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
+          >
+            <X class="w-4 h-4" />
+          </button>
+          <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+            <Trophy class="w-8 h-8 text-green-600" />
+          </div>
+          <h2 class="text-2xl font-bold text-zinc-900 mb-1">Geschafft!</h2>
+          <p class="text-sm text-zinc-500 mb-6">Alle Tests erfolgreich bestanden.</p>
+          <button
+            @click="exerciseCompleteToast = false; backToExerciseList()"
+            class="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition-colors"
+          >
+            Zurück zu den Aufgaben
+          </button>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- VALIDATION MODAL (lists errors & warnings) -->
     <Transition
       enter-active-class="transition-all duration-200 ease-out"
       leave-active-class="transition-all duration-150 ease-in"
@@ -642,7 +964,7 @@ const triggerNewProject = () => {
       leave-to-class="opacity-0 scale-95"
     >
       <div
-        v-if="showValidationModal && hasProjects"
+        v-if="showValidationModal && showEditor"
         class="fixed inset-0 z-[100] flex items-center justify-center p-4"
         @click.self="closeValidationModal"
       >
@@ -755,6 +1077,263 @@ const triggerNewProject = () => {
               class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
             >
               Schließen
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- HELP / GUIDE MODAL (keyboard shortcuts & usage hints) -->
+    <Transition
+      enter-active-class="transition-all duration-200 ease-out"
+      leave-active-class="transition-all duration-150 ease-in"
+      enter-from-class="opacity-0 scale-95"
+      enter-to-class="opacity-100 scale-100"
+      leave-from-class="opacity-100 scale-100"
+      leave-to-class="opacity-0 scale-95"
+    >
+      <div
+        v-if="showGuideModal && showEditor"
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4"
+        @click.self="closeGuideModal"
+      >
+        <div
+          class="absolute inset-0 bg-black/40 backdrop-blur-sm"
+          @click="closeGuideModal"
+        ></div>
+
+        <div
+          class="relative w-full max-w-3xl bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden"
+        >
+          <div
+            class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-gradient-to-r from-blue-50 to-indigo-50"
+          >
+            <div class="flex items-center gap-3">
+              <HelpCircle class="w-6 h-6 text-blue-600" />
+              <div>
+                <h2 class="text-base font-bold text-zinc-900">Tastenkombinationen & Bedienung</h2>
+                <p class="text-xs text-zinc-600">
+                  {{ AUTOMATON_TYPES[currentProject.type].shortName }} - {{ currentProject.name }}
+                </p>
+              </div>
+            </div>
+            <button
+              @click="closeGuideModal"
+              class="p-2 rounded-lg hover:bg-white/50 transition-colors"
+            >
+              <svg
+                class="w-5 h-5 text-zinc-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <div class="max-h-[70vh] overflow-y-auto p-6 space-y-6">
+            <!-- Canvas Bedienung -->
+            <div class="bg-zinc-50 rounded-lg p-4 border border-zinc-200">
+              <h3 class="text-sm font-bold text-zinc-900 mb-3 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">1</span>
+                Canvas Bedienung
+              </h3>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Neuer Zustand erstellen</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Doppelklick auf Canvas</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Zustand verschieben</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Drag & Drop</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Mehrere Zustände auswählen</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Box-Selection oder SHIFT+Click</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Mehrere Zustände verschieben</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Auswählen + Drag</kbd>
+                </div>
+              </div>
+            </div>
+
+            <!-- Zustände bearbeiten -->
+            <div class="bg-zinc-50 rounded-lg p-4 border border-zinc-200">
+              <h3 class="text-sm font-bold text-zinc-900 mb-3 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold">2</span>
+                Zustände bearbeiten
+              </h3>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Startzustand markieren</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Toolbar: Flag-Icon</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Finalzustand markieren</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Doppelklick auf Zustand</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Zustand umbenennen</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Zustand auswählen + Tippen</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Zustand löschen</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">DEL</kbd>
+                </div>
+              </div>
+            </div>
+
+            <!-- Transitionen erstellen -->
+            <div class="bg-zinc-50 rounded-lg p-4 border border-zinc-200">
+              <h3 class="text-sm font-bold text-zinc-900 mb-3 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-bold">3</span>
+                Transitionen erstellen
+              </h3>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Neue Transition erstellen</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Rechtsklick auf Quelle → Click auf Ziel</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Oder: Toolbar verwenden</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Quelle wählen → Arrow-Icon → Ziel</kbd>
+                </div>
+              </div>
+            </div>
+
+            <!-- Transitionen bearbeiten (DFA/NFA) -->
+            <div v-if="isDFA || isNFA" class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+              <h3 class="text-sm font-bold text-blue-900 mb-3 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">4</span>
+                Transitionen bearbeiten ({{ AUTOMATON_TYPES[currentProject.type].shortName }})
+              </h3>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-blue-900">Transition auswählen</span>
+                  <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Click auf Kante</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-blue-900">Symbol ändern</span>
+                  <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Kante auswählen + Taste drücken</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-blue-900">Symbol löschen</span>
+                  <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Kante auswählen + Backspace</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-blue-900">Transition löschen</span>
+                  <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Kante auswählen + DEL</kbd>
+                </div>
+              </div>
+            </div>
+
+            <!-- Transitionen bearbeiten (PDA) -->
+            <div v-if="isPDA" class="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-4 border border-emerald-200">
+              <h3 class="text-sm font-bold text-emerald-900 mb-3 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">4</span>
+                Transitionen bearbeiten (PDA)
+              </h3>
+              <div class="space-y-3">
+                <div class="bg-white rounded p-3 border border-emerald-200">
+                  <p class="text-xs font-bold text-emerald-900 mb-2">📝 Format: input,stackTop/stackPush</p>
+                  <p class="text-xs text-emerald-800">Beispiel: a,$/a$ (lese 'a', stack top '$', pushe 'a$')</p>
+                  <p class="text-xs text-emerald-700 mt-1">Verwende ε (epsilon) für leere Eingaben</p>
+                </div>
+                <div class="space-y-2">
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-emerald-900">Transition bearbeiten (Schnell)</span>
+                    <kbd class="px-2 py-1 bg-white border border-emerald-300 rounded text-xs font-mono">Kante auswählen + Tippen</kbd>
+                  </div>
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-emerald-900">Transition bearbeiten (Editor)</span>
+                    <kbd class="px-2 py-1 bg-white border border-emerald-300 rounded text-xs font-mono">Doppelklick auf Kante</kbd>
+                  </div>
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-emerald-900">Eingabe bestätigen</span>
+                    <kbd class="px-2 py-1 bg-white border border-emerald-300 rounded text-xs font-mono">Enter</kbd>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Transitionen bearbeiten (TM) -->
+            <div v-if="isTM" class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-4 border border-blue-200">
+              <h3 class="text-sm font-bold text-blue-900 mb-3 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">4</span>
+                Transitionen bearbeiten (TM)
+              </h3>
+              <div class="space-y-3">
+                <div class="bg-white rounded p-3 border border-blue-200">
+                  <p class="text-xs font-bold text-blue-900 mb-2">⚙️ Format: read/action</p>
+                  <p class="text-xs text-blue-800">Beispiele:</p>
+                  <ul class="text-xs text-blue-700 mt-1 space-y-1 list-disc list-inside">
+                    <li>c/L (lese 'c', bewege nach links)</li>
+                    <li>c/d (lese 'c', schreibe 'd')</li>
+                    <li>w/R (lese 'w', bewege nach rechts)</li>
+                  </ul>
+                </div>
+                <div class="space-y-2">
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-blue-900">Transition bearbeiten (Schnell)</span>
+                    <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Kante auswählen + c/L tippen</kbd>
+                  </div>
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-blue-900">Transition bearbeiten (Editor)</span>
+                    <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Doppelklick auf Kante</kbd>
+                  </div>
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-blue-900">Auto-Übernehmen</span>
+                    <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Nach 3 Zeichen automatisch</kbd>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Simulation -->
+            <div class="bg-zinc-50 rounded-lg p-4 border border-zinc-200">
+              <h3 class="text-sm font-bold text-zinc-900 mb-3 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-orange-600 text-white flex items-center justify-center text-xs font-bold">5</span>
+                Simulation
+              </h3>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Simulation starten</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">F5</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Schritt vorwärts</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">F10</kbd>
+                </div>
+              </div>
+            </div>
+
+            <!-- Weitere Tipps -->
+            <div class="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-lg p-4 border-2 border-amber-300">
+              <h3 class="text-sm font-bold text-amber-900 mb-2 flex items-center gap-2">
+                💡 Tipps
+              </h3>
+              <ul class="space-y-1 text-xs text-amber-900">
+                <li>• ESC abbrechen bei Transition-Erstellung</li>
+                <li>• Validierungs-Badge anklicken um Fehler anzuzeigen</li>
+                <li>• Testfälle erstellen im rechten Panel</li>
+                <li>• "Run All Tests" führt alle Tests automatisch aus</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="px-6 py-4 border-t border-zinc-200 bg-zinc-50 flex justify-end">
+            <button
+              @click="closeGuideModal"
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              Verstanden
             </button>
           </div>
         </div>

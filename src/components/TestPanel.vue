@@ -1,3 +1,16 @@
+<!--
+  TestPanel.vue — Collapsible right panel for managing and running test cases.
+
+  Supports two modes:
+   1. Normal mode – user can add, edit, and delete test cases.
+   2. Exercise mode (`readonly`) – test cases are provided externally and
+      cannot be modified.
+
+  Displays per-test pass/fail badges with hover tooltips (teleported to
+  `<body>` to avoid scroll-clipping), a PDA configuration section, and an
+  aggregated pass/fail summary footer.
+-->
+
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import {
@@ -19,11 +32,18 @@ import {
 } from '@/lib/automatonStore'
 import type { SimulationResult } from '@/lib/automatonSimulator'
 
+// ---------------------------------------------------------------------------
+// Props & emits
+// ---------------------------------------------------------------------------
+
 const props = defineProps<{
   selected: string | null
   visible: boolean
   simulationResults?: Array<SimulationResult & { expected: boolean; passed: boolean }>
-}>()
+  readonly?: boolean
+  exerciseTestCases?: Array<{ id: string; input: string; expectedAccepted: boolean; expectedOutput?: string; tmHeadEnd?: import('@/lib/automatonTypes').TMHeadEnd }>
+  exerciseAutomatonType?: import('@/lib/automatonTypes').AutomatonType
+}>() 
 
 const emit = defineEmits<{
   'update:selected': [value: string | null]
@@ -31,45 +51,70 @@ const emit = defineEmits<{
   'update:pdaStartStackSymbol': [value: string]
 }>()
 
-// PDA start stack symbol state
+// ---------------------------------------------------------------------------
+// PDA configuration
+// ---------------------------------------------------------------------------
+
+/** Initial stack symbol for PDA simulations (default: '$'). */
 const pdaStartStackSymbol = ref('$')
 
-// Watch for project changes and reset stack symbol
+// Reset on project switch.
 watch(
   () => currentProject.value.id,
   () => {
-  // TODO: Load from currentProject.pdaConfig?.startStackSymbol when store is ready
-  pdaStartStackSymbol.value = '$'
+    pdaStartStackSymbol.value = '$'
   },
 )
 
-// Emit changes to parent (for storage in automatonStore)
 watch(pdaStartStackSymbol, (newValue) => {
   emit('update:pdaStartStackSymbol', newValue)
 })
 
-// Get result for a specific test case
+// ---------------------------------------------------------------------------
+// Computed
+// ---------------------------------------------------------------------------
+
+/** In exercise mode the exercise’s test cases override the project’s. */
+const displayedTestCases = computed(() => {
+  if (props.exerciseTestCases) return props.exerciseTestCases
+  return currentTestCases.value
+})
+
+/** Effective automaton type (exercise type overrides when active). */
+const displayedType = computed(() => {
+  return props.exerciseAutomatonType ?? currentProject.value.type
+})
+
+// ---------------------------------------------------------------------------
+// Test result helpers
+// ---------------------------------------------------------------------------
+
+/** Looks up the simulation result matching a given test case ID. */
 const getTestResult = (testCaseId: string) => {
   if (!props.simulationResults) return null
 
-  const testCase = currentTestCases.value.find((tc) => tc.id === testCaseId)
+  const testCase = displayedTestCases.value.find((tc) => tc.id === testCaseId)
   if (!testCase) return null
 
   return props.simulationResults.find((r) => r.input === testCase.input)
 }
 
-// Get status for a test case
+/** Returns the pass/fail/pending status for a test case. */
 const getTestStatus = (testCaseId: string): 'pending' | 'passed' | 'failed' => {
   const result = getTestResult(testCaseId)
   if (!result) return 'pending'
   return result.passed ? 'passed' : 'failed'
 }
 
-// Helper: Convert BLANK symbol to # for display
+/** Converts the TM BLANK symbol (□) to '#' for human-readable display. */
 const displayTape = (tape: string[] | undefined): string => {
   if (!tape) return '#'
   return tape.map((cell) => (cell === '□' ? '#' : cell)).join('')
 }
+
+// ---------------------------------------------------------------------------
+// CRUD actions (normal mode only)
+// ---------------------------------------------------------------------------
 
 const handleAddTest = () => {
   addTestCase('', true)
@@ -119,7 +164,11 @@ const updateTMHeadEnd = (id: string, tmHeadEnd: 'start' | 'end' | 'any') => {
   }
 }
 
-// Test Summary
+// ---------------------------------------------------------------------------
+// Summary & tooltip state
+// ---------------------------------------------------------------------------
+
+/** Aggregated pass/fail/total counts for the footer badge. */
 const testSummary = computed(() => {
   if (!props.simulationResults || props.simulationResults.length === 0) return null
 
@@ -130,10 +179,9 @@ const testSummary = computed(() => {
   return { passed, failed, total }
 })
 
-// Test Count for current project
-const testCount = computed(() => currentTestCases.value.length)
+const testCount = computed(() => displayedTestCases.value.length)
 
-// Tooltip positioning state
+// -- Tooltip positioning (teleported to body) ------------------------------
 const activeTooltipId = ref<string | null>(null)
 const tooltipPosition = ref({ top: 0, left: 0 })
 
@@ -184,6 +232,7 @@ const onStatusLeave = () => {
           </span>
         </div>
         <button
+          v-if="!props.readonly"
           @click="handleAddTest"
           class="p-1.5 rounded hover:bg-zinc-100 transition-colors"
           title="Add Test Case"
@@ -194,7 +243,7 @@ const onStatusLeave = () => {
 
       <!-- PDA configuration section -->
       <div
-        v-if="currentProject.type === 'PDA'"
+        v-if="displayedType === 'PDA' && !props.readonly"
         class="px-4 py-3 border-b border-zinc-200 bg-gradient-to-br from-purple-50 to-indigo-50 flex-shrink-0"
       >
         <div class="mb-2 flex items-center gap-2">
@@ -218,7 +267,7 @@ const onStatusLeave = () => {
       <!-- Test List (Scrollable) -->
       <div class="flex-1 overflow-y-auto">
         <div
-          v-for="tc in currentTestCases"
+          v-for="tc in displayedTestCases"
           :key="tc.id"
           @click="handleSelectTest(tc.id)"
           class="px-4 py-3 border-b border-zinc-200 hover:bg-white cursor-pointer transition-colors duration-150 group"
@@ -227,7 +276,7 @@ const onStatusLeave = () => {
           <!-- Header Row: Name + Status + Delete -->
           <div class="flex items-start justify-between gap-2 mb-2">
             <div class="flex-1 text-sm font-medium text-zinc-900">
-              Test {{ currentTestCases.findIndex((t) => t.id === tc.id) + 1 }}
+              Test {{ displayedTestCases.findIndex((t) => t.id === tc.id) + 1 }}
             </div>
 
             <div class="flex items-center gap-1">
@@ -269,7 +318,7 @@ const onStatusLeave = () => {
 
                   <!-- TM-specific: Show final tape -->
                   <div
-                    v-if="currentProject.type === 'TM' && getTestResult(tc.id)?.finalTape"
+                    v-if="displayedType === 'TM' && getTestResult(tc.id)?.finalTape"
                     class="p-2 bg-zinc-800 rounded border border-zinc-700"
                   >
                     <div class="text-zinc-400 mb-1">📝 Final Tape:</div>
@@ -300,7 +349,7 @@ const onStatusLeave = () => {
 
                   <!-- TM-specific: Show final tape -->
                   <div
-                    v-if="currentProject.type === 'TM' && getTestResult(tc.id)?.finalTape"
+                    v-if="displayedType === 'TM' && getTestResult(tc.id)?.finalTape"
                     class="mb-2 p-2 bg-zinc-800 rounded border border-zinc-700"
                   >
                     <div class="text-zinc-400 mb-1">📝 Final Tape:</div>
@@ -337,6 +386,7 @@ const onStatusLeave = () => {
               </Teleport>
 
               <button
+                v-if="!props.readonly"
                 @click.stop="handleDeleteTest(tc.id)"
                 class="p-1 rounded hover:bg-red-100 transition-colors opacity-0 group-hover:opacity-100"
               >
@@ -352,8 +402,10 @@ const onStatusLeave = () => {
               :value="tc.input"
               @input="(e) => updateInput(tc.id, (e.target as HTMLInputElement).value)"
               class="w-full px-2 py-1 text-xs bg-zinc-50 border border-zinc-300 rounded outline-none focus:border-blue-500 focus:bg-white transition-colors font-mono"
+              :class="{ 'cursor-not-allowed opacity-70': props.readonly }"
               placeholder="z.B. 'aabb'"
               @click.stop
+              :readonly="props.readonly"
             />
           </div>
 
@@ -366,7 +418,9 @@ const onStatusLeave = () => {
                 (e) => updateExpected(tc.id, (e.target as HTMLSelectElement).value === 'accept')
               "
               class="w-full px-2 py-1 text-xs bg-zinc-50 border border-zinc-300 rounded outline-none focus:border-blue-500 focus:bg-white transition-colors font-medium"
+              :class="{ 'pointer-events-none opacity-70': props.readonly }"
               @click.stop
+              :disabled="props.readonly"
             >
               <option value="accept">Accept</option>
               <option value="reject">Reject</option>
@@ -374,7 +428,7 @@ const onStatusLeave = () => {
           </div>
 
           <!-- TM: Expected Output + Head Start -->
-          <div v-if="currentProject.type === 'TM'" class="mt-2">
+          <div v-if="displayedType === 'TM'" class="mt-2">
             <label class="text-xs text-zinc-500 mb-1 block">Expected Output</label>
             <input
               :value="tc.expectedOutput ?? ''"
@@ -385,7 +439,7 @@ const onStatusLeave = () => {
             />
           </div>
 
-          <div v-if="currentProject.type === 'TM'" class="mt-2">
+          <div v-if="displayedType === 'TM'" class="mt-2">
             <label class="text-xs text-zinc-500 mb-1 block">Head End</label>
             <select
               :value="tc.tmHeadEnd ?? 'start'"
@@ -403,7 +457,7 @@ const onStatusLeave = () => {
         </div>
 
         <!-- Empty State -->
-        <div v-if="currentTestCases.length === 0" class="px-4 py-12 text-center">
+        <div v-if="displayedTestCases.length === 0" class="px-4 py-12 text-center">
           <Clock class="w-12 h-12 text-zinc-300 mx-auto mb-3" />
           <p class="text-sm font-semibold text-zinc-700 mb-1">No test cases for this project</p>
           <p class="text-xs text-zinc-500 mb-3">{{ currentProject.name }}</p>

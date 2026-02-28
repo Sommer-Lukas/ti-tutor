@@ -1,3 +1,12 @@
+<!--
+  SimulationStepBar.vue — Horizontal bar that appears above the canvas during
+  PDA or TM simulation.
+
+  For TM: shows a scrollable tape window (11 cells) centred on the head position.
+  For PDA: shows the current stack contents in top-to-bottom order.
+  Always displays consumed / remaining input and the current state.
+-->
+
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
 import { ChevronRight, AlertCircle } from 'lucide-vue-next'
@@ -10,13 +19,12 @@ const props = defineProps<{
   automatonType: AutomatonType
 }>()
 
-// Current step
+/** The step currently being visualised. */
 const currentStep = computed(() => props.simulation.steps[props.currentStepIndex])
 
-// Refs
 const tapeContainer = ref<HTMLElement | null>(null)
 
-// Auto-scroll tape window
+/** Auto-scroll the tape container so the head cell is always visible. */
 watch(
   () => props.currentStepIndex,
   async () => {
@@ -34,18 +42,25 @@ watch(
   },
 )
 
-// Helper: Format stack (bottom to top)
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Returns the PDA stack array as-is (bottom-to-top order). */
 const formatStackDisplay = (stack: string[] | undefined): string[] => {
   if (!stack || stack.length === 0) return []
   return stack
 }
 
-// Helper: Display BLANK symbol as #
+/** Converts the TM BLANK symbol (□) to '#' for readability. */
 const displaySymbol = (symbol: string): string => {
   return symbol === '□' ? '#' : symbol
 }
 
-// Helper: Get tape window (centered on head)
+/**
+ * Builds a fixed-size (11 cells) window of the tape centred on the
+ * current head position, padding with BLANK ('#') where necessary.
+ */
 const getTapeWindow = (
   tape: string[] | undefined,
   headPos: number | undefined,
@@ -82,7 +97,10 @@ const getTapeWindow = (
   return { cells, offsetStart: startPos - paddingLeft }
 }
 
-// Computed
+// ---------------------------------------------------------------------------
+// Convenience computed properties
+// ---------------------------------------------------------------------------
+
 const isTM = computed(() => props.automatonType === 'TM')
 const isPDA = computed(() => props.automatonType === 'PDA')
 const isStuck = computed(() => currentStep.value?.isStuck ?? false)

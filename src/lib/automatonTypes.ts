@@ -1,8 +1,29 @@
-// Automaton Type Definitions
+/**
+ * automatonTypes.ts — Type definitions, rule sets, and configuration for all
+ * supported automaton types (DFA, NFA, PDA, TM).
+ *
+ * Each automaton type is described by an `AutomatonTypeConfig` record that
+ * encodes its structural rules (start/final state constraints, transition
+ * determinism, etc.), feature flags (stack, tape), transition formatting,
+ * and editor hints.  These configs drive validation, the canvas editor,
+ * and the simulation engine.
+ */
+
+// ---------------------------------------------------------------------------
+// Core type aliases
+// ---------------------------------------------------------------------------
+
+/** The four automaton flavours supported by the tutor. */
 export type AutomatonType = 'DFA' | 'NFA' | 'PDA' | 'TM'
 
+/** Specifies where the TM head is expected to end after a test run. */
 export type TMHeadEnd = 'start' | 'end' | 'any'
 
+// ---------------------------------------------------------------------------
+// Configuration interfaces
+// ---------------------------------------------------------------------------
+
+/** Full configuration object for a single automaton type. */
 export interface AutomatonTypeConfig {
   id: AutomatonType
   name: string
@@ -14,25 +35,28 @@ export interface AutomatonTypeConfig {
   editorHints: EditorHints
 }
 
+/** Structural rules that the validator checks against. */
 export interface AutomatonRules {
-  // Start State Rules
+  // -- Start State Rules ---
   minStartStates: number
   maxStartStates: number | 'unlimited'
 
-  // Final State Rules
+  // -- Final State Rules ---
   minFinalStates: number
   maxFinalStates: number | 'unlimited'
 
-  // Transition Rules
+  // -- Transition Rules ---
+  /** If false, only one transition per (state, symbol) pair is allowed (DFA). */
   allowMultipleTransitionsPerSymbol: boolean
   allowEpsilonTransitions: boolean
   allowSelfLoops: boolean
 
-  // Input Rules
+  // -- Input Rules ---
   inputAlphabet: 'finite' | 'infinite'
   allowEmptyInput: boolean
 }
 
+/** Capability flags describing what hardware the automaton type exposes. */
 export interface AutomatonFeatures {
   hasStack: boolean
   hasTape: boolean
@@ -40,22 +64,28 @@ export interface AutomatonFeatures {
   supportsNondeterminism: boolean
 }
 
-// Transition Format Definition
+/** Describes the shape of a transition for rendering and editing purposes. */
 export interface TransitionFormat {
   type: 'simple' | 'stack' | 'tape'
   inputSymbolMaxLength: number | 'unlimited'
-  requiresModal: boolean // If true, use modal editor instead of keyboard
-  labelTemplate: string // Template for displaying transition label
+  /** If true, a modal dialog is used to edit transitions (PDA, TM). */
+  requiresModal: boolean
+  /** Template for the transition label (e.g. "{symbol}" or "{read}/{write}"). */
+  labelTemplate: string
 }
 
-// Editor Hints
+/** Localised helper texts shown in the canvas editor UI. */
 export interface EditorHints {
   transitionEditHint: string
   symbolInputPlaceholder: string
   epsilonSymbol: string
 }
 
-// Validation Result
+// ---------------------------------------------------------------------------
+// Validation result types
+// ---------------------------------------------------------------------------
+
+/** Outcome of running the validator on an automaton project. */
 export interface ValidationResult {
   isValid: boolean
   errors: ValidationError[]
@@ -75,7 +105,10 @@ export interface ValidationWarning {
   affectedElements: string[]
 }
 
-// Predefined Automaton Type Configs (HOCHSCHUL-REGELN)
+// ---------------------------------------------------------------------------
+// Predefined type configurations (university‑standard rules)
+// ---------------------------------------------------------------------------
+
 export const AUTOMATON_TYPES: Record<AutomatonType, AutomatonTypeConfig> = {
   DFA: {
     id: 'DFA',
@@ -220,17 +253,24 @@ export const AUTOMATON_TYPES: Record<AutomatonType, AutomatonTypeConfig> = {
   },
 }
 
-// Get current automaton configuration
+// ---------------------------------------------------------------------------
+// Helper functions
+// ---------------------------------------------------------------------------
+
+/** Returns the full configuration for a given automaton type. */
 export function getAutomatonConfig(type: AutomatonType): AutomatonTypeConfig {
   return AUTOMATON_TYPES[type]
 }
 
-// Check if automaton type requires modal editor for transitions
+/** Returns `true` if the given type requires a modal editor for transitions. */
 export function requiresModalEditor(type: AutomatonType): boolean {
   return AUTOMATON_TYPES[type].transitionFormat.requiresModal
 }
 
-// ✅ HELPER: Get transition label format
+/**
+ * Produces a formatted transition label string from raw field values,
+ * respecting the label template of the given automaton type.
+ */
 export function formatTransitionLabel(
   type: AutomatonType,
   data: {

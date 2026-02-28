@@ -1,3 +1,17 @@
+<!--
+  SimulationTreePanel.vue — Right-side panel showing a step-by-step
+  simulation tree for DFA / NFA automata.
+
+  Also supports PDA (stack view) and TM (tape view) when those types
+  are simulated, each rendered in a two-column card layout.
+
+  Features:
+   - Auto-scroll to keep the current step visible.
+   - Epsilon-closure display for NFA.
+   - Final result footer with accepting/rejecting badge and, for PDA/TM,
+     the final stack or tape contents.
+-->
+
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
 import { GitBranch, ArrowRight, Check, X, AlertCircle, Layers } from 'lucide-vue-next'
@@ -10,24 +24,30 @@ const props = defineProps<{
   automatonType: AutomatonType
 }>()
 
-// Computed: Current and previous steps for tree building
+// ---------------------------------------------------------------------------
+// Computed
+// ---------------------------------------------------------------------------
+
 const steps = computed(() => props.simulation.steps)
 const isNFA = computed(() => props.automatonType === 'NFA')
 const isPDA = computed(() => props.automatonType === 'PDA')
 const isTM = computed(() => props.automatonType === 'TM')
 
-// Refs for auto-scroll
+// ---------------------------------------------------------------------------
+// Auto-scroll
+// ---------------------------------------------------------------------------
+
 const stepRefs = ref<HTMLElement[]>([])
 const scrollContainer = ref<HTMLElement | null>(null)
 
-// Set ref for each step card
+/** Stores a template ref for each step card (used for auto-scroll). */
 const setStepRef = (el: unknown, idx: number) => {
   if (el instanceof HTMLElement) {
     stepRefs.value[idx] = el
   }
 }
 
-// Watch currentStepIndex and auto-scroll
+/** Smooth-scroll to the active step whenever the index advances. */
 watch(
   () => props.currentStepIndex,
   async (newIndex) => {
@@ -46,19 +66,25 @@ watch(
   { immediate: true },
 )
 
-// Helper: Get stack top - TODO: Use in template if needed
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Returns the top element of the stack (or ∅ when empty). */
 const _getStackTop = (stack: string[] | undefined): string => {
   if (!stack || stack.length === 0) return '∅'
   return stack[stack.length - 1] || '∅'
 }
 
-// Helper: Display BLANK symbol as #
+/** Converts the TM BLANK symbol (□) to '#' for readability. */
 const displaySymbol = (symbol: string): string => {
   return symbol === '□' ? '#' : symbol
 }
 
-// Helper: Get tape window (centered on head position, padded with #)
-// Shows 11 cells with head in center (5 left, 1 center, 5 right)
+/**
+ * Builds a fixed-size (11 cells) tape window centred on the head,
+ * padding with '#' (BLANK) for positions outside the tape bounds.
+ */
 const getTapeWindow = (
   tape: string[] | undefined,
   headPos: number | undefined,

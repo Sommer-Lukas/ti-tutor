@@ -1,3 +1,11 @@
+<!--
+  NewAutomatonDialog.vue — Modal dialog for creating a new automaton project.
+
+  The user enters a project name and selects one of the four automaton types
+  (DFA, NFA, PDA, TM).  On submit, the project is created via `automatonStore`
+  and immediately set as the current project.
+-->
+
 <script setup lang="ts">
 import { ref } from 'vue'
 import { X, AlertCircle } from 'lucide-vue-next'
@@ -13,11 +21,16 @@ const emit = defineEmits<{
   'update:open': [value: boolean]
 }>()
 
+// ---------------------------------------------------------------------------
+// Local form state
+// ---------------------------------------------------------------------------
+
 const name = ref('')
 const selectedType = ref<AutomatonType>('DFA')
 const showError = ref(false)
 const errorMessage = ref('')
 
+/** Validates the form and creates the project. */
 const handleCreate = () => {
   // Reset error
   showError.value = false
@@ -41,6 +54,7 @@ const handleCreate = () => {
   emit('update:open', false)
 }
 
+/** Resets form state and closes the dialog. */
 const handleClose = () => {
   name.value = ''
   selectedType.value = 'DFA'
@@ -49,7 +63,7 @@ const handleClose = () => {
   emit('update:open', false)
 }
 
-// Clear error when user starts typing
+/** Clears inline error as soon as the user starts typing again. */
 const handleInput = () => {
   if (showError.value) {
     showError.value = false
