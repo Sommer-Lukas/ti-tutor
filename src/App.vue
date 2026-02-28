@@ -12,12 +12,17 @@ import {
   FolderOpen,
   Plus,
   HelpCircle,
+  BookOpen,
+  ArrowLeft,
+  Trophy,
+  FileText,
 } from 'lucide-vue-next'
 import Sidebar from '@/components/Sidebar.vue'
 import EditorCanvas from '@/components/EditorCanvas.vue'
 import TestPanel from '@/components/TestPanel.vue'
 import SimulationStepBar from '@/components/SimulationStepBar.vue'
 import SimulationTreePanel from '@/components/SimulationTreePanel.vue'
+import ExerciseListView from '@/components/ExerciseListView.vue'
 import {
   currentProject,
   validationResult,
@@ -25,6 +30,15 @@ import {
   projects,
   getPDAStartStackSymbol,
 } from '@/lib/automatonStore'
+import {
+  exerciseModeActive,
+  exerciseBrowsing,
+  activeExercise,
+  activeExerciseId,
+  backToExerciseList,
+  markExerciseCompleted,
+  isExerciseCompleted,
+} from '@/lib/exerciseStore'
 import { AUTOMATON_TYPES } from '@/lib/automatonTypes'
 import { AutomatonSimulator } from '@/lib/automatonSimulator'
 import type { SimulationResult } from '@/lib/automatonSimulator'
@@ -35,6 +49,8 @@ const rightPanelOpen = ref(true)
 const showValidationModal = ref(false)
 const showGuideModal = ref(false)
 const showErrorToast = ref(false)
+const showExerciseDescription = ref(false)
+const exerciseCompleteToast = ref(false)
 
 // --- SIMULATION STATE ---
 const isSimulating = ref(false)
@@ -45,6 +61,14 @@ const selectedTestCase = ref<string | null>(null)
 
 // --- COMPUTED: Has Projects ---
 const hasProjects = computed(() => projects.value.length > 0)
+
+// --- COMPUTED: Is in exercise working mode (not browsing, actively solving) ---
+const isExerciseWorking = computed(
+  () => exerciseModeActive.value && !exerciseBrowsing.value && activeExercise.value !== null,
+)
+
+// --- COMPUTED: Show normal editor (has projects OR exercise working) ---
+const showEditor = computed(() => hasProjects.value || isExerciseWorking.value)
 
 // --- COMPUTED: Automaton Type Checks ---
 const isDFA = computed(() => currentProject.value?.type === 'DFA')
@@ -58,6 +82,18 @@ const showSimulationTreePanel = computed(
   () => (isDFA.value || isNFA.value) && isSimulating.value && currentSimulation.value !== null,
 )
 
+// --- COMPUTED: Exercise Test Cases (with generated IDs for TestPanel) ---
+const exerciseTestCasesWithIds = computed(() => {
+  if (!activeExercise.value) return []
+  return activeExercise.value.testCases.map((tc, idx) => ({
+    id: `ex-tc-${idx}`,
+    input: tc.input,
+    expectedAccepted: tc.expectedAccepted,
+    expectedOutput: tc.expectedOutput,
+    tmHeadEnd: tc.tmHeadEnd,
+  }))
+})
+
 // --- WATCH: Reset simulation on project switch ---
 watch(
   () => currentProject.value?.id,
@@ -69,6 +105,16 @@ watch(
       stopSimulation()
       allTestResults.value = []
       selectedTestCase.value = null
+    }
+  },
+)
+
+// --- WATCH: Show exercise description when starting an exercise ---
+watch(
+  () => activeExerciseId.value,
+  (newId) => {
+    if (newId) {
+      showExerciseDescription.value = true
     }
   },
 )
@@ -88,6 +134,9 @@ const hasValidationErrors = computed(() => {
 
 // --- COMPUTED: Can Run Tests ---
 const canRunTests = computed(() => {
+  if (isExerciseWorking.value) {
+    return !hasValidationErrors.value && !isSimulating.value && exerciseTestCasesWithIds.value.length > 0
+  }
   return (
     hasProjects.value &&
     !hasValidationErrors.value &&
@@ -98,6 +147,9 @@ const canRunTests = computed(() => {
 
 // --- COMPUTED: Can Start Simulation ---
 const canStartSimulation = computed(() => {
+  if (isExerciseWorking.value) {
+    return !hasValidationErrors.value && selectedTestCase.value !== null && !isSimulating.value
+  }
   return (
     hasProjects.value &&
     !hasValidationErrors.value &&
@@ -139,7 +191,7 @@ const showErrorToastWithTimeout = () => {
 
 // --- SIMULATION ACTIONS ---
 const startSimulation = () => {
-  if (!hasProjects.value) return
+  if (!showEditor.value) return
 
   // Validation Check
   if (hasValidationErrors.value) {
@@ -149,7 +201,9 @@ const startSimulation = () => {
 
   if (!selectedTestCase.value) return
 
-  const testCase = currentTestCases.value.find((tc) => tc.id === selectedTestCase.value)
+  // Find test case in exercise mode or normal mode
+  const testCaseSource = isExerciseWorking.value ? exerciseTestCasesWithIds.value : currentTestCases.value
+  const testCase = testCaseSource.find((tc) => tc.id === selectedTestCase.value)
   if (!testCase) return
 
   // Pass PDA config to simulator
@@ -205,7 +259,7 @@ const stopSimulation = () => {
 }
 
 const runAllTests = () => {
-  if (!hasProjects.value) return
+  if (!showEditor.value) return
 
   // Validation Check
   if (hasValidationErrors.value) {
@@ -213,8 +267,11 @@ const runAllTests = () => {
     return
   }
 
-  if (currentTestCases.value.length === 0) {
-    console.warn('No test cases for current project')
+  // Get test cases from exercise or normal mode
+  const testSource = isExerciseWorking.value ? exerciseTestCasesWithIds.value : currentTestCases.value
+
+  if (testSource.length === 0) {
+    console.warn('No test cases available')
     return
   }
 
@@ -229,7 +286,7 @@ const runAllTests = () => {
     pdaConfig,
   )
 
-  const testsWithExpectations = currentTestCases.value.map((tc) => ({
+  const testsWithExpectations = testSource.map((tc) => ({
     input: tc.input,
     expected: tc.expectedAccepted,
     expectedOutput: tc.expectedOutput,
@@ -238,13 +295,22 @@ const runAllTests = () => {
 
   allTestResults.value = simulator.runTests(testsWithExpectations)
 
+  // Exercise completion check
+  if (isExerciseWorking.value && activeExerciseId.value) {
+    const allPassed = allTestResults.value.every((r) => r.passed)
+    if (allPassed && allTestResults.value.length > 0) {
+      markExerciseCompleted(activeExerciseId.value)
+      exerciseCompleteToast.value = true
+    }
+  }
+
   console.log('All test results:', allTestResults.value)
   console.log(`Passed: ${testSummary.value?.passed}/${testSummary.value?.total}`)
   console.log(`Failed: ${testSummary.value?.failed}/${testSummary.value?.total}`)
 }
 
 const toggleValidationModal = () => {
-  if (!hasProjects.value) return
+  if (!showEditor.value) return
   showValidationModal.value = !showValidationModal.value
 }
 
@@ -253,7 +319,7 @@ const closeValidationModal = () => {
 }
 
 const toggleGuideModal = () => {
-  if (!hasProjects.value) return
+  if (!showEditor.value) return
   showGuideModal.value = !showGuideModal.value
 }
 
@@ -263,7 +329,7 @@ const closeGuideModal = () => {
 
 // --- KEYBOARD SHORTCUTS ---
 const handleKeyDown = (e: KeyboardEvent) => {
-  if (!hasProjects.value) return
+  if (!showEditor.value) return
 
   // F5 - Start Simulation
   if (e.key === 'F5') {
@@ -310,17 +376,88 @@ const triggerNewProject = () => {
 
 <template>
   <div class="flex h-screen w-full bg-zinc-50 text-zinc-900 overflow-hidden relative">
-    <!-- LEFT SIDEBAR (Component) -->
-    <Sidebar v-model:is-open="isSidebarOpen" />
+    <!-- LEFT SIDEBAR (Component) - Hidden in exercise mode -->
+    <Sidebar v-if="!exerciseModeActive" v-model:is-open="isSidebarOpen" />
 
     <!-- MAIN CONTENT -->
     <main class="flex-1 flex flex-col h-full min-w-0 bg-white">
-      <!-- TOP BAR -->
+      <!-- TOP BAR (Hidden during exercise browsing - ExerciseListView has its own header) -->
       <header
+        v-if="!(exerciseModeActive && exerciseBrowsing)"
         class="flex h-14 items-center justify-between px-6 border-b z-50 bg-white flex-shrink-0 relative"
       >
-        <!-- Project Name + Type Badge + Validation Status -->
-        <div v-if="hasProjects" class="flex items-center gap-3">
+        <!-- Exercise Working Mode Header -->
+        <div v-if="isExerciseWorking" class="flex items-center gap-3">
+          <button
+            @click="backToExerciseList(); allTestResults = []; selectedTestCase = null"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-100 hover:bg-zinc-200 text-zinc-700 transition-all"
+          >
+            <ArrowLeft class="w-3.5 h-3.5" />
+            Aufgaben
+          </button>
+
+          <h1 class="text-lg font-semibold text-zinc-900">{{ activeExercise?.title }}</h1>
+
+          <!-- Automaton Type Badge -->
+          <span
+            class="px-2.5 py-1 rounded-full text-xs font-bold"
+            :class="
+              currentProject.type === 'DFA'
+                ? 'bg-blue-100 text-blue-700'
+                : currentProject.type === 'NFA'
+                  ? 'bg-purple-100 text-purple-700'
+                  : currentProject.type === 'PDA'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-orange-100 text-orange-700'
+            "
+          >
+            {{ AUTOMATON_TYPES[currentProject.type].shortName }}
+          </span>
+
+          <!-- Validation Status Badge -->
+          <button
+            @click="toggleValidationModal"
+            class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:shadow-md"
+            :class="{
+              'bg-green-50 text-green-700 hover:bg-green-100': validationStatus === 'valid',
+              'bg-red-50 text-red-700 hover:bg-red-100 animate-pulse': validationStatus === 'error',
+              'bg-yellow-50 text-yellow-700 hover:bg-yellow-100': validationStatus === 'warning',
+            }"
+          >
+            <Check v-if="validationStatus === 'valid'" class="w-4 h-4" />
+            <X v-else-if="validationStatus === 'error'" class="w-4 h-4" />
+            <AlertTriangle v-else class="w-4 h-4" />
+            <span v-if="validationStatus === 'valid'">Valid</span>
+            <span v-else-if="validationStatus === 'error'">
+              {{ validationResult.errors.length }} Error{{ validationResult.errors.length > 1 ? 's' : '' }}
+            </span>
+            <span v-else>
+              {{ validationResult.warnings.length }} Warning{{ validationResult.warnings.length > 1 ? 's' : '' }}
+            </span>
+          </button>
+
+          <!-- Exercise Description Toggle -->
+          <button
+            @click="showExerciseDescription = !showExerciseDescription"
+            class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:shadow-md"
+            :class="showExerciseDescription ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'"
+          >
+            <FileText class="w-4 h-4" />
+            Aufgabe
+          </button>
+
+          <!-- Completed Badge -->
+          <div
+            v-if="activeExerciseId && isExerciseCompleted(activeExerciseId)"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-100 text-green-700 text-xs font-bold"
+          >
+            <Trophy class="w-3.5 h-3.5" />
+            Bestanden
+          </div>
+        </div>
+
+        <!-- Normal Project Header -->
+        <div v-else-if="hasProjects && !exerciseModeActive" class="flex items-center gap-3">
           <h1 class="text-lg font-semibold text-zinc-900">{{ currentProject.name }}</h1>
 
           <!-- Automaton Type Badge -->
@@ -382,9 +519,14 @@ const triggerNewProject = () => {
 
       <!-- WORKSPACE -->
       <div class="flex-1 flex flex-col min-h-0">
-        <!-- EMPTY STATE (When no projects) -->
+        <!-- EXERCISE BROWSING VIEW -->
+        <ExerciseListView
+          v-if="exerciseModeActive && exerciseBrowsing"
+        />
+
+        <!-- EMPTY STATE (When no projects and not in exercise mode) -->
         <div
-          v-if="!hasProjects"
+          v-else-if="!hasProjects && !isExerciseWorking"
           class="flex-1 flex items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100"
         >
           <div class="text-center max-w-md px-8">
@@ -415,7 +557,7 @@ const triggerNewProject = () => {
           </div>
         </div>
 
-        <!-- NORMAL WORKSPACE (When projects exist) -->
+        <!-- NORMAL WORKSPACE (When projects exist) OR EXERCISE WORKING -->
         <template v-else>
           <!-- SIMULATION STEP BAR (For PDA & TM) -->
           <SimulationStepBar
@@ -440,12 +582,50 @@ const triggerNewProject = () => {
               :is-simulating="isSimulating"
             />
 
+            <!-- EXERCISE DESCRIPTION SLIDE PANEL -->
+            <Transition
+              enter-active-class="transition-all duration-300 ease-out"
+              leave-active-class="transition-all duration-200 ease-in"
+              enter-from-class="opacity-0 translate-y-2"
+              enter-to-class="opacity-100 translate-y-0"
+              leave-from-class="opacity-100 translate-y-0"
+              leave-to-class="opacity-0 translate-y-2"
+            >
+              <div
+                v-if="isExerciseWorking && showExerciseDescription && !isSimulating"
+                class="absolute top-4 left-4 z-40 w-[420px] max-h-[70%] bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden"
+              >
+                <div class="px-5 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-zinc-200 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <BookOpen class="w-4 h-4 text-indigo-600" />
+                    <h3 class="text-sm font-bold text-zinc-900">Aufgabenstellung</h3>
+                  </div>
+                  <button
+                    @click="showExerciseDescription = false"
+                    class="p-1 rounded-lg hover:bg-white/50 transition-colors"
+                  >
+                    <X class="w-4 h-4 text-zinc-500" />
+                  </button>
+                </div>
+                <div class="p-5 overflow-y-auto max-h-[calc(70vh-48px)]">
+                  <p class="text-sm text-zinc-700 whitespace-pre-line leading-relaxed">{{ activeExercise?.description }}</p>
+                  <div v-if="activeExercise?.hint" class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p class="text-xs font-bold text-amber-800 mb-1">💡 Hinweis</p>
+                    <p class="text-xs text-amber-700 leading-relaxed">{{ activeExercise.hint }}</p>
+                  </div>
+                </div>
+              </div>
+            </Transition>
+
             <!-- TEST PANEL (Hidden during simulation) -->
             <TestPanel
               v-show="!isSimulating"
               v-model:selected="selectedTestCase"
               v-model:visible="rightPanelOpen"
               :simulation-results="allTestResults"
+              :readonly="isExerciseWorking"
+              :exercise-test-cases="isExerciseWorking ? exerciseTestCasesWithIds : undefined"
+              :exercise-automaton-type="isExerciseWorking ? activeExercise?.type : undefined"
             />
 
             <!-- SIMULATION TREE PANEL (For DFA & NFA) -->
@@ -653,6 +833,42 @@ const triggerNewProject = () => {
       </div>
     </Transition>
 
+    <!-- EXERCISE COMPLETE TOAST -->
+    <Transition
+      enter-active-class="transition-all duration-300 ease-out"
+      leave-active-class="transition-all duration-200 ease-in"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="exerciseCompleteToast"
+        class="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40"
+        @click.self="exerciseCompleteToast = false"
+      >
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center relative">
+          <button
+            @click="exerciseCompleteToast = false"
+            class="absolute top-4 right-4 p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
+          >
+            <X class="w-4 h-4" />
+          </button>
+          <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+            <Trophy class="w-8 h-8 text-green-600" />
+          </div>
+          <h2 class="text-2xl font-bold text-zinc-900 mb-1">Geschafft!</h2>
+          <p class="text-sm text-zinc-500 mb-6">Alle Tests erfolgreich bestanden.</p>
+          <button
+            @click="exerciseCompleteToast = false; backToExerciseList()"
+            class="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition-colors"
+          >
+            Zurück zu den Aufgaben
+          </button>
+        </div>
+      </div>
+    </Transition>
+
     <!-- VALIDATION MODAL -->
     <Transition
       enter-active-class="transition-all duration-200 ease-out"
@@ -663,7 +879,7 @@ const triggerNewProject = () => {
       leave-to-class="opacity-0 scale-95"
     >
       <div
-        v-if="showValidationModal && hasProjects"
+        v-if="showValidationModal && showEditor"
         class="fixed inset-0 z-[100] flex items-center justify-center p-4"
         @click.self="closeValidationModal"
       >
@@ -792,7 +1008,7 @@ const triggerNewProject = () => {
       leave-to-class="opacity-0 scale-95"
     >
       <div
-        v-if="showGuideModal && hasProjects"
+        v-if="showGuideModal && showEditor"
         class="fixed inset-0 z-[100] flex items-center justify-center p-4"
         @click.self="closeGuideModal"
       >

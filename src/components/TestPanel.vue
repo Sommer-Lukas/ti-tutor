@@ -23,7 +23,10 @@ const props = defineProps<{
   selected: string | null
   visible: boolean
   simulationResults?: Array<SimulationResult & { expected: boolean; passed: boolean }>
-}>()
+  readonly?: boolean
+  exerciseTestCases?: Array<{ id: string; input: string; expectedAccepted: boolean; expectedOutput?: string; tmHeadEnd?: import('@/lib/automatonTypes').TMHeadEnd }>
+  exerciseAutomatonType?: import('@/lib/automatonTypes').AutomatonType
+}>() 
 
 const emit = defineEmits<{
   'update:selected': [value: string | null]
@@ -48,11 +51,22 @@ watch(pdaStartStackSymbol, (newValue) => {
   emit('update:pdaStartStackSymbol', newValue)
 })
 
+// Determine which test cases to show (exercise mode overrides)
+const displayedTestCases = computed(() => {
+  if (props.exerciseTestCases) return props.exerciseTestCases
+  return currentTestCases.value
+})
+
+// Determine automaton type
+const displayedType = computed(() => {
+  return props.exerciseAutomatonType ?? currentProject.value.type
+})
+
 // Get result for a specific test case
 const getTestResult = (testCaseId: string) => {
   if (!props.simulationResults) return null
 
-  const testCase = currentTestCases.value.find((tc) => tc.id === testCaseId)
+  const testCase = displayedTestCases.value.find((tc) => tc.id === testCaseId)
   if (!testCase) return null
 
   return props.simulationResults.find((r) => r.input === testCase.input)
@@ -131,7 +145,7 @@ const testSummary = computed(() => {
 })
 
 // Test Count for current project
-const testCount = computed(() => currentTestCases.value.length)
+const testCount = computed(() => displayedTestCases.value.length)
 
 // Tooltip positioning state
 const activeTooltipId = ref<string | null>(null)
@@ -184,6 +198,7 @@ const onStatusLeave = () => {
           </span>
         </div>
         <button
+          v-if="!props.readonly"
           @click="handleAddTest"
           class="p-1.5 rounded hover:bg-zinc-100 transition-colors"
           title="Add Test Case"
@@ -194,7 +209,7 @@ const onStatusLeave = () => {
 
       <!-- PDA configuration section -->
       <div
-        v-if="currentProject.type === 'PDA'"
+        v-if="displayedType === 'PDA' && !props.readonly"
         class="px-4 py-3 border-b border-zinc-200 bg-gradient-to-br from-purple-50 to-indigo-50 flex-shrink-0"
       >
         <div class="mb-2 flex items-center gap-2">
@@ -218,7 +233,7 @@ const onStatusLeave = () => {
       <!-- Test List (Scrollable) -->
       <div class="flex-1 overflow-y-auto">
         <div
-          v-for="tc in currentTestCases"
+          v-for="tc in displayedTestCases"
           :key="tc.id"
           @click="handleSelectTest(tc.id)"
           class="px-4 py-3 border-b border-zinc-200 hover:bg-white cursor-pointer transition-colors duration-150 group"
@@ -227,7 +242,7 @@ const onStatusLeave = () => {
           <!-- Header Row: Name + Status + Delete -->
           <div class="flex items-start justify-between gap-2 mb-2">
             <div class="flex-1 text-sm font-medium text-zinc-900">
-              Test {{ currentTestCases.findIndex((t) => t.id === tc.id) + 1 }}
+              Test {{ displayedTestCases.findIndex((t) => t.id === tc.id) + 1 }}
             </div>
 
             <div class="flex items-center gap-1">
@@ -269,7 +284,7 @@ const onStatusLeave = () => {
 
                   <!-- TM-specific: Show final tape -->
                   <div
-                    v-if="currentProject.type === 'TM' && getTestResult(tc.id)?.finalTape"
+                    v-if="displayedType === 'TM' && getTestResult(tc.id)?.finalTape"
                     class="p-2 bg-zinc-800 rounded border border-zinc-700"
                   >
                     <div class="text-zinc-400 mb-1">📝 Final Tape:</div>
@@ -300,7 +315,7 @@ const onStatusLeave = () => {
 
                   <!-- TM-specific: Show final tape -->
                   <div
-                    v-if="currentProject.type === 'TM' && getTestResult(tc.id)?.finalTape"
+                    v-if="displayedType === 'TM' && getTestResult(tc.id)?.finalTape"
                     class="mb-2 p-2 bg-zinc-800 rounded border border-zinc-700"
                   >
                     <div class="text-zinc-400 mb-1">📝 Final Tape:</div>
@@ -337,6 +352,7 @@ const onStatusLeave = () => {
               </Teleport>
 
               <button
+                v-if="!props.readonly"
                 @click.stop="handleDeleteTest(tc.id)"
                 class="p-1 rounded hover:bg-red-100 transition-colors opacity-0 group-hover:opacity-100"
               >
@@ -352,8 +368,10 @@ const onStatusLeave = () => {
               :value="tc.input"
               @input="(e) => updateInput(tc.id, (e.target as HTMLInputElement).value)"
               class="w-full px-2 py-1 text-xs bg-zinc-50 border border-zinc-300 rounded outline-none focus:border-blue-500 focus:bg-white transition-colors font-mono"
+              :class="{ 'cursor-not-allowed opacity-70': props.readonly }"
               placeholder="z.B. 'aabb'"
               @click.stop
+              :readonly="props.readonly"
             />
           </div>
 
@@ -366,7 +384,9 @@ const onStatusLeave = () => {
                 (e) => updateExpected(tc.id, (e.target as HTMLSelectElement).value === 'accept')
               "
               class="w-full px-2 py-1 text-xs bg-zinc-50 border border-zinc-300 rounded outline-none focus:border-blue-500 focus:bg-white transition-colors font-medium"
+              :class="{ 'pointer-events-none opacity-70': props.readonly }"
               @click.stop
+              :disabled="props.readonly"
             >
               <option value="accept">Accept</option>
               <option value="reject">Reject</option>
@@ -374,7 +394,7 @@ const onStatusLeave = () => {
           </div>
 
           <!-- TM: Expected Output + Head Start -->
-          <div v-if="currentProject.type === 'TM'" class="mt-2">
+          <div v-if="displayedType === 'TM'" class="mt-2">
             <label class="text-xs text-zinc-500 mb-1 block">Expected Output</label>
             <input
               :value="tc.expectedOutput ?? ''"
@@ -385,7 +405,7 @@ const onStatusLeave = () => {
             />
           </div>
 
-          <div v-if="currentProject.type === 'TM'" class="mt-2">
+          <div v-if="displayedType === 'TM'" class="mt-2">
             <label class="text-xs text-zinc-500 mb-1 block">Head End</label>
             <select
               :value="tc.tmHeadEnd ?? 'start'"
@@ -403,7 +423,7 @@ const onStatusLeave = () => {
         </div>
 
         <!-- Empty State -->
-        <div v-if="currentTestCases.length === 0" class="px-4 py-12 text-center">
+        <div v-if="displayedTestCases.length === 0" class="px-4 py-12 text-center">
           <Clock class="w-12 h-12 text-zinc-300 mx-auto mb-3" />
           <p class="text-sm font-semibold text-zinc-700 mb-1">No test cases for this project</p>
           <p class="text-xs text-zinc-500 mb-3">{{ currentProject.name }}</p>

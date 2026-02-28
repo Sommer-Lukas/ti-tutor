@@ -1,10 +1,11 @@
 <script setup lang="ts" name="SidebarNavigation">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Button } from '@/components/ui/button'
-import { PanelLeftClose, PanelLeftOpen, Plus, FileText } from 'lucide-vue-next'
+import { PanelLeftClose, PanelLeftOpen, Plus, FileText, BookOpen } from 'lucide-vue-next'
 import NewAutomatonDialog from '@/components/NewAutomatonDialog.vue'
 import ProjectActionsMenu from '@/components/ProjectActionsMenu.vue'
 import { projects, currentProject, setCurrentProject } from '@/lib/automatonStore'
+import { exerciseModeActive, enterExerciseMode, getCompletionStats } from '@/lib/exerciseStore'
 
 const isOpen = defineModel<boolean>('isOpen', { default: true })
 const showNewDialog = ref(false)
@@ -35,6 +36,25 @@ onUnmounted(() => {
           <PanelLeftOpen v-else />
         </Button>
       </div>
+
+      <!-- Exercise Mode Button -->
+      <Button
+        @click="enterExerciseMode()"
+        variant="outline"
+        class="justify-start gap-2 rounded-full border-none font-medium h-12 transition-all bg-zinc-200 hover:bg-zinc-300 text-zinc-700"
+        :class="{ 'px-2 justify-center w-10 h-10': !isOpen }"
+      >
+        <BookOpen class="h-5 w-5" />
+        <span v-if="isOpen" class="flex-1 flex items-center justify-between">
+          Aufgaben
+          <span
+            v-if="getCompletionStats().completed > 0"
+            class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-zinc-300 text-zinc-600"
+          >
+            {{ getCompletionStats().completed }}/{{ getCompletionStats().total }}
+          </span>
+        </span>
+      </Button>
 
       <Button
         @click="showNewDialog = true"

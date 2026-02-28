@@ -4,6 +4,7 @@ import type { AutomatonProject } from './automaton'
 import type { AutomatonType, TMHeadEnd } from './automatonTypes'
 import { AUTOMATON_TYPES } from './automatonTypes'
 import { AutomatonValidator } from './automatonValidator'
+import { exerciseModeActive, exerciseBrowsing, exerciseProject } from './exerciseStore'
 
 // --- MULTI-PROJECT MANAGEMENT ---
 export const projects = ref<AutomatonProject[]>([])
@@ -56,6 +57,11 @@ function createEmptyDummyProject(): AutomatonProject {
 export const currentProject: ComputedRef<AutomatonProject> = computed((): AutomatonProject => {
   // This dependency ensures re-computation when counter changes
   void projectSwitchCounter.value
+
+  // Exercise mode override: return exercise project if active and working on an exercise
+  if (exerciseModeActive.value && !exerciseBrowsing.value && exerciseProject.value) {
+    return exerciseProject.value
+  }
 
   // If no projects exist, return dummy project
   if (projects.value.length === 0) {
