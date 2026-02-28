@@ -11,6 +11,7 @@ import {
   ShieldAlert,
   FolderOpen,
   Plus,
+  HelpCircle,
 } from 'lucide-vue-next'
 import Sidebar from '@/components/Sidebar.vue'
 import EditorCanvas from '@/components/EditorCanvas.vue'
@@ -32,6 +33,7 @@ import type { SimulationResult } from '@/lib/automatonSimulator'
 const isSidebarOpen = ref(true)
 const rightPanelOpen = ref(true)
 const showValidationModal = ref(false)
+const showGuideModal = ref(false)
 const showErrorToast = ref(false)
 
 // --- SIMULATION STATE ---
@@ -250,6 +252,15 @@ const closeValidationModal = () => {
   showValidationModal.value = false
 }
 
+const toggleGuideModal = () => {
+  if (!hasProjects.value) return
+  showGuideModal.value = !showGuideModal.value
+}
+
+const closeGuideModal = () => {
+  showGuideModal.value = false
+}
+
 // --- KEYBOARD SHORTCUTS ---
 const handleKeyDown = (e: KeyboardEvent) => {
   if (!hasProjects.value) return
@@ -349,6 +360,16 @@ const triggerNewProject = () => {
                 validationResult.warnings.length > 1 ? 's' : ''
               }}
             </span>
+          </button>
+
+          <!-- Guide Button -->
+          <button
+            @click="toggleGuideModal"
+            class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:shadow-md bg-blue-50 text-blue-700 hover:bg-blue-100"
+            title="Hilfe & Shortcuts"
+          >
+            <HelpCircle class="w-4 h-4" />
+            <span>Hilfe</span>
           </button>
         </div>
 
@@ -755,6 +776,263 @@ const triggerNewProject = () => {
               class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
             >
               Schließen
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- GUIDE MODAL -->
+    <Transition
+      enter-active-class="transition-all duration-200 ease-out"
+      leave-active-class="transition-all duration-150 ease-in"
+      enter-from-class="opacity-0 scale-95"
+      enter-to-class="opacity-100 scale-100"
+      leave-from-class="opacity-100 scale-100"
+      leave-to-class="opacity-0 scale-95"
+    >
+      <div
+        v-if="showGuideModal && hasProjects"
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4"
+        @click.self="closeGuideModal"
+      >
+        <div
+          class="absolute inset-0 bg-black/40 backdrop-blur-sm"
+          @click="closeGuideModal"
+        ></div>
+
+        <div
+          class="relative w-full max-w-3xl bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden"
+        >
+          <div
+            class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-gradient-to-r from-blue-50 to-indigo-50"
+          >
+            <div class="flex items-center gap-3">
+              <HelpCircle class="w-6 h-6 text-blue-600" />
+              <div>
+                <h2 class="text-base font-bold text-zinc-900">Tastenkombinationen & Bedienung</h2>
+                <p class="text-xs text-zinc-600">
+                  {{ AUTOMATON_TYPES[currentProject.type].shortName }} - {{ currentProject.name }}
+                </p>
+              </div>
+            </div>
+            <button
+              @click="closeGuideModal"
+              class="p-2 rounded-lg hover:bg-white/50 transition-colors"
+            >
+              <svg
+                class="w-5 h-5 text-zinc-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <div class="max-h-[70vh] overflow-y-auto p-6 space-y-6">
+            <!-- Canvas Bedienung -->
+            <div class="bg-zinc-50 rounded-lg p-4 border border-zinc-200">
+              <h3 class="text-sm font-bold text-zinc-900 mb-3 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">1</span>
+                Canvas Bedienung
+              </h3>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Neuer Zustand erstellen</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Doppelklick auf Canvas</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Zustand verschieben</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Drag & Drop</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Mehrere Zustände auswählen</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Box-Selection oder SHIFT+Click</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Mehrere Zustände verschieben</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Auswählen + Drag</kbd>
+                </div>
+              </div>
+            </div>
+
+            <!-- Zustände bearbeiten -->
+            <div class="bg-zinc-50 rounded-lg p-4 border border-zinc-200">
+              <h3 class="text-sm font-bold text-zinc-900 mb-3 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold">2</span>
+                Zustände bearbeiten
+              </h3>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Startzustand markieren</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Toolbar: Flag-Icon</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Finalzustand markieren</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Doppelklick auf Zustand</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Zustand umbenennen</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Zustand auswählen + Tippen</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Zustand löschen</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">DEL</kbd>
+                </div>
+              </div>
+            </div>
+
+            <!-- Transitionen erstellen -->
+            <div class="bg-zinc-50 rounded-lg p-4 border border-zinc-200">
+              <h3 class="text-sm font-bold text-zinc-900 mb-3 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-bold">3</span>
+                Transitionen erstellen
+              </h3>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Neue Transition erstellen</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Rechtsklick auf Quelle → Click auf Ziel</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Oder: Toolbar verwenden</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Quelle wählen → Arrow-Icon → Ziel</kbd>
+                </div>
+              </div>
+            </div>
+
+            <!-- Transitionen bearbeiten (DFA/NFA) -->
+            <div v-if="isDFA || isNFA" class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+              <h3 class="text-sm font-bold text-blue-900 mb-3 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">4</span>
+                Transitionen bearbeiten ({{ AUTOMATON_TYPES[currentProject.type].shortName }})
+              </h3>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-blue-900">Transition auswählen</span>
+                  <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Click auf Kante</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-blue-900">Symbol ändern</span>
+                  <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Kante auswählen + Taste drücken</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-blue-900">Symbol löschen</span>
+                  <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Kante auswählen + Backspace</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-blue-900">Transition löschen</span>
+                  <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Kante auswählen + DEL</kbd>
+                </div>
+              </div>
+            </div>
+
+            <!-- Transitionen bearbeiten (PDA) -->
+            <div v-if="isPDA" class="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-4 border border-emerald-200">
+              <h3 class="text-sm font-bold text-emerald-900 mb-3 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">4</span>
+                Transitionen bearbeiten (PDA)
+              </h3>
+              <div class="space-y-3">
+                <div class="bg-white rounded p-3 border border-emerald-200">
+                  <p class="text-xs font-bold text-emerald-900 mb-2">📝 Format: input,stackTop/stackPush</p>
+                  <p class="text-xs text-emerald-800">Beispiel: a,$/a$ (lese 'a', stack top '$', pushe 'a$')</p>
+                  <p class="text-xs text-emerald-700 mt-1">Verwende ε (epsilon) für leere Eingaben</p>
+                </div>
+                <div class="space-y-2">
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-emerald-900">Transition bearbeiten (Schnell)</span>
+                    <kbd class="px-2 py-1 bg-white border border-emerald-300 rounded text-xs font-mono">Kante auswählen + Tippen</kbd>
+                  </div>
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-emerald-900">Transition bearbeiten (Editor)</span>
+                    <kbd class="px-2 py-1 bg-white border border-emerald-300 rounded text-xs font-mono">Doppelklick auf Kante</kbd>
+                  </div>
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-emerald-900">Eingabe bestätigen</span>
+                    <kbd class="px-2 py-1 bg-white border border-emerald-300 rounded text-xs font-mono">Enter</kbd>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Transitionen bearbeiten (TM) -->
+            <div v-if="isTM" class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-4 border border-blue-200">
+              <h3 class="text-sm font-bold text-blue-900 mb-3 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">4</span>
+                Transitionen bearbeiten (TM)
+              </h3>
+              <div class="space-y-3">
+                <div class="bg-white rounded p-3 border border-blue-200">
+                  <p class="text-xs font-bold text-blue-900 mb-2">⚙️ Format: read/action</p>
+                  <p class="text-xs text-blue-800">Beispiele:</p>
+                  <ul class="text-xs text-blue-700 mt-1 space-y-1 list-disc list-inside">
+                    <li>c/L (lese 'c', bewege nach links)</li>
+                    <li>c/d (lese 'c', schreibe 'd')</li>
+                    <li>w/R (lese 'w', bewege nach rechts)</li>
+                  </ul>
+                </div>
+                <div class="space-y-2">
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-blue-900">Transition bearbeiten (Schnell)</span>
+                    <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Kante auswählen + c/L tippen</kbd>
+                  </div>
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-blue-900">Transition bearbeiten (Editor)</span>
+                    <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Doppelklick auf Kante</kbd>
+                  </div>
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-blue-900">Auto-Übernehmen</span>
+                    <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Nach 3 Zeichen automatisch</kbd>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Simulation -->
+            <div class="bg-zinc-50 rounded-lg p-4 border border-zinc-200">
+              <h3 class="text-sm font-bold text-zinc-900 mb-3 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-orange-600 text-white flex items-center justify-center text-xs font-bold">5</span>
+                Simulation
+              </h3>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Simulation starten</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">F5</kbd>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-zinc-700">Schritt vorwärts</span>
+                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">F10</kbd>
+                </div>
+              </div>
+            </div>
+
+            <!-- Weitere Tipps -->
+            <div class="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-lg p-4 border-2 border-amber-300">
+              <h3 class="text-sm font-bold text-amber-900 mb-2 flex items-center gap-2">
+                💡 Tipps
+              </h3>
+              <ul class="space-y-1 text-xs text-amber-900">
+                <li>• ESC abbrechen bei Transition-Erstellung</li>
+                <li>• Validierungs-Badge anklicken um Fehler anzuzeigen</li>
+                <li>• Testfälle erstellen im rechten Panel</li>
+                <li>• "Run All Tests" führt alle Tests automatisch aus</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="px-6 py-4 border-t border-zinc-200 bg-zinc-50 flex justify-end">
+            <button
+              @click="closeGuideModal"
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              Verstanden
             </button>
           </div>
         </div>
