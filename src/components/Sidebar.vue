@@ -1,3 +1,13 @@
+<!--
+  Sidebar.vue — Collapsible left sidebar for project navigation.
+
+  Contains:
+   - “Aufgaben” (Exercises) button with completion counter.
+   - “Neuer Automat” (New Automaton) button that opens `NewAutomatonDialog`.
+   - Scrollable project list with per-project context menu (`ProjectActionsMenu`).
+   - Hidden entirely when exercise mode is active.
+-->
+
 <script setup lang="ts" name="SidebarNavigation">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Button } from '@/components/ui/button'
@@ -7,10 +17,11 @@ import ProjectActionsMenu from '@/components/ProjectActionsMenu.vue'
 import { projects, currentProject, setCurrentProject } from '@/lib/automatonStore'
 import { exerciseModeActive, enterExerciseMode, getCompletionStats } from '@/lib/exerciseStore'
 
+/** Two-way bound sidebar open/collapsed state. */
 const isOpen = defineModel<boolean>('isOpen', { default: true })
 const showNewDialog = ref(false)
 
-// Listen for custom event to open dialog from empty state
+// Listen for the custom event dispatched from App.vue’s empty-state CTA.
 const handleOpenNewDialog = () => {
   showNewDialog.value = true
 }

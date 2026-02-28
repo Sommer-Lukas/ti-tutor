@@ -1,9 +1,30 @@
+/**
+ * exerciseStore.ts — Reactive store for the “Exercises” (Aufgaben) mode.
+ *
+ * Manages a catalogue of predefined exercises (one per automaton type),
+ * exercise-mode navigation state, an isolated workspace (states +
+ * transitions) for the exercise being solved, completion tracking, and
+ * progress persistence.
+ *
+ * Key design decisions:
+ *  - Exercise workspace is completely isolated from user projects so that
+ *    starting/resuming an exercise never mutates the project list.
+ *  - A virtual `AutomatonProject` (`exerciseProject`) is exposed as a
+ *    computed so that `EditorCanvas` can work with exercises the same way
+ *    it works with normal projects.
+ *  - Progress (states & transitions) is auto-saved to `localStorage` via
+ *    a deep watcher so users can resume where they left off.
+ */
+
 import { ref, computed, reactive, watch } from 'vue'
 import type { AutomatonType, TMHeadEnd } from './automatonTypes'
 import type { State, Transition, AutomatonProject } from './automaton'
 
-// --- EXERCISE TYPES ---
+// ---------------------------------------------------------------------------
+// Type definitions
+// ---------------------------------------------------------------------------
 
+/** A single expected-outcome test case bundled with an exercise. */
 export interface ExerciseTestCase {
   input: string
   expectedAccepted: boolean
@@ -11,6 +32,7 @@ export interface ExerciseTestCase {
   tmHeadEnd?: TMHeadEnd
 }
 
+/** Definition of a single exercise (immutable catalogue entry). */
 export interface Exercise {
   id: string
   title: string
@@ -24,17 +46,33 @@ export interface Exercise {
   }
 }
 
-// --- EXERCISE STATE ---
+// ---------------------------------------------------------------------------
+// Reactive state
+// ---------------------------------------------------------------------------
 
+/** `true` when the user has entered exercise mode (browsing or solving). */
 export const exerciseModeActive = ref(false)
-export const activeExerciseId = ref<string | null>(null)
-export const exerciseBrowsing = ref(false) // true = show list, false = working on exercise
 
-// Exercise workspace state (isolated from main projects)
+/** ID of the exercise currently being solved (null when browsing). */
+export const activeExerciseId = ref<string | null>(null)
+
+/** `true` when the exercise list is shown; `false` when solving an exercise. */
+export const exerciseBrowsing = ref(false)
+
+// -- Isolated exercise workspace (not shared with user projects) -----------
+
+/** States of the automaton the user is building for the current exercise. */
 export const exerciseStates = ref<State[]>([])
+
+/** Transitions of the automaton the user is building for the current exercise. */
 export const exerciseTransitions = ref<Transition[]>([])
 
-// Virtual project for the exercise (so EditorCanvas can mutate it directly)
+/**
+ * Virtual `AutomatonProject` derived from the current exercise workspace.
+ * Returned by `automatonStore.currentProject` when exercise mode is active
+ * so that `EditorCanvas` can mutate `exerciseStates` / `exerciseTransitions`
+ * directly through the project reference.
+ */
 export const exerciseProject = computed((): AutomatonProject | null => {
   const exercise = activeExercise.value
   if (!exercise) return null
@@ -49,16 +87,29 @@ export const exerciseProject = computed((): AutomatonProject | null => {
     ...(exercise.pdaConfig && { pdaConfig: exercise.pdaConfig }),
   }
 })
+// ---------------------------------------------------------------------------
 // Completion tracking (persisted to localStorage)
+// ---------------------------------------------------------------------------
+
 const STORAGE_KEY_COMPLETED = 'exercise-completed'
 const STORAGE_KEY_PROGRESS_PREFIX = 'exercise-progress-'
+
+/** Set of exercise IDs that the user has successfully completed. */
 export const completedExercises = ref<Set<string>>(new Set())
 
-// Resume dialog state
+// -- Resume dialog state ---------------------------------------------------
+
+/** Controls visibility of the "Resume or restart?" dialog. */
 export const showResumeDialog = ref(false)
+
+/** Exercise ID pending the user’s resume/restart decision. */
 export const pendingExerciseId = ref<string | null>(null)
 
-// --- LOAD COMPLETION FROM STORAGE ---
+// ---------------------------------------------------------------------------
+// Persistence helpers
+// ---------------------------------------------------------------------------
+
+/** Loads the set of completed exercise IDs from localStorage. */
 function loadCompletedExercises() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY_COMPLETED)
@@ -70,6 +121,7 @@ function loadCompletedExercises() {
   }
 }
 
+/** Persists the current set of completed exercise IDs. */
 function saveCompletedExercises() {
   try {
     localStorage.setItem(
@@ -81,8 +133,9 @@ function saveCompletedExercises() {
   }
 }
 
-// --- EXERCISE PROGRESS PERSISTENCE ---
+// -- Exercise progress (states + transitions) persistence -----------------
 
+/** Saves the current exercise workspace to localStorage. */
 function saveExerciseProgress(exerciseId: string) {
   try {
     const data = {
@@ -95,6 +148,7 @@ function saveExerciseProgress(exerciseId: string) {
   }
 }
 
+/** Loads previously saved states and transitions for an exercise. */
 function loadExerciseProgress(exerciseId: string): { states: State[]; transitions: Transition[] } | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY_PROGRESS_PREFIX + exerciseId)
@@ -108,13 +162,18 @@ function loadExerciseProgress(exerciseId: string): { states: State[]; transition
   return null
 }
 
+/** Returns `true` if there is saved progress for the given exercise. */
 export function hasExerciseProgress(exerciseId: string): boolean {
   return localStorage.getItem(STORAGE_KEY_PROGRESS_PREFIX + exerciseId) !== null
 }
 
+// Bootstrap: load completion data on module initialisation.
 loadCompletedExercises()
 
-// --- AUTO-SAVE EXERCISE PROGRESS ---
+/**
+ * Deep watcher that auto-saves exercise progress whenever the user
+ * modifies states or transitions in the exercise workspace.
+ */
 watch(
   [exerciseStates, exerciseTransitions],
   () => {
@@ -125,19 +184,26 @@ watch(
   { deep: true },
 )
 
-// --- COMPUTED ---
+// ---------------------------------------------------------------------------
+// Computed
+// ---------------------------------------------------------------------------
 
+/** The currently active exercise definition (from the catalogue). */
 export const activeExercise = computed((): Exercise | null => {
   if (!activeExerciseId.value) return null
   return EXERCISES.find((e) => e.id === activeExerciseId.value) ?? null
 })
 
+/** Returns `true` if the user has completed the given exercise. */
 export const isExerciseCompleted = (id: string): boolean => {
   return completedExercises.value.has(id)
 }
 
-// --- ACTIONS ---
+// ---------------------------------------------------------------------------
+// Actions
+// ---------------------------------------------------------------------------
 
+/** Enters exercise mode and shows the exercise list. */
 export function enterExerciseMode() {
   exerciseModeActive.value = true
   exerciseBrowsing.value = true
@@ -146,6 +212,7 @@ export function enterExerciseMode() {
   exerciseTransitions.value = []
 }
 
+/** Leaves exercise mode and returns to the normal project editor. */
 export function exitExerciseMode() {
   exerciseModeActive.value = false
   exerciseBrowsing.value = false
@@ -154,6 +221,10 @@ export function exitExerciseMode() {
   exerciseTransitions.value = []
 }
 
+/**
+ * Initiates an exercise.  If saved progress exists a resume dialog is shown;
+ * otherwise the exercise starts fresh with a single start state.
+ */
 export function startExercise(exerciseId: string) {
   const exercise = EXERCISES.find((e) => e.id === exerciseId)
   if (!exercise) return
@@ -169,6 +240,7 @@ export function startExercise(exerciseId: string) {
   beginExerciseFresh(exerciseId)
 }
 
+/** Starts an exercise from scratch, discarding any saved progress. */
 export function beginExerciseFresh(exerciseId: string) {
   const exercise = EXERCISES.find((e) => e.id === exerciseId)
   if (!exercise) return
@@ -188,6 +260,7 @@ export function beginExerciseFresh(exerciseId: string) {
   localStorage.removeItem(STORAGE_KEY_PROGRESS_PREFIX + exerciseId)
 }
 
+/** Resumes an exercise from previously saved progress. */
 export function resumeExercise(exerciseId: string) {
   const exercise = EXERCISES.find((e) => e.id === exerciseId)
   if (!exercise) return
@@ -208,11 +281,13 @@ export function resumeExercise(exerciseId: string) {
   exerciseTransitions.value = progress.transitions
 }
 
+/** Closes the resume/restart dialog without starting the exercise. */
 export function cancelResumeDialog() {
   showResumeDialog.value = false
   pendingExerciseId.value = null
 }
 
+/** Returns to the exercise list, clearing the current workspace. */
 export function backToExerciseList() {
   exerciseBrowsing.value = true
   activeExerciseId.value = null
@@ -220,6 +295,7 @@ export function backToExerciseList() {
   exerciseTransitions.value = []
 }
 
+/** Marks an exercise as completed and persists the change. */
 export function markExerciseCompleted(exerciseId: string) {
   completedExercises.value.add(exerciseId)
   // Trigger reactivity by replacing the set
@@ -227,8 +303,15 @@ export function markExerciseCompleted(exerciseId: string) {
   saveCompletedExercises()
 }
 
-// --- PREDEFINED EXERCISES ---
+// ---------------------------------------------------------------------------
+// Exercise catalogue
+// ---------------------------------------------------------------------------
 
+/**
+ * Predefined exercises — one per automaton type.  Each entry defines the
+ * task description, optional hint, and a set of test cases used for
+ * automated grading.
+ */
 export const EXERCISES: Exercise[] = [
   // ========== DFA ==========
   {
@@ -317,19 +400,24 @@ export const EXERCISES: Exercise[] = [
   },
 ]
 
-// --- FILTER HELPERS ---
+// ---------------------------------------------------------------------------
+// Filter & statistics helpers
+// ---------------------------------------------------------------------------
 
+/** Returns exercises filtered by automaton type (or all if 'ALL'). */
 export function getExercisesByType(type: AutomatonType | 'ALL'): Exercise[] {
   if (type === 'ALL') return EXERCISES
   return EXERCISES.filter((e) => e.type === type)
 }
 
+/** Returns overall completion statistics (total, completed, percentage). */
 export function getCompletionStats() {
   const total = EXERCISES.length
   const completed = EXERCISES.filter((e) => completedExercises.value.has(e.id)).length
   return { total, completed, percentage: total > 0 ? Math.round((completed / total) * 100) : 0 }
 }
 
+/** Returns completion statistics scoped to a single automaton type. */
 export function getCompletionStatsByType(type: AutomatonType) {
   const exercises = EXERCISES.filter((e) => e.type === type)
   const total = exercises.length

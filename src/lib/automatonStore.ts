@@ -1,3 +1,18 @@
+/**
+ * automatonStore.ts — Central reactive store for automaton projects.
+ *
+ * Manages the full lifecycle of user projects: creation, selection,
+ * renaming, duplication, deletion, import/export.  All data is persisted
+ * to `localStorage` and synchronised via Vue watchers.
+ *
+ * Also owns test-case CRUD operations and exposes a real-time validation
+ * computed that re-runs whenever the current project’s states or
+ * transitions change.
+ *
+ * When exercise mode is active the `currentProject` computed transparently
+ * returns the exercise’s virtual project instead of a user project.
+ */
+
 import { ref, computed, watch, triggerRef } from 'vue'
 import type { ComputedRef } from 'vue'
 import type { AutomatonProject } from './automaton'
@@ -6,26 +21,45 @@ import { AUTOMATON_TYPES } from './automatonTypes'
 import { AutomatonValidator } from './automatonValidator'
 import { exerciseModeActive, exerciseBrowsing, exerciseProject } from './exerciseStore'
 
-// --- MULTI-PROJECT MANAGEMENT ---
+// ---------------------------------------------------------------------------
+// Reactive state
+// ---------------------------------------------------------------------------
+
+/** All user-created automaton projects. */
 export const projects = ref<AutomatonProject[]>([])
+
+/** ID of the currently selected project (null when none exists). */
 export const currentProjectId = ref<string | null>(null)
 
-// Force update counter for reactivity
+/**
+ * Internal counter incremented on every project switch to ensure
+ * `currentProject` re-evaluates even when the ref identity is unchanged.
+ */
 const projectSwitchCounter = ref(0)
 
-// --- TEST CASES ---
+// ---------------------------------------------------------------------------
+// Test cases
+// ---------------------------------------------------------------------------
+
+/** A single test case associated with a specific project. */
 export interface TestCase {
   id: string
   projectId: string
   input: string
   expectedAccepted: boolean
+  /** TM only — expected tape output after the machine halts. */
   expectedOutput?: string
+  /** TM only — where the head should be after halting. */
   tmHeadEnd?: TMHeadEnd
 }
 
 export const testCases = ref<TestCase[]>([])
 
-// --- HELPER: Create Default Project ---
+// ---------------------------------------------------------------------------
+// Factory helpers
+// ---------------------------------------------------------------------------
+
+/** Creates a minimal default DFA project (unused, kept for reference). */
 function _createDefaultProject(): AutomatonProject {
   return {
     id: crypto.randomUUID(),
@@ -40,7 +74,7 @@ function _createDefaultProject(): AutomatonProject {
   }
 }
 
-// --- HELPER: Create Empty Dummy Project ---
+/** Creates an empty sentinel project returned when no real project exists. */
 function createEmptyDummyProject(): AutomatonProject {
   return {
     id: '',
@@ -53,7 +87,19 @@ function createEmptyDummyProject(): AutomatonProject {
   }
 }
 
-// --- COMPUTED: Current Project (GUARANTEED NON-NULL!) ---
+// ---------------------------------------------------------------------------
+// Computed properties
+// ---------------------------------------------------------------------------
+
+/**
+ * The currently active project — guaranteed non-null.
+ *
+ * Priority:
+ *  1. Exercise virtual project (if exercise mode is active)
+ *  2. The project matching `currentProjectId`
+ *  3. The first project in the list
+ *  4. An empty dummy project (fallback)
+ */
 export const currentProject: ComputedRef<AutomatonProject> = computed((): AutomatonProject => {
   // This dependency ensures re-computation when counter changes
   void projectSwitchCounter.value
@@ -80,13 +126,13 @@ export const currentProject: ComputedRef<AutomatonProject> = computed((): Automa
   return projects.value[0]!
 })
 
-// --- COMPUTED: Current Project Test Cases ---
+/** Test cases belonging to the currently selected project. */
 export const currentTestCases = computed(() => {
   if (!currentProjectId.value || projects.value.length === 0) return []
   return testCases.value.filter((tc) => tc.projectId === currentProject.value.id)
 })
 
-// --- COMPUTED: Real-time Validation ---
+/** Live validation result — re-computed whenever states/transitions change. */
 export const validationResult = computed(() => {
   if (projects.value.length === 0) {
     return { errors: [], warnings: [] }
@@ -96,11 +142,15 @@ export const validationResult = computed(() => {
   return validator.validate(currentProject.value.states, currentProject.value.transitions)
 })
 
-// --- INITIALIZATION ---
+// ---------------------------------------------------------------------------
+// Persistence (localStorage)
+// ---------------------------------------------------------------------------
+
 const STORAGE_KEY_PROJECTS = 'automaton-projects'
 const STORAGE_KEY_TESTS = 'automaton-test-cases'
 const STORAGE_KEY_CURRENT = 'automaton-current-project-id'
 
+/** Loads projects, test cases, and the active project ID from localStorage. */
 function loadFromStorage() {
   try {
     // Load projects
@@ -159,6 +209,7 @@ function loadFromStorage() {
   }
 }
 
+/** Writes the current state to localStorage. */
 function saveToStorage() {
   try {
     localStorage.setItem(STORAGE_KEY_PROJECTS, JSON.stringify(projects.value))
@@ -173,11 +224,14 @@ function saveToStorage() {
   }
 }
 
-// Watch for changes and auto-save
+// Auto-persist on any reactive change.
 watch([projects, testCases, currentProjectId], saveToStorage, { deep: true })
 
-// --- PROJECT MANAGEMENT ---
+// ---------------------------------------------------------------------------
+// Project CRUD
+// ---------------------------------------------------------------------------
 
+/** Creates a new project of the given type, adds it to the list, and selects it. */
 export function createProject(name: string, type: AutomatonType): AutomatonProject {
   const config = AUTOMATON_TYPES[type]
 
@@ -213,6 +267,7 @@ export function createProject(name: string, type: AutomatonType): AutomatonProje
   return newProject
 }
 
+/** Switches the active project selection. */
 export function setCurrentProject(projectId: string) {
   const project = projects.value.find((p) => p.id === projectId)
   if (project) {
@@ -225,6 +280,7 @@ export function setCurrentProject(projectId: string) {
   }
 }
 
+/** Deletes a project and its associated test cases. */
 export function deleteProject(projectId: string) {
   const index = projects.value.findIndex((p) => p.id === projectId)
   if (index === -1) {
@@ -257,6 +313,7 @@ export function deleteProject(projectId: string) {
   }
 }
 
+/** Renames an existing project. */
 export function renameProject(projectId: string, newName: string) {
   const project = projects.value.find((p) => p.id === projectId)
   if (project) {
@@ -266,6 +323,7 @@ export function renameProject(projectId: string, newName: string) {
   }
 }
 
+/** Changes the automaton type of a project (e.g. DFA → NFA). */
 export function updateProjectType(projectId: string, newType: AutomatonType) {
   const project = projects.value.find((p) => p.id === projectId)
   if (project) {
@@ -283,6 +341,7 @@ export function updateProjectType(projectId: string, newType: AutomatonType) {
   }
 }
 
+/** Deep-clones a project and its test cases. */
 export function duplicateProject(projectId: string): AutomatonProject | null {
   const project = projects.value.find((p) => p.id === projectId)
   if (!project) return null
@@ -316,12 +375,19 @@ export function duplicateProject(projectId: string): AutomatonProject | null {
   return duplicatedProject
 }
 
-// --- LEGACY SUPPORT (for compatibility) ---
+// ---------------------------------------------------------------------------
+// Legacy helpers (kept for backward compatibility)
+// ---------------------------------------------------------------------------
+
 export function createNewProject(type: AutomatonType, name?: string): AutomatonProject {
   return createProject(name || `Neuer ${AUTOMATON_TYPES[type].shortName}`, type)
 }
 
-// PDA Configuration Management
+// ---------------------------------------------------------------------------
+// PDA configuration
+// ---------------------------------------------------------------------------
+
+/** Updates the initial stack symbol for a PDA project. */
 export function updatePDAStartStackSymbol(projectId: string, symbol: string) {
   const project = projects.value.find((p) => p.id === projectId)
   if (project && project.type === 'PDA') {
@@ -335,6 +401,7 @@ export function updatePDAStartStackSymbol(projectId: string, symbol: string) {
   }
 }
 
+/** Reads the PDA start stack symbol for a project (defaults to '$'). */
 export function getPDAStartStackSymbol(projectId?: string): string {
   const project = projectId ? projects.value.find((p) => p.id === projectId) : currentProject.value
 
@@ -345,8 +412,11 @@ export function getPDAStartStackSymbol(projectId?: string): string {
   return '$' // Default fallback
 }
 
-// --- TEST CASE MANAGEMENT ---
+// ---------------------------------------------------------------------------
+// Test case CRUD
+// ---------------------------------------------------------------------------
 
+/** Adds a new test case to the current project. */
 export function addTestCase(input: string, expectedAccepted: boolean) {
   if (!currentProjectId.value || projects.value.length === 0) {
     console.error('Cannot add test case: No project selected')
@@ -367,10 +437,12 @@ export function addTestCase(input: string, expectedAccepted: boolean) {
   })
 }
 
+/** Removes a test case by ID. */
 export function removeTestCase(id: string) {
   testCases.value = testCases.value.filter((tc) => tc.id !== id)
 }
 
+/** Updates the fields of an existing test case. */
 export function updateTestCase(
   id: string,
   input: string,
@@ -391,6 +463,7 @@ export function updateTestCase(
   }
 }
 
+/** Deletes all test cases for a project (or the current project). */
 export function clearTestCases(projectId?: string) {
   if (projectId) {
     testCases.value = testCases.value.filter((tc) => tc.projectId !== projectId)
@@ -399,8 +472,11 @@ export function clearTestCases(projectId?: string) {
   }
 }
 
-// --- EXPORT/IMPORT (for later) ---
+// ---------------------------------------------------------------------------
+// Import / Export
+// ---------------------------------------------------------------------------
 
+/** Serialises a project and its test cases to a JSON string. */
 export function exportProject(projectId: string): string {
   const project = projects.value.find((p) => p.id === projectId)
   if (!project) throw new Error('Project not found')
@@ -419,6 +495,7 @@ export function exportProject(projectId: string): string {
   )
 }
 
+/** Imports a project from a JSON string, assigning fresh IDs. */
 export function importProject(jsonString: string): AutomatonProject {
   const data = JSON.parse(jsonString)
 
@@ -451,5 +528,8 @@ export function importProject(jsonString: string): AutomatonProject {
   return importedProject
 }
 
-// --- INITIALIZE ON LOAD ---
+// ---------------------------------------------------------------------------
+// Bootstrap
+// ---------------------------------------------------------------------------
+
 loadFromStorage()

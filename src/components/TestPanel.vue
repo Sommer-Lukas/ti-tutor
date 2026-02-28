@@ -1,3 +1,16 @@
+<!--
+  TestPanel.vue — Collapsible right panel for managing and running test cases.
+
+  Supports two modes:
+   1. Normal mode – user can add, edit, and delete test cases.
+   2. Exercise mode (`readonly`) – test cases are provided externally and
+      cannot be modified.
+
+  Displays per-test pass/fail badges with hover tooltips (teleported to
+  `<body>` to avoid scroll-clipping), a PDA configuration section, and an
+  aggregated pass/fail summary footer.
+-->
+
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import {
@@ -19,6 +32,10 @@ import {
 } from '@/lib/automatonStore'
 import type { SimulationResult } from '@/lib/automatonSimulator'
 
+// ---------------------------------------------------------------------------
+// Props & emits
+// ---------------------------------------------------------------------------
+
 const props = defineProps<{
   selected: string | null
   visible: boolean
@@ -34,35 +51,45 @@ const emit = defineEmits<{
   'update:pdaStartStackSymbol': [value: string]
 }>()
 
-// PDA start stack symbol state
+// ---------------------------------------------------------------------------
+// PDA configuration
+// ---------------------------------------------------------------------------
+
+/** Initial stack symbol for PDA simulations (default: '$'). */
 const pdaStartStackSymbol = ref('$')
 
-// Watch for project changes and reset stack symbol
+// Reset on project switch.
 watch(
   () => currentProject.value.id,
   () => {
-  // TODO: Load from currentProject.pdaConfig?.startStackSymbol when store is ready
-  pdaStartStackSymbol.value = '$'
+    pdaStartStackSymbol.value = '$'
   },
 )
 
-// Emit changes to parent (for storage in automatonStore)
 watch(pdaStartStackSymbol, (newValue) => {
   emit('update:pdaStartStackSymbol', newValue)
 })
 
-// Determine which test cases to show (exercise mode overrides)
+// ---------------------------------------------------------------------------
+// Computed
+// ---------------------------------------------------------------------------
+
+/** In exercise mode the exercise’s test cases override the project’s. */
 const displayedTestCases = computed(() => {
   if (props.exerciseTestCases) return props.exerciseTestCases
   return currentTestCases.value
 })
 
-// Determine automaton type
+/** Effective automaton type (exercise type overrides when active). */
 const displayedType = computed(() => {
   return props.exerciseAutomatonType ?? currentProject.value.type
 })
 
-// Get result for a specific test case
+// ---------------------------------------------------------------------------
+// Test result helpers
+// ---------------------------------------------------------------------------
+
+/** Looks up the simulation result matching a given test case ID. */
 const getTestResult = (testCaseId: string) => {
   if (!props.simulationResults) return null
 
@@ -72,18 +99,22 @@ const getTestResult = (testCaseId: string) => {
   return props.simulationResults.find((r) => r.input === testCase.input)
 }
 
-// Get status for a test case
+/** Returns the pass/fail/pending status for a test case. */
 const getTestStatus = (testCaseId: string): 'pending' | 'passed' | 'failed' => {
   const result = getTestResult(testCaseId)
   if (!result) return 'pending'
   return result.passed ? 'passed' : 'failed'
 }
 
-// Helper: Convert BLANK symbol to # for display
+/** Converts the TM BLANK symbol (□) to '#' for human-readable display. */
 const displayTape = (tape: string[] | undefined): string => {
   if (!tape) return '#'
   return tape.map((cell) => (cell === '□' ? '#' : cell)).join('')
 }
+
+// ---------------------------------------------------------------------------
+// CRUD actions (normal mode only)
+// ---------------------------------------------------------------------------
 
 const handleAddTest = () => {
   addTestCase('', true)
@@ -133,7 +164,11 @@ const updateTMHeadEnd = (id: string, tmHeadEnd: 'start' | 'end' | 'any') => {
   }
 }
 
-// Test Summary
+// ---------------------------------------------------------------------------
+// Summary & tooltip state
+// ---------------------------------------------------------------------------
+
+/** Aggregated pass/fail/total counts for the footer badge. */
 const testSummary = computed(() => {
   if (!props.simulationResults || props.simulationResults.length === 0) return null
 
@@ -144,10 +179,9 @@ const testSummary = computed(() => {
   return { passed, failed, total }
 })
 
-// Test Count for current project
 const testCount = computed(() => displayedTestCases.value.length)
 
-// Tooltip positioning state
+// -- Tooltip positioning (teleported to body) ------------------------------
 const activeTooltipId = ref<string | null>(null)
 const tooltipPosition = ref({ top: 0, left: 0 })
 

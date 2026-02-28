@@ -1,3 +1,15 @@
+/**
+ * automatonValidator.ts — Rule-based validation engine for automaton projects.
+ *
+ * Given a set of states and transitions, the validator checks structural
+ * constraints defined by the automaton type (start/final state counts,
+ * determinism, epsilon transitions, PDA-specific fields) and produces a
+ * `ValidationResult` containing categorised errors and warnings.
+ *
+ * The validator also performs reachability analysis to warn about
+ * unreachable states.
+ */
+
 import type { State, Transition } from './automaton'
 import type {
   AutomatonType,
@@ -8,6 +20,15 @@ import type {
 } from './automatonTypes'
 import { AUTOMATON_TYPES } from './automatonTypes'
 
+/**
+ * Validates automaton structure against the rule set of a specific type.
+ *
+ * Usage:
+ * ```ts
+ * const v = new AutomatonValidator('DFA')
+ * const result = v.validate(states, transitions)
+ * ```
+ */
 export class AutomatonValidator {
   private config: AutomatonTypeConfig
 
@@ -15,6 +36,16 @@ export class AutomatonValidator {
     this.config = AUTOMATON_TYPES[type]
   }
 
+  /**
+   * Runs all validation checks and returns a combined result.
+   *
+   * Validation phases:
+   *  1. Start-state count constraints
+   *  2. Final-state count constraints (with PDA/TM special handling)
+   *  3. Transition determinism & epsilon rules
+   *  4. Reachability from start state(s)
+   *  5. PDA-specific completeness checks
+   */
   validate(states: State[], transitions: Transition[]): ValidationResult {
     const errors: ValidationError[] = []
     const warnings: ValidationWarning[] = []
@@ -219,7 +250,8 @@ export class AutomatonValidator {
   }
 
   /**
-   * Parse transition symbol: "a,b" → ["a", "b"], "ε" → ["ε"], "" → ["ε"]
+   * Parses a comma-separated symbol string into individual symbols.
+   * Empty or epsilon inputs are normalised to `['ε']`.
    */
   private parseTransitionSymbol(symbol: string): string[] {
     if (!symbol || symbol.trim() === '') return ['ε']
@@ -231,6 +263,7 @@ export class AutomatonValidator {
       .filter((s) => s.length > 0)
   }
 
+  /** Collects all distinct input symbols from transitions. */
   private extractAlphabet(transitions: Transition[]): Set<string> {
     const alphabet = new Set<string>()
 
@@ -254,6 +287,10 @@ export class AutomatonValidator {
     return alphabet
   }
 
+  /**
+   * BFS from all start states to determine the set of reachable state ids.
+   * Used for the "unreachable state" warning.
+   */
   private computeReachableStates(states: State[], transitions: Transition[]): Set<string> {
     const reachable = new Set<string>()
     const startStates = states.filter((s) => s.isStart)

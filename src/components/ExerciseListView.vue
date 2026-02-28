@@ -1,3 +1,11 @@
+<!--
+  ExerciseListView.vue — Full-screen exercise browsing view.
+
+  Displays a filterable catalogue of exercises with completion status,
+  difficulty badges, and a resume-or-restart dialog for exercises that
+  have saved progress.
+-->
+
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import {
@@ -31,9 +39,17 @@ import { AUTOMATON_TYPES } from '@/lib/automatonTypes'
 import type { AutomatonType } from '@/lib/automatonTypes'
 import type { Exercise } from '@/lib/exerciseStore'
 
+// ---------------------------------------------------------------------------
+// Filter state
+// ---------------------------------------------------------------------------
+
+/** Currently selected automaton-type filter (ALL shows every exercise). */
 const selectedFilter = ref<AutomatonType | 'ALL'>('ALL')
+
+/** Completion-status filter: ALL, COMPLETED, or INCOMPLETE. */
 const selectedCompletionFilter = ref<'ALL' | 'COMPLETED' | 'INCOMPLETE'>('ALL')
 
+/** Exercises matching both the type and completion filters. */
 const filteredExercises = computed(() => {
   let exercises = getExercisesByType(selectedFilter.value)
   if (selectedCompletionFilter.value === 'COMPLETED') {
@@ -43,6 +59,10 @@ const filteredExercises = computed(() => {
   }
   return exercises
 })
+
+// ---------------------------------------------------------------------------
+// Filter definitions for the template pill buttons
+// ---------------------------------------------------------------------------
 
 const filters: Array<{ value: AutomatonType | 'ALL'; label: string; color: string }> = [
   { value: 'ALL', label: 'Alle', color: 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200' },
@@ -58,6 +78,11 @@ const completionFilters: Array<{ value: 'ALL' | 'COMPLETED' | 'INCOMPLETE'; labe
   { value: 'COMPLETED', label: 'Abgeschlossen', color: 'bg-green-50 text-green-700 hover:bg-green-100' },
 ]
 
+// ---------------------------------------------------------------------------
+// Helpers for difficulty rendering
+// ---------------------------------------------------------------------------
+
+/** Maps a difficulty level to the corresponding lucide icon component. */
 const getDifficultyIcon = (difficulty: Exercise['difficulty']) => {
   switch (difficulty) {
     case 'leicht':
@@ -69,6 +94,7 @@ const getDifficultyIcon = (difficulty: Exercise['difficulty']) => {
   }
 }
 
+/** Returns Tailwind classes for the difficulty badge. */
 const getDifficultyColor = (difficulty: Exercise['difficulty']) => {
   switch (difficulty) {
     case 'leicht':
@@ -80,6 +106,7 @@ const getDifficultyColor = (difficulty: Exercise['difficulty']) => {
   }
 }
 
+/** Returns Tailwind classes for the automaton-type badge. */
 const getTypeBadgeColor = (type: AutomatonType) => {
   switch (type) {
     case 'DFA':

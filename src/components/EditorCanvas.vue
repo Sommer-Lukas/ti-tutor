@@ -1,3 +1,18 @@
+<!--
+  EditorCanvas.vue — Cytoscape.js-powered graph editor for automata.
+
+  Renders the visual automaton graph (nodes = states, edges = transitions)
+  and provides the full interactive editing UI including:
+   - Double-click canvas to add state; double-click node to toggle final.
+   - Right-click node → click target to create transition.
+   - Keyboard input to set edge labels (DFA/NFA: single char, PDA: compact
+     notation, TM: c/A three-char auto-commit).
+   - Toolbar for add / start / final / connect / delete.
+   - Multi-select via box selection or SHIFT+click with group dragging.
+   - Node label editing by selecting a node and typing.
+   - Simulation highlighting (locked, current state glows green).
+-->
+
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import cytoscape from 'cytoscape'
@@ -9,28 +24,40 @@ import type { Transition } from '@/lib/automaton'
 import PDATransitionEditor from './PDATransitionEditor.vue'
 import TMTransitionEditor from './TMTransitionEditor.vue'
 
+// ---------------------------------------------------------------------------
 // Props
+// ---------------------------------------------------------------------------
+
 const props = defineProps<{
+  /** ID of the state highlighted during single-step simulation. */
   currentSimulationState?: string | null
+  /** When true the canvas is locked (no editing, no dragging). */
   isSimulating?: boolean
 }>()
 
-// Computed: Is editor locked during simulation
+/** Derived locked flag for guard clauses. */
 const isLocked = computed(() => props.isSimulating || false)
 
-// Canvas re-render key
+// ---------------------------------------------------------------------------
+// Canvas & modal editor state
+// ---------------------------------------------------------------------------
+
+/** Incremented to force a full canvas re-mount after project switches. */
 const canvasKey = ref(0)
 
-// PDA editor state
+// -- PDA transition editor -------------------------------------------------
 const pdaEditorVisible = ref(false)
 const editingTransition = ref<Transition | null>(null)
 const pdaInputBuffer = ref('')
 
-// TM editor state
+// -- TM transition editor --------------------------------------------------
 const tmEditorVisible = ref(false)
 const tmInputBuffer = ref('')
 
-// Watch for project changes and force re-render
+/**
+ * Destroy and re-initialise Cytoscape when the active project changes.
+ * All local selection / connection state is reset too.
+ */
 watch(
   () => currentProject.value.id,
   (newId, oldId) => {
@@ -60,22 +87,32 @@ watch(
   },
 )
 
-// Local state
-let _nodeIdCounter = 1 // TODO: Use for dynamic node generation
+// ---------------------------------------------------------------------------
+// Cytoscape instance & local selection state
+// ---------------------------------------------------------------------------
+
+let _nodeIdCounter = 1
 let edgeIdCounter = 0
 
 const cyContainer = ref<HTMLElement | null>(null)
 let cy: Core | null = null
 
+/** Set of currently selected node IDs (supports multi-select). */
 const selectedNodeIds = ref<Set<string>>(new Set())
+/** ID of the currently selected edge (at most one). */
 const selectedEdgeId = ref<string | null>(null)
+/** Source node when the user is creating a new transition (click target to finish). */
 const sourceNodeForEdge = ref<string | null>(null)
 
-// Multi-drag state
+// -- Multi-drag bookkeeping ------------------------------------------------
 let isDragging = false
 let dragStartPositions: Map<string, { x: number; y: number }> = new Map()
 
-// --- WATCH: Simulation State Changes ---
+// ---------------------------------------------------------------------------
+// Simulation-state watchers
+// ---------------------------------------------------------------------------
+
+/** Re-paint node & edge styles whenever the highlighted state changes. */
 watch(
   () => props.currentSimulationState,
   () => {
@@ -83,6 +120,10 @@ watch(
   },
 )
 
+/**
+ * When simulation starts: deselect everything, lock nodes, disable box-select.
+ * When simulation ends: restore interactivity.
+ */
 watch(
   () => props.isSimulating,
   (newVal) => {
@@ -119,13 +160,20 @@ watch(
   },
 )
 
-// Clear buffers when edge selection changes
+// Reset PDA/TM input buffers whenever a different edge is selected.
 watch(selectedEdgeId, () => {
   pdaInputBuffer.value = ''
   tmInputBuffer.value = ''
 })
 
-// --- STYLES ---
+// ---------------------------------------------------------------------------
+// Style management
+// ---------------------------------------------------------------------------
+
+/**
+ * Recompute visual styles for every node based on selection, validation
+ * errors/warnings, and simulation highlighting.
+ */
 const updateNodeStyles = () => {
   if (!cy) return
 
@@ -184,6 +232,10 @@ const updateNodeStyles = () => {
   })
 }
 
+/**
+ * Recompute visual styles for every edge based on selection and validation
+ * errors.  Edges dim during simulation.
+ */
 const updateEdgeStyles = () => {
   if (!cy) return
 
@@ -207,11 +259,13 @@ const updateEdgeStyles = () => {
   })
 }
 
+/** Convenience wrapper to refresh all node + edge styles. */
 const updateAllStyles = () => {
   updateNodeStyles()
   updateEdgeStyles()
 }
 
+/** Builds the edge label string appropriate for the current automaton type. */
 const getEdgeLabel = (transition: Transition): string => {
   if (currentProject.value.type === 'TM') {
     const read = transition.symbol || '?'
@@ -226,7 +280,11 @@ const getEdgeLabel = (transition: Transition): string => {
   })
 }
 
-// --- ACTIONS ---
+// ---------------------------------------------------------------------------
+// Node / edge CRUD actions
+// ---------------------------------------------------------------------------
+
+/** Adds a new state node with an auto-incremented ID (q0, q1, …). */
 const addNode = () => {
   if (isLocked.value) return
 
@@ -252,6 +310,7 @@ const addNode = () => {
   syncToCytoscape()
 }
 
+/** Toggles the “final state” flag on all currently selected nodes. */
 const toggleFinalState = () => {
   if (isLocked.value || selectedNodeIds.value.size === 0) return
 
@@ -263,6 +322,7 @@ const toggleFinalState = () => {
   updateAllStyles()
 }
 
+/** Toggles the “start state” flag on all currently selected nodes. */
 const setStartState = () => {
   if (isLocked.value || selectedNodeIds.value.size === 0) return
 
@@ -274,6 +334,7 @@ const setStartState = () => {
   syncToCytoscape()
 }
 
+/** Deletes all selected nodes (and their incident edges) or the selected edge. */
 const deleteSelected = () => {
   if (isLocked.value) return
 
@@ -297,6 +358,7 @@ const deleteSelected = () => {
   syncToCytoscape()
 }
 
+/** Enters “connection mode”: the next node click completes the edge. */
 const startConnection = () => {
   if (isLocked.value || selectedNodeIds.value.size !== 1) return
 
@@ -324,7 +386,11 @@ const toggleNodeSelection = (nodeId: string, multiSelect: boolean) => {
   updateAllStyles()
 }
 
-// --- PDA EDITOR ACTIONS ---
+// ---------------------------------------------------------------------------
+// PDA / TM modal editor actions
+// ---------------------------------------------------------------------------
+
+/** Opens the PDA transition modal for the given edge. */
 const openPDAEditor = (transitionId: string) => {
   if (!requiresModalEditor(currentProject.value.type)) return
 
@@ -335,6 +401,7 @@ const openPDAEditor = (transitionId: string) => {
   pdaEditorVisible.value = true
 }
 
+/** Applies the saved PDA fields back to the transition model. */
 const savePDATransition = (data: {
   pdaInput: string
   pdaStackTop: string
@@ -352,7 +419,7 @@ const savePDATransition = (data: {
   editingTransition.value = null
 }
 
-// TM editor actions
+/** Opens the TM transition modal for the given edge. */
 const openTMEditor = (transitionId: string) => {
   const transition = currentProject.value.transitions.find((t) => t.id === transitionId)
   if (!transition) return
@@ -361,6 +428,7 @@ const openTMEditor = (transitionId: string) => {
   tmEditorVisible.value = true
 }
 
+/** Applies the saved TM read/action back to the transition model. */
 const saveTMTransition = (data: { tmRead: string; action: string }) => {
   if (!editingTransition.value) return
 
@@ -379,6 +447,10 @@ const saveTMTransition = (data: { tmRead: string; action: string }) => {
   editingTransition.value = null
 }
 
+/**
+ * Parses a 3-character TM input buffer ("X/Y") and writes the
+ * read symbol + action (move or write) into the transition.
+ */
 const parseTMInput = (input: string, transition: Transition) => {
   // input ist immer genau "X/Y" — 3 Zeichen
   const read = input.charAt(0) // Position 0: Lese-Symbol
@@ -398,7 +470,14 @@ const parseTMInput = (input: string, transition: Transition) => {
   }
 }
 
-// TM keyboard input handler
+// ---------------------------------------------------------------------------
+// Keyboard input handlers for inline edge editing
+// ---------------------------------------------------------------------------
+
+/**
+ * TM edge keyboard handler: accumulates a 3-char buffer ("c/L") and
+ * auto-commits on the third character.
+ */
 const handleTMKeyboardInput = (e: KeyboardEvent, transition: Transition) => {
   if (e.key === 'Backspace') {
     e.preventDefault()
@@ -450,7 +529,10 @@ const handleTMKeyboardInput = (e: KeyboardEvent, transition: Transition) => {
   }
 }
 
-// --- PDA KEYBOARD PARSER ---
+/**
+ * PDA edge keyboard handler: accumulates input in the compact
+ * `input,stackTop/stackPush` notation and commits on Enter.
+ */
 const handlePDAKeyboardInput = (e: KeyboardEvent, transition: Transition) => {
   if (e.key === 'Backspace') {
     e.preventDefault()
@@ -517,7 +599,10 @@ const parsePDAInput = (input: string, transition: Transition) => {
   transition.pdaStackPush = rightSide === 'ε' || rightSide === '' ? '' : rightSide
 }
 
-// --- CYTOSCAPE INITIALIZATION ---
+// ---------------------------------------------------------------------------
+// Cytoscape initialisation
+// ---------------------------------------------------------------------------
+
 const initializeCytoscape = () => {
   if (!cyContainer.value) return
 
@@ -589,7 +674,10 @@ const initializeCytoscape = () => {
   syncToCytoscape()
 }
 
-// --- CYTOSCAPE EVENT HANDLERS ---
+// ---------------------------------------------------------------------------
+// Cytoscape event registration
+// ---------------------------------------------------------------------------
+
 const registerCytoscapeEvents = () => {
   if (!cy) return
 
@@ -834,6 +922,10 @@ onUnmounted(() => {
   }
 })
 
+/**
+ * One-way sync: pushes the project model (states + transitions) into
+ * Cytoscape, adding / updating / removing elements as needed.
+ */
 const syncToCytoscape = () => {
   if (!cy) return
 
@@ -943,8 +1035,11 @@ const syncToCytoscape = () => {
   updateAllStyles()
 }
 
-// --- KEYBOARD ---
-// Prevent keyboard input when modals are open
+// ---------------------------------------------------------------------------
+// Global keyboard handler
+// ---------------------------------------------------------------------------
+
+/** Handles Delete, ESC, and per-type edge/node label editing keystrokes. */
 const handleKeyDown = (e: KeyboardEvent) => {
   // Skip keyboard input if any modal is open
   if (pdaEditorVisible.value || tmEditorVisible.value) return

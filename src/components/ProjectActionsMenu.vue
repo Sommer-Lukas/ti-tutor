@@ -1,3 +1,14 @@
+<!--
+  ProjectActionsMenu.vue — Per-project context menu (three-dot dropdown).
+
+  Actions:
+   - Rename: opens an inline modal with validation.
+   - Duplicate: clones the project and switches to the copy.
+   - Delete: shows a confirmation dialog before removing the project.
+
+  Only one context menu can be open at a time (coordinated via `menuState`).
+-->
+
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { MoreVertical, Trash2, Copy, Edit, X, Check } from 'lucide-vue-next'
@@ -14,6 +25,10 @@ const props = defineProps<{
   projectName: string
 }>()
 
+// ---------------------------------------------------------------------------
+// Local state
+// ---------------------------------------------------------------------------
+
 const menuRef = ref<HTMLElement | null>(null)
 const showDeleteConfirm = ref(false)
 const showRenameDialog = ref(false)
@@ -21,8 +36,12 @@ const renameInput = ref('')
 const renameError = ref(false)
 const renameInputRef = ref<HTMLInputElement | null>(null)
 
-// Computed: Is this specific menu open?
+/** Returns `true` if this specific menu instance is the one currently open. */
 const isThisMenuOpen = () => isMenuOpen(props.projectId)
+
+// ---------------------------------------------------------------------------
+// Actions
+// ---------------------------------------------------------------------------
 
 const toggleMenu = () => {
   if (isThisMenuOpen()) {
@@ -54,6 +73,7 @@ const handleDuplicate = () => {
   closeMenu()
 }
 
+/** Closes menu, pre-fills the rename input, and opens the rename dialog. */
 const handleRename = () => {
   closeMenu()
   renameInput.value = props.projectName
@@ -67,6 +87,7 @@ const handleRename = () => {
   }, 100)
 }
 
+/** Validates and commits the new project name. */
 const confirmRename = () => {
   // Reset error
   renameError.value = false
@@ -101,7 +122,7 @@ const handleRenameInput = () => {
   }
 }
 
-// Close menu when clicking outside
+// -- Click-outside handler to close the dropdown -------------------------
 const handleClickOutside = (e: MouseEvent) => {
   if (isThisMenuOpen() && menuRef.value && !menuRef.value.contains(e.target as Node)) {
     closeMenu()

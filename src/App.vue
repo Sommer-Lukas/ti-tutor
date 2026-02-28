@@ -1,5 +1,18 @@
+<!--
+  App.vue — Root application component and main orchestrator.
+
+  Responsibilities:
+   - Renders the top bar, sidebar, editor canvas, test panel, and simulation
+     controls depending on the current mode (normal editing vs. exercise).
+   - Owns all simulation lifecycle state (start / step / stop / run-all-tests).
+   - Shows modals (validation, guide, exercise completion popup).
+   - Registers global keyboard shortcuts (F5, F10, Shift+F5).
+-->
+
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+
+// -- Icon imports (lucide-vue-next) ----------------------------------------
 import {
   Play,
   StepForward,
@@ -17,12 +30,16 @@ import {
   Trophy,
   FileText,
 } from 'lucide-vue-next'
+
+// -- Child components ------------------------------------------------------
 import Sidebar from '@/components/Sidebar.vue'
 import EditorCanvas from '@/components/EditorCanvas.vue'
 import TestPanel from '@/components/TestPanel.vue'
 import SimulationStepBar from '@/components/SimulationStepBar.vue'
 import SimulationTreePanel from '@/components/SimulationTreePanel.vue'
 import ExerciseListView from '@/components/ExerciseListView.vue'
+
+// -- Store / library imports -----------------------------------------------
 import {
   currentProject,
   validationResult,
@@ -38,51 +55,72 @@ import {
   backToExerciseList,
   markExerciseCompleted,
   isExerciseCompleted,
+  exerciseStates,
+  exerciseTransitions,
 } from '@/lib/exerciseStore'
 import { AUTOMATON_TYPES } from '@/lib/automatonTypes'
 import { AutomatonSimulator } from '@/lib/automatonSimulator'
 import type { SimulationResult } from '@/lib/automatonSimulator'
 
-// --- UI STATE ---
+// ---------------------------------------------------------------------------
+// UI state
+// ---------------------------------------------------------------------------
+
 const isSidebarOpen = ref(true)
 const rightPanelOpen = ref(true)
 const showValidationModal = ref(false)
 const showGuideModal = ref(false)
 const showErrorToast = ref(false)
+/** Toggles the floating exercise-description overlay on the canvas. */
 const showExerciseDescription = ref(false)
+/** Controls the "Geschafft!" (completed) celebration popup. */
 const exerciseCompleteToast = ref(false)
 
-// --- SIMULATION STATE ---
+// ---------------------------------------------------------------------------
+// Simulation state
+// ---------------------------------------------------------------------------
+
 const isSimulating = ref(false)
 const currentSimulation = ref<SimulationResult | null>(null)
 const currentStepIndex = ref(0)
+/** Aggregated results from the last "Run All Tests" invocation. */
 const allTestResults = ref<Array<SimulationResult & { expected: boolean; passed: boolean }>>([])
+/** ID of the test case selected for single-step simulation. */
 const selectedTestCase = ref<string | null>(null)
 
-// --- COMPUTED: Has Projects ---
+// ---------------------------------------------------------------------------
+// Computed properties
+// ---------------------------------------------------------------------------
+
 const hasProjects = computed(() => projects.value.length > 0)
 
-// --- COMPUTED: Is in exercise working mode (not browsing, actively solving) ---
+/** True when the user is actively building an exercise (not just browsing). */
 const isExerciseWorking = computed(
   () => exerciseModeActive.value && !exerciseBrowsing.value && activeExercise.value !== null,
 )
 
-// --- COMPUTED: Show normal editor (has projects OR exercise working) ---
+/** True when the editor canvas should be rendered (project exists or exercising). */
 const showEditor = computed(() => hasProjects.value || isExerciseWorking.value)
 
-// --- COMPUTED: Automaton Type Checks ---
+// -- Automaton-type convenience booleans -----------------------------------
 const isDFA = computed(() => currentProject.value?.type === 'DFA')
 const isNFA = computed(() => currentProject.value?.type === 'NFA')
 const isPDA = computed(() => currentProject.value?.type === 'PDA')
 const isTM = computed(() => currentProject.value?.type === 'TM')
+
+/** PDA/TM show the step bar (stack / tape) above the canvas during simulation. */
 const showSimulationStepBar = computed(
   () => (isPDA.value || isTM.value) && isSimulating.value && currentSimulation.value !== null,
 )
+/** DFA/NFA show the tree panel on the right during simulation. */
 const showSimulationTreePanel = computed(
   () => (isDFA.value || isNFA.value) && isSimulating.value && currentSimulation.value !== null,
 )
 
-// --- COMPUTED: Exercise Test Cases (with generated IDs for TestPanel) ---
+/**
+ * Maps exercise test cases to the same shape expected by `TestPanel`,
+ * generating stable synthetic IDs.
+ */
 const exerciseTestCasesWithIds = computed(() => {
   if (!activeExercise.value) return []
   return activeExercise.value.testCases.map((tc, idx) => ({
@@ -94,14 +132,16 @@ const exerciseTestCasesWithIds = computed(() => {
   }))
 })
 
-// --- WATCH: Reset simulation on project switch ---
+// ---------------------------------------------------------------------------
+// Watchers
+// ---------------------------------------------------------------------------
+
+/** Reset simulation state whenever the active project changes. */
 watch(
   () => currentProject.value?.id,
   (newId, oldId) => {
     if (newId !== oldId) {
       console.log('Project switched, resetting simulation state')
-
-      // Reset all simulation state
       stopSimulation()
       allTestResults.value = []
       selectedTestCase.value = null
@@ -109,7 +149,7 @@ watch(
   },
 )
 
-// --- WATCH: Show exercise description when starting an exercise ---
+/** Open the exercise description panel when an exercise starts. */
 watch(
   () => activeExerciseId.value,
   (newId) => {
@@ -119,7 +159,28 @@ watch(
   },
 )
 
-// --- COMPUTED: Validation Badge Status ---
+/**
+ * Auto-close the exercise description overlay whenever the user modifies
+ * states or transitions (i.e. starts interacting with the canvas).
+ */
+watch(
+  [exerciseStates, exerciseTransitions],
+  () => {
+    if (showExerciseDescription.value) {
+      showExerciseDescription.value = false
+    }
+  },
+  { deep: true },
+)
+
+/** Also close the description when a simulation begins. */
+watch(isSimulating, (val) => {
+  if (val && showExerciseDescription.value) {
+    showExerciseDescription.value = false
+  }
+})
+
+/** Summarised validation status for the badge in the top bar. */
 const validationStatus = computed(() => {
   if (!hasProjects.value) return 'valid'
   if (validationResult.value.errors.length > 0) return 'error'
@@ -127,12 +188,11 @@ const validationStatus = computed(() => {
   return 'valid'
 })
 
-// --- COMPUTED: Has Validation Errors ---
 const hasValidationErrors = computed(() => {
   return validationResult.value.errors.length > 0
 })
 
-// --- COMPUTED: Can Run Tests ---
+/** Determines whether the "Run All Tests" button should be enabled. */
 const canRunTests = computed(() => {
   if (isExerciseWorking.value) {
     return !hasValidationErrors.value && !isSimulating.value && exerciseTestCasesWithIds.value.length > 0
@@ -145,7 +205,7 @@ const canRunTests = computed(() => {
   )
 })
 
-// --- COMPUTED: Can Start Simulation ---
+/** Determines whether a single-step simulation can be started. */
 const canStartSimulation = computed(() => {
   if (isExerciseWorking.value) {
     return !hasValidationErrors.value && selectedTestCase.value !== null && !isSimulating.value
@@ -158,19 +218,19 @@ const canStartSimulation = computed(() => {
   )
 })
 
-// --- COMPUTED: Current Step ---
+/** The simulation step currently being displayed. */
 const currentStep = computed(() => {
   if (!currentSimulation.value) return null
   return currentSimulation.value.steps[currentStepIndex.value]
 })
 
-// --- COMPUTED: Is At End ---
+/** Whether the simulation has reached its final step. */
 const isAtEnd = computed(() => {
   if (!currentSimulation.value) return false
   return currentStepIndex.value === currentSimulation.value.steps.length - 1
 })
 
-// --- COMPUTED: Test Results Summary ---
+/** Aggregated pass/fail statistics from the last test run. */
 const testSummary = computed(() => {
   if (allTestResults.value.length === 0) return null
 
@@ -181,7 +241,11 @@ const testSummary = computed(() => {
   return { passed, failed, total }
 })
 
-// --- ERROR TOAST ---
+// ---------------------------------------------------------------------------
+// Actions
+// ---------------------------------------------------------------------------
+
+/** Briefly flash the error toast (auto-hides after 3 s). */
 const showErrorToastWithTimeout = () => {
   showErrorToast.value = true
   setTimeout(() => {
@@ -189,7 +253,10 @@ const showErrorToastWithTimeout = () => {
   }, 3000)
 }
 
-// --- SIMULATION ACTIONS ---
+/**
+ * Begin a step-by-step simulation for the currently selected test case.
+ * Hides the test panel and opens the simulation view.
+ */
 const startSimulation = () => {
   if (!showEditor.value) return
 
@@ -230,10 +297,10 @@ const startSimulation = () => {
   console.log('Simulation started:', currentSimulation.value)
 }
 
+/** Advance one step or close the simulation if already at the end. */
 const stepSimulation = () => {
   if (!isSimulating.value || !currentSimulation.value) return
 
-  // If at end, close simulation
   if (currentStepIndex.value === currentSimulation.value.steps.length - 1) {
     console.log(
       'Simulation complete:',
@@ -243,21 +310,22 @@ const stepSimulation = () => {
     return
   }
 
-  // Otherwise, step forward
   currentStepIndex.value++
 }
 
+/** Abort the current simulation and restore the test panel. */
 const stopSimulation = () => {
   isSimulating.value = false
   currentSimulation.value = null
   currentStepIndex.value = 0
-
-  // Show test panel again
   rightPanelOpen.value = true
-
   console.log('Simulation stopped')
 }
 
+/**
+ * Execute all test cases at once and display aggregated results.
+ * In exercise mode, a full pass triggers the completion popup.
+ */
 const runAllTests = () => {
   if (!showEditor.value) return
 
@@ -295,7 +363,7 @@ const runAllTests = () => {
 
   allTestResults.value = simulator.runTests(testsWithExpectations)
 
-  // Exercise completion check
+  // If every test passes in exercise mode, mark the exercise as completed.
   if (isExerciseWorking.value && activeExerciseId.value) {
     const allPassed = allTestResults.value.every((r) => r.passed)
     if (allPassed && allTestResults.value.length > 0) {
@@ -327,7 +395,10 @@ const closeGuideModal = () => {
   showGuideModal.value = false
 }
 
-// --- KEYBOARD SHORTCUTS ---
+// ---------------------------------------------------------------------------
+// Keyboard shortcuts
+// ---------------------------------------------------------------------------
+
 const handleKeyDown = (e: KeyboardEvent) => {
   if (!showEditor.value) return
 
@@ -359,12 +430,11 @@ const handleKeyDown = (e: KeyboardEvent) => {
   }
 }
 
-// Register keyboard shortcuts
 if (typeof window !== 'undefined') {
   window.addEventListener('keydown', handleKeyDown)
 }
 
-// Trigger sidebar to open new dialog
+/** Programmatically opens the sidebar and dispatches a custom event to show the new-project dialog. */
 const triggerNewProject = () => {
   isSidebarOpen.value = true
   setTimeout(() => {
@@ -376,17 +446,24 @@ const triggerNewProject = () => {
 
 <template>
   <div class="flex h-screen w-full bg-zinc-50 text-zinc-900 overflow-hidden relative">
-    <!-- LEFT SIDEBAR (Component) - Hidden in exercise mode -->
+    <!-- ============================================================= -->
+    <!-- LEFT SIDEBAR (hidden in exercise mode)                        -->
+    <!-- ============================================================= -->
     <Sidebar v-if="!exerciseModeActive" v-model:is-open="isSidebarOpen" />
 
-    <!-- MAIN CONTENT -->
+    <!-- ============================================================= -->
+    <!-- MAIN CONTENT AREA                                             -->
+    <!-- ============================================================= -->
     <main class="flex-1 flex flex-col h-full min-w-0 bg-white">
-      <!-- TOP BAR (Hidden during exercise browsing - ExerciseListView has its own header) -->
+      <!-- ----------------------------------------------------------- -->
+      <!-- TOP BAR (hidden when browsing exercises – that view has its   -->
+      <!-- own header)                                                  -->
+      <!-- ----------------------------------------------------------- -->
       <header
         v-if="!(exerciseModeActive && exerciseBrowsing)"
         class="flex h-14 items-center justify-between px-6 border-b z-50 bg-white flex-shrink-0 relative"
       >
-        <!-- Exercise Working Mode Header -->
+        <!-- Exercise Working Mode – back button + title + badges -->
         <div v-if="isExerciseWorking" class="flex items-center gap-3">
           <button
             @click="backToExerciseList(); allTestResults = []; selectedTestCase = null"
@@ -456,7 +533,7 @@ const triggerNewProject = () => {
           </div>
         </div>
 
-        <!-- Normal Project Header -->
+        <!-- Normal Project Header – name + type badge + validation + help -->
         <div v-else-if="hasProjects && !exerciseModeActive" class="flex items-center gap-3">
           <h1 class="text-lg font-semibold text-zinc-900">{{ currentProject.name }}</h1>
 
@@ -510,21 +587,23 @@ const triggerNewProject = () => {
           </button>
         </div>
 
-        <!-- Empty State Header -->
+        <!-- Empty State Header (no projects, no exercise) -->
         <div v-else class="flex items-center gap-2">
           <FolderOpen class="w-5 h-5 text-zinc-400" />
           <h1 class="text-lg font-semibold text-zinc-500">Kein Projekt geöffnet</h1>
         </div>
       </header>
 
-      <!-- WORKSPACE -->
+      <!-- ----------------------------------------------------------- -->
+      <!-- WORKSPACE                                                    -->
+      <!-- ----------------------------------------------------------- -->
       <div class="flex-1 flex flex-col min-h-0">
-        <!-- EXERCISE BROWSING VIEW -->
+        <!-- EXERCISE BROWSING VIEW (full-screen list) -->
         <ExerciseListView
           v-if="exerciseModeActive && exerciseBrowsing"
         />
 
-        <!-- EMPTY STATE (When no projects and not in exercise mode) -->
+        <!-- EMPTY STATE (no projects and not exercising) -->
         <div
           v-else-if="!hasProjects && !isExerciseWorking"
           class="flex-1 flex items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100"
@@ -557,9 +636,9 @@ const triggerNewProject = () => {
           </div>
         </div>
 
-        <!-- NORMAL WORKSPACE (When projects exist) OR EXERCISE WORKING -->
+        <!-- NORMAL / EXERCISE WORKSPACE -->
         <template v-else>
-          <!-- SIMULATION STEP BAR (For PDA & TM) -->
+          <!-- PDA / TM simulation step bar (stack or tape visualisation) -->
           <SimulationStepBar
             v-if="showSimulationStepBar"
             :simulation="currentSimulation!"
@@ -569,7 +648,7 @@ const triggerNewProject = () => {
 
           <!-- CANVAS + RIGHT PANEL ROW -->
           <div class="flex-1 flex min-h-0 overflow-hidden relative">
-            <!-- CANVAS with Simulation State -->
+            <!-- Cytoscape graph editor with simulation highlighting -->
             <EditorCanvas
               class="flex-1 min-w-0"
               :current-simulation-state="
@@ -582,7 +661,7 @@ const triggerNewProject = () => {
               :is-simulating="isSimulating"
             />
 
-            <!-- EXERCISE DESCRIPTION SLIDE PANEL -->
+            <!-- EXERCISE DESCRIPTION floating overlay -->
             <Transition
               enter-active-class="transition-all duration-300 ease-out"
               leave-active-class="transition-all duration-200 ease-in"
@@ -592,7 +671,7 @@ const triggerNewProject = () => {
               leave-to-class="opacity-0 translate-y-2"
             >
               <div
-                v-if="isExerciseWorking && showExerciseDescription && !isSimulating"
+                v-if="isExerciseWorking && showExerciseDescription"
                 class="absolute top-4 left-4 z-40 w-[420px] max-h-[70%] bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden"
               >
                 <div class="px-5 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-zinc-200 flex items-center justify-between">
@@ -617,7 +696,7 @@ const triggerNewProject = () => {
               </div>
             </Transition>
 
-            <!-- TEST PANEL (Hidden during simulation) -->
+            <!-- TEST PANEL (hidden while simulating) -->
             <TestPanel
               v-show="!isSimulating"
               v-model:selected="selectedTestCase"
@@ -628,7 +707,7 @@ const triggerNewProject = () => {
               :exercise-automaton-type="isExerciseWorking ? activeExercise?.type : undefined"
             />
 
-            <!-- SIMULATION TREE PANEL (For DFA & NFA) -->
+            <!-- DFA / NFA simulation tree panel -->
             <SimulationTreePanel
               v-if="showSimulationTreePanel"
               :simulation="currentSimulation!"
@@ -637,7 +716,9 @@ const triggerNewProject = () => {
             />
           </div>
 
-          <!-- BOTTOM BAR -->
+          <!-- --------------------------------------------------------- -->
+          <!-- BOTTOM BAR – simulation controls + Run All Tests button   -->
+          <!-- --------------------------------------------------------- -->
           <div
             class="h-16 bg-white border-t border-zinc-200 flex items-center px-6 gap-4 shadow-lg flex-shrink-0 relative z-50"
           >
@@ -801,7 +882,11 @@ const triggerNewProject = () => {
       </div>
     </main>
 
-    <!-- ERROR TOAST -->
+    <!-- ============================================================= -->
+    <!-- GLOBAL OVERLAYS (toasts + modals)                             -->
+    <!-- ============================================================= -->
+
+    <!-- ERROR TOAST (validation errors prevent test execution) -->
     <Transition
       enter-active-class="transition-all duration-300 ease-out"
       leave-active-class="transition-all duration-200 ease-in"
@@ -833,7 +918,7 @@ const triggerNewProject = () => {
       </div>
     </Transition>
 
-    <!-- EXERCISE COMPLETE TOAST -->
+    <!-- EXERCISE COMPLETION POPUP (“Geschafft!”) -->
     <Transition
       enter-active-class="transition-all duration-300 ease-out"
       leave-active-class="transition-all duration-200 ease-in"
@@ -869,7 +954,7 @@ const triggerNewProject = () => {
       </div>
     </Transition>
 
-    <!-- VALIDATION MODAL -->
+    <!-- VALIDATION MODAL (lists errors & warnings) -->
     <Transition
       enter-active-class="transition-all duration-200 ease-out"
       leave-active-class="transition-all duration-150 ease-in"
@@ -998,7 +1083,7 @@ const triggerNewProject = () => {
       </div>
     </Transition>
 
-    <!-- GUIDE MODAL -->
+    <!-- HELP / GUIDE MODAL (keyboard shortcuts & usage hints) -->
     <Transition
       enter-active-class="transition-all duration-200 ease-out"
       leave-active-class="transition-all duration-150 ease-in"

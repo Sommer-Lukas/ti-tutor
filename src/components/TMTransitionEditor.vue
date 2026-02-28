@@ -1,3 +1,14 @@
+<!--
+  TMTransitionEditor.vue — Modal editor for Turing Machine transitions.
+
+  Each TM transition consists of:
+   - Read symbol (1 character).
+   - Action: 'L' (move left), 'R' (move right), or any other character
+     (write that character; head stays).
+
+  The modal provides a two-field form (Read / Action) with a live preview.
+-->
+
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { X, Save } from 'lucide-vue-next'
@@ -13,10 +24,14 @@ const emit = defineEmits<{
   save: [{ tmRead: string; action: string }]
 }>()
 
+// ---------------------------------------------------------------------------
+// Local form state
+// ---------------------------------------------------------------------------
+
 const tmRead = ref('')
 const action = ref('')
 
-// Beim Öffnen: bestehende Werte laden
+/** Populate fields when the dialog opens with an existing transition. */
 watch(
   () => props.transition,
   (t) => {
@@ -28,24 +43,25 @@ watch(
   { immediate: true },
 )
 
-// Immer nur 1 Zeichen erlauben
+/** Enforce single-character constraint on the Read field. */
 const onReadInput = (e: Event) => {
   const v = (e.target as HTMLInputElement).value
   tmRead.value = v.slice(-1)
 }
+/** Enforce single-character constraint on the Action field. */
 const onActionInput = (e: Event) => {
   const v = (e.target as HTMLInputElement).value
   action.value = v.slice(-1)
 }
 
-// Preview
+/** Live preview string shown at the bottom of the form. */
 const preview = computed(() => {
   const r = tmRead.value || '?'
   const a = action.value || '?'
   return `${r}/${a}`
 })
 
-// Bedeutung der Action für den User
+/** Human-readable explanation of what the selected action means. */
 const actionHint = computed(() => {
   if (action.value === 'L') return '← Kopf nach Links bewegen'
   if (action.value === 'R') return 'Kopf nach Rechts bewegen →'

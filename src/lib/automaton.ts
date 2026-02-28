@@ -1,33 +1,74 @@
+/**
+ * automaton.ts — Core data model for finite automata, PDAs, and Turing machines.
+ *
+ * Defines the shared interfaces (`State`, `Transition`, `AutomatonProject`)
+ * used across the entire application, as well as helper functions for
+ * rendering transition labels on the editor canvas.
+ */
+
 import type { AutomatonType } from './automatonTypes'
 
+// ---------------------------------------------------------------------------
+// State & Transition interfaces
+// ---------------------------------------------------------------------------
+
+/** Represents a single state (node) in the automaton graph. */
 export interface State {
   id: string
   label: string
   isStart: boolean
   isFinal: boolean
+  /** Canvas position used by Cytoscape for rendering. */
   position: { x: number; y: number }
 }
 
+/**
+ * Represents a directed transition (edge) between two states.
+ *
+ * The `symbol` field carries the read symbol for DFA/NFA.
+ * PDA-specific and TM-specific fields are optional and only
+ * populated when the automaton type requires them.
+ */
 export interface Transition {
   id: string
   from: string
   to: string
-  symbol: string // Für NEA: kann "ε" sein, für DEA: muss reguläres Symbol sein
+  /** Read symbol. For NFA this may be "ε"; for DFA it must be a concrete symbol. */
+  symbol: string
 
-  // PDA-specific fields (optional - only used for PDA)
-  pdaInput?: string // Input symbol (empty string = epsilon)
-  pdaStackTop?: string // Stack symbol to pop (empty string = epsilon)
-  pdaStackPush?: string // Stack symbols to push (empty string = epsilon, can be multiple chars like "AB")
+  // -- PDA-specific fields (only present for PDA transitions) ----------------
+  /** Input symbol to consume (empty string = epsilon transition). */
+  pdaInput?: string
+  /** Stack symbol that must be on top in order to fire (empty = epsilon). */
+  pdaStackTop?: string
+  /** Symbols to push onto the stack (empty = epsilon; multi-char e.g. "AB"). */
+  pdaStackPush?: string
 
-  // TM-specific fields
-  tmWrite?: string // Symbol schreiben (single char) - falls undefined: kein Schreiben
-  tmMove?: 'L' | 'R' // Kopfbewegung: nur Links oder Rechts, kein N!
+  // -- TM-specific fields ---------------------------------------------------
+  /** Symbol to write to the tape cell. `undefined` means "don't write". */
+  tmWrite?: string
+  /** Head movement direction — only Left or Right (no stationary "N"). */
+  tmMove?: 'L' | 'R'
 }
 
-// Blank symbol for Turing machines
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/** Unicode blank symbol used on the Turing machine tape (U+25A1). */
 export const TM_BLANK = '□'
 
-// Get transition label for canvas display
+// ---------------------------------------------------------------------------
+// Transition label formatting
+// ---------------------------------------------------------------------------
+
+/**
+ * Produces a human-readable label for a transition, formatted according to
+ * the automaton type:
+ *  - DFA / NFA → symbol (or "ε")
+ *  - PDA       → (input,stackTop)/stackPush
+ *  - TM        → read/writeOrMove
+ */
 export function getTransitionLabel(t: Transition, type: AutomatonType): string {
   switch (type) {
     case 'TM': {
@@ -50,6 +91,15 @@ export function getTransitionLabel(t: Transition, type: AutomatonType): string {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Project container
+// ---------------------------------------------------------------------------
+
+/**
+ * Top-level container that groups a set of states and transitions together
+ * with project metadata. Each project corresponds to one automaton the user
+ * is working on (or an exercise).
+ */
 export interface AutomatonProject {
   id: string
   name: string
@@ -58,14 +108,16 @@ export interface AutomatonProject {
   transitions: Transition[]
   createdAt: Date
   updatedAt: Date
+  /** Optional descriptive metadata (unused in current UI). */
   metadata?: {
     description?: string
     alphabet?: string[]
   }
+  /** PDA-only configuration (initial stack symbol). */
   pdaConfig?: {
     startStackSymbol: string
   }
-  // TM Config
+  /** TM-only configuration. */
   tmConfig?: {
     blankSymbol: string
   }
