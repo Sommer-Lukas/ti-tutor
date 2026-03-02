@@ -82,7 +82,7 @@ describe('ExerciseStore DFA catalogue', () => {
 
   it('dfa-06 test cases match: (ab)^n (aabb)^m', () => {
     const exercise = getExerciseById('dfa-06')
-    const accepts = (input: string) => /^(ab)*(aabb)*$/.test(input)
+    const accepts = (input: string) => /^(ab)+(aabb)+$/.test(input)
 
     exercise.testCases.forEach(({ input, expectedAccepted }) => {
       expect(accepts(input)).toBe(expectedAccepted)
@@ -387,8 +387,11 @@ describe('ExerciseStore PDA catalogue', () => {
     const accepts = (input: string) => {
       const match = /^(a+)(b+)(c+)(d+)$/.exec(input)
       if (!match || !match[1] || !match[2] || !match[3] || !match[4]) return false
+      // Check: a's must be even (for 2m), and a_count/2 = d_count, and b_count = c_count
+      const aCount = match[1].length
+      if (aCount % 2 !== 0) return false // a's must be even
       return (
-        match[1].length === 2 * match[4].length && match[2].length === match[3].length
+        aCount === 2 * match[4].length && match[2].length === match[3].length
       )
     }
 
