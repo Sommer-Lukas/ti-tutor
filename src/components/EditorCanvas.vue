@@ -94,6 +94,17 @@ watch(
 let _nodeIdCounter = 1
 let edgeIdCounter = 0
 
+/** Compute the next safe edge counter from existing transition IDs. */
+const syncEdgeIdCounter = () => {
+  const existing = currentProject.value.transitions
+    .map((t) => {
+      const m = t.id.match(/^e(\d+)$/)
+      return m && m[1] != null ? parseInt(m[1], 10) : -1
+    })
+    .filter((n) => n >= 0)
+  edgeIdCounter = existing.length > 0 ? Math.max(...existing) + 1 : 0
+}
+
 const cyContainer = ref<HTMLElement | null>(null)
 let cy: Core | null = null
 
@@ -605,6 +616,8 @@ const parsePDAInput = (input: string, transition: Transition) => {
 
 const initializeCytoscape = () => {
   if (!cyContainer.value) return
+
+  syncEdgeIdCounter()
 
   cy = cytoscape({
     container: cyContainer.value,
