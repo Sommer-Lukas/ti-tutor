@@ -959,8 +959,7 @@ export class AutomatonSimulator {
 
       // Finde alle ε-Transitionen von diesem Zustand
       const epsilonTransitions = this.transitions.filter(
-        (t) =>
-          t.from === current && (t.symbol === 'ε' || t.symbol === 'epsilon' || t.symbol === ''),
+        (t) => t.from === current && (t.symbol === 'ε' || t.symbol === 'epsilon'),
       )
 
       for (const trans of epsilonTransitions) {

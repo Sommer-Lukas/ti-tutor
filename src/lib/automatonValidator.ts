@@ -147,6 +147,18 @@ export class AutomatonValidator {
           transitionsBySymbol.get(signature)!.push(t)
         }
       } else {
+        // DFA/NFA transitions must carry a concrete symbol.
+        for (const t of outgoingTransitions) {
+          if (!t.symbol || t.symbol.trim() === '') {
+            errors.push({
+              type: 'transition',
+              message: `${this.config.shortName} erlaubt keine leeren Übergangssymbole (Zustand: ${state.label})`,
+              severity: 'error',
+              affectedElements: [t.id],
+            })
+          }
+        }
+
         // DFA/NFA: Use simple symbol
         for (const t of outgoingTransitions) {
           const symbols = this.parseTransitionSymbol(t.symbol)
@@ -251,10 +263,10 @@ export class AutomatonValidator {
 
   /**
    * Parses a comma-separated symbol string into individual symbols.
-   * Empty or epsilon inputs are normalised to `['ε']`.
+   * Empty inputs are ignored; explicit epsilon is normalised to `['ε']`.
    */
   private parseTransitionSymbol(symbol: string): string[] {
-    if (!symbol || symbol.trim() === '') return ['ε']
+    if (!symbol || symbol.trim() === '') return []
     if (symbol.trim() === 'ε' || symbol.trim() === 'epsilon') return ['ε']
 
     return symbol

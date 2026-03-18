@@ -1099,6 +1099,12 @@ const handleKeyDown = (e: KeyboardEvent) => {
 
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault()
+
+      if (currentProject.value.type === 'NFA' && e.key === 'ε') {
+        console.warn('⚠️ Im NEA sind keine ε-Übergänge erlaubt!')
+        return
+      }
+
       transition.symbol = e.key
       currentProject.value.updatedAt = new Date()
       syncToCytoscape()

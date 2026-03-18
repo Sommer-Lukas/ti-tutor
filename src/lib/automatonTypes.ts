@@ -151,14 +151,14 @@ export const AUTOMATON_TYPES: Record<AutomatonType, AutomatonTypeConfig> = {
     name: 'Nichtdeterministischer Endlicher Automat',
     shortName: 'NEA',
     description:
-      'Mehrere Startzustände möglich, mehrere Transitionen pro Symbol erlaubt, ε-Übergänge möglich',
+      'Mehrere Startzustände möglich, mehrere Transitionen pro Symbol erlaubt, keine ε-Übergänge',
     rules: {
       minStartStates: 1,
       maxStartStates: 'unlimited',
       minFinalStates: 0,
       maxFinalStates: 'unlimited',
       allowMultipleTransitionsPerSymbol: true,
-      allowEpsilonTransitions: true,
+      allowEpsilonTransitions: false,
       allowSelfLoops: true,
       inputAlphabet: 'finite',
       allowEmptyInput: true,
@@ -176,8 +176,8 @@ export const AUTOMATON_TYPES: Record<AutomatonType, AutomatonTypeConfig> = {
       labelTemplate: '{symbol}',
     },
     editorHints: {
-      transitionEditHint: 'Kante auswählen → Buchstabe tippen (ε erlaubt)',
-      symbolInputPlaceholder: 'a oder ε',
+      transitionEditHint: 'Kante auswählen → Buchstabe tippen (kein ε)',
+      symbolInputPlaceholder: 'a',
       epsilonSymbol: 'ε',
     },
   },

@@ -33,7 +33,7 @@ export interface Transition {
   id: string
   from: string
   to: string
-  /** Read symbol. For NFA this may be "ε"; for DFA it must be a concrete symbol. */
+  /** Read symbol for DFA/NFA transitions. */
   symbol: string
 
   // -- PDA-specific fields (only present for PDA transitions) ----------------
@@ -65,7 +65,7 @@ export const TM_BLANK = '□'
 /**
  * Produces a human-readable label for a transition, formatted according to
  * the automaton type:
- *  - DFA / NFA → symbol (or "ε")
+ *  - DFA / NFA → symbol
  *  - PDA       → (input,stackTop)/stackPush
  *  - TM        → read/writeOrMove
  */
@@ -87,7 +87,7 @@ export function getTransitionLabel(t: Transition, type: AutomatonType): string {
     }
 
     default:
-      return t.symbol || 'ε'
+      return t.symbol
   }
 }
 
