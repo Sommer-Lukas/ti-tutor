@@ -21,6 +21,14 @@ import { Plus, Flag, CircleDot, ArrowRightCircle, Trash2, Lock } from 'lucide-vu
 import { currentProject, validationResult } from '@/lib/automatonStore'
 import { formatTransitionLabel, requiresModalEditor } from '@/lib/automatonTypes'
 import type { Transition } from '@/lib/automaton'
+import {
+  renameState,
+  canAcceptRenameInput,
+  startRename,
+  appendCharacter,
+  removeLastCharacter,
+  cancelRename,
+} from '@/lib/renameMode'
 import PDATransitionEditor from './PDATransitionEditor.vue'
 import TMTransitionEditor from './TMTransitionEditor.vue'
 
@@ -812,8 +820,8 @@ const registerCytoscapeEvents = () => {
       return
     }
 
-    toggleNodeSelection(node.id(), shiftPressed)
     selectedEdgeId.value = null
+    toggleNodeSelection(node.id(), shiftPressed)
   })
 
   cy.on('cxttap', 'node', (event) => {
@@ -1059,9 +1067,25 @@ const handleKeyDown = (e: KeyboardEvent) => {
 
   if (!cy || isLocked.value) return
 
+  // GLOBAL FOCUS CHECK: If any input element is focused, don't interfere
+  // This prevents blocking input in dialogs, test panels, etc.
+  const activeEl = document.activeElement as HTMLElement
+  if (
+    activeEl?.tagName === 'INPUT' ||
+    activeEl?.tagName === 'TEXTAREA' ||
+    activeEl?.contentEditable === 'true'
+  ) {
+    return
+  }
+
   if (e.key === 'Escape' && sourceNodeForEdge.value) {
     sourceNodeForEdge.value = null
     updateAllStyles()
+    return
+  }
+
+  if (e.key === 'Escape' && renameState.value.active) {
+    cancelRename()
     return
   }
 
@@ -1118,17 +1142,42 @@ const handleKeyDown = (e: KeyboardEvent) => {
     const state = currentProject.value.states.find((s) => s.id === nodeId)
     if (!state) return
 
-    if (e.key === 'Backspace') {
+    // Start rename mode if not already active
+    if (!renameState.value.active && e.key.length === 1) {
       e.preventDefault()
-      state.label = state.label.slice(0, -1)
-      if (cy) cy.$id(nodeId).data('label', state.label)
+      startRename('canvas-node', nodeId, state.label)
+      appendCharacter(e.key)
+      if (cy) cy.$id(nodeId).data('label', renameState.value.value)
       return
     }
 
-    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      e.preventDefault()
-      state.label += e.key
-      if (cy) cy.$id(nodeId).data('label', state.label)
+    // Continue rename if already in node-rename mode
+    if (renameState.value.mode === 'canvas-node') {
+      if (e.key === 'Backspace') {
+        e.preventDefault()
+        removeLastCharacter()
+        const updatedLabel = renameState.value.value
+        state.label = updatedLabel
+        if (cy) cy.$id(nodeId).data('label', updatedLabel)
+        return
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        state.label = renameState.value.value
+        currentProject.value.updatedAt = new Date()
+        cancelRename()
+        syncToCytoscape()
+        return
+      }
+
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault()
+        appendCharacter(e.key)
+        const updatedLabel = renameState.value.value
+        state.label = updatedLabel
+        if (cy) cy.$id(nodeId).data('label', updatedLabel)
+      }
     }
   }
 }
