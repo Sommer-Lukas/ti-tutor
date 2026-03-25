@@ -198,5 +198,29 @@ describe('AutomatonSimulator', () => {
       expect(results[0]).toHaveProperty('passed')
       expect(results[0]).toHaveProperty('expected')
     })
+
+    it('fails DFA reject tests when machine is stuck due to missing transition', () => {
+      const states: State[] = [makeState('q0', true, false)]
+      const transitions: Transition[] = []
+      const simulator = new AutomatonSimulator(states, transitions, 'DFA')
+
+      const results = simulator.runTests([{ input: 'a', expected: false }])
+
+      expect(results[0]?.accepted).toBe(false)
+      expect(results[0]?.isStuckDueToMissingTransition).toBe(true)
+      expect(results[0]?.passed).toBe(false)
+    })
+
+    it('keeps NFA reject tests valid when no path exists for symbol', () => {
+      const states: State[] = [makeState('q0', true, false)]
+      const transitions: Transition[] = []
+      const simulator = new AutomatonSimulator(states, transitions, 'NFA')
+
+      const results = simulator.runTests([{ input: 'a', expected: false }])
+
+      expect(results[0]?.accepted).toBe(false)
+      expect(results[0]?.isStuckDueToMissingTransition).toBeUndefined()
+      expect(results[0]?.passed).toBe(true)
+    })
   })
 })

@@ -58,6 +58,8 @@ export interface SimulationResult {
   accepted: boolean
   finalState: string | string[] | null
   error?: string
+  /** True when simulation failed because a required transition was missing. */
+  isStuckDueToMissingTransition?: boolean
   finalStack?: string[]
   finalTape?: string[]
   finalOutput?: string
@@ -198,6 +200,7 @@ export class AutomatonSimulator {
           accepted: false, // STUCK = REJECTED
           finalState: currentState.id,
           error: `Keine Transition für Symbol '${symbol}' in Zustand ${currentState.id}`,
+          isStuckDueToMissingTransition: input.slice(i).length > 0,
         }
       }
 
@@ -446,6 +449,7 @@ export class AutomatonSimulator {
           finalState: currentState.id,
           finalStack: stack,
           error: `Keine PDA-Transition für (Input: '${currentSymbol || 'ε'}', Stack-Top: '${stackTop || 'leer'}') in Zustand ${currentState.id}`,
+          isStuckDueToMissingTransition: remainingInput.length > 0,
         }
       }
 
@@ -673,6 +677,7 @@ export class AutomatonSimulator {
           finalTape: [...tape],
           finalOutput,
           error: `Keine Transition fuer Symbol '${this.normalizeBLANK(readSymbol) === '□' ? '#' : this.normalizeBLANK(readSymbol)}' in Zustand ${currentState.id}. Du benoetigst eine Transition mit Symbol '#', 'BLANK', 'epsilon', '.', oder '_' fuer Blank-Zellen!`,
+          isStuckDueToMissingTransition: true,
         }
       }
 
@@ -1002,7 +1007,7 @@ export class AutomatonSimulator {
       return {
         ...result,
         expected: test.expected,
-        passed: result.accepted === test.expected,
+        passed: result.accepted === test.expected && !result.isStuckDueToMissingTransition,
       }
     })
   }
