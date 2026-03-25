@@ -354,7 +354,7 @@ export const EXERCISES: Exercise[] = [
       { input: 'XYZXX', expectedAccepted: false },
       { input: 'ZZZZ', expectedAccepted: false },
       { input: 'YXXXZXXXYZXX', expectedAccepted: true },
-      { input: 'XXZYXXZYX', expectedAccepted: true },
+      { input: 'XXZYXXZYX', expectedAccepted: false },
     ],
   },
   {
