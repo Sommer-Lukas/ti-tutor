@@ -306,7 +306,7 @@ export class AutomatonValidator {
   private computeReachableStates(states: State[], transitions: Transition[]): Set<string> {
     const reachable = new Set<string>()
     const startStates = states.filter((s) => s.isStart)
-    const queue = [...startStates.map((s) => s.id)]
+    const queue = startStates.map((s) => s.id)
 
     while (queue.length > 0) {
       const current = queue.shift()!

@@ -470,13 +470,13 @@ const triggerNewProject = () => {
         <div v-if="isExerciseWorking" class="flex items-center gap-3">
           <button
             @click="backToExerciseList(); allTestResults = []; selectedTestCase = null"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-100 hover:bg-zinc-200 text-zinc-700 transition-all"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 transition-all"
           >
             <ArrowLeft class="w-3.5 h-3.5" />
             Aufgaben
           </button>
 
-          <h1 class="text-lg font-semibold text-zinc-900">{{ activeExercise?.title }}</h1>
+          <h1 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{{ activeExercise?.title }}</h1>
 
           <!-- Automaton Type Badge -->
           <span
@@ -499,9 +499,9 @@ const triggerNewProject = () => {
             @click="toggleValidationModal"
             class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:shadow-md"
             :class="{
-              'bg-green-50 text-green-700 hover:bg-green-100': validationStatus === 'valid',
-              'bg-red-50 text-red-700 hover:bg-red-100 animate-pulse': validationStatus === 'error',
-              'bg-yellow-50 text-yellow-700 hover:bg-yellow-100': validationStatus === 'warning',
+              'bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50': validationStatus === 'valid',
+              'bg-red-50 text-red-700 hover:bg-red-100 animate-pulse dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50': validationStatus === 'error',
+              'bg-yellow-50 text-yellow-700 hover:bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400 dark:hover:bg-yellow-900/50': validationStatus === 'warning',
             }"
           >
             <Check v-if="validationStatus === 'valid'" class="w-4 h-4" />
@@ -520,7 +520,7 @@ const triggerNewProject = () => {
           <button
             @click="showExerciseDescription = !showExerciseDescription"
             class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:shadow-md"
-            :class="showExerciseDescription ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'"
+            :class="showExerciseDescription ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' : 'bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30'"
           >
             <FileText class="w-4 h-4" />
             Aufgabe
@@ -529,7 +529,7 @@ const triggerNewProject = () => {
           <!-- Completed Badge -->
           <div
             v-if="activeExerciseId && isExerciseCompleted(activeExerciseId)"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-100 text-green-700 text-xs font-bold"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs font-bold"
           >
             <Trophy class="w-3.5 h-3.5" />
             Bestanden
@@ -557,14 +557,15 @@ const triggerNewProject = () => {
             @click="toggleValidationModal"
             class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:shadow-md"
             :class="{
-              'bg-green-50 text-green-700 hover:bg-green-100': validationStatus === 'valid',
-              'bg-red-50 text-red-700 hover:bg-red-100 animate-pulse': validationStatus === 'error',
-              'bg-yellow-50 text-yellow-700 hover:bg-yellow-100': validationStatus === 'warning',
+                'bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50': validationStatus === 'valid',
+                'bg-red-50 text-red-700 hover:bg-red-100 animate-pulse dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50': validationStatus === 'error',
+                'bg-yellow-50 text-yellow-700 hover:bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400 dark:hover:bg-yellow-900/50': validationStatus === 'warning',
             }"
           >
             <Check v-if="validationStatus === 'valid'" class="w-4 h-4" />
             <X v-else-if="validationStatus === 'error'" class="w-4 h-4" />
             <AlertTriangle v-else class="w-4 h-4" />
+              
 
             <span v-if="validationStatus === 'valid'">Valid</span>
             <span v-else-if="validationStatus === 'error'">
@@ -582,7 +583,7 @@ const triggerNewProject = () => {
           <!-- Guide Button -->
           <button
             @click="toggleGuideModal"
-            class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:shadow-md bg-blue-50 text-blue-700 hover:bg-blue-100"
+            class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:shadow-md bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
             title="Hilfe & Shortcuts"
           >
             <HelpCircle class="w-4 h-4" />

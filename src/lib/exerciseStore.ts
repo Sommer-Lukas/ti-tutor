@@ -16,7 +16,7 @@
  *    a deep watcher so users can resume where they left off.
  */
 
-import { ref, computed, reactive, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { AutomatonType, TMHeadEnd } from './automatonTypes'
 import type { State, Transition, AutomatonProject } from './automaton'
 

@@ -101,7 +101,7 @@ watch(
 // Cytoscape instance & local selection state
 // ---------------------------------------------------------------------------
 
-let _nodeIdCounter = 1
+const _nodeIdCounter = 1
 let edgeIdCounter = 0
 
 /** Compute the next safe edge counter from existing transition IDs. */
@@ -127,7 +127,7 @@ const sourceNodeForEdge = ref<string | null>(null)
 
 // -- Multi-drag bookkeeping ------------------------------------------------
 let isDragging = false
-let dragStartPositions: Map<string, { x: number; y: number }> = new Map()
+const dragStartPositions: Map<string, { x: number; y: number }> = new Map()
 
 // ---------------------------------------------------------------------------
 // Simulation-state watchers

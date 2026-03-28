@@ -387,7 +387,7 @@ export class AutomatonSimulator {
     let currentState = startState
     let remainingInput = input
     let consumedInput = ''
-    let stack: string[] = [this.pdaStartStackSymbol] // Initialize stack with start symbol
+    const stack: string[] = [this.pdaStartStackSymbol] // Initialize stack with start symbol
 
     // Initial Step
     steps.push({
@@ -584,7 +584,7 @@ export class AutomatonSimulator {
     let tape: string[] = input.split('') // Tape starts with input
     let headPosition = 0
     let originIndex = 0
-    let consumedInput = ''
+    const consumedInput = ''
     const steps: SimulationStep[] = []
 
     // BLANK symbol (Unicode: U+25A1)
@@ -1024,7 +1024,7 @@ export class AutomatonSimulator {
     if (startStates.length === 0) return new Set()
 
     const reachable = new Set<string>()
-    const queue = [...startStates.map((s) => s.id)]
+    const queue = startStates.map((s) => s.id)
 
     while (queue.length > 0) {
       const current = queue.shift()!
