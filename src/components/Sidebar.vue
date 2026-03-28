@@ -37,7 +37,7 @@ onUnmounted(() => {
 
 <template>
   <aside
-    class="flex flex-col border-r bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 transition-all duration-300 ease-in-out h-full"
+    class="flex flex-col border-r bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 transition-all transition-colors duration-300 ease-in-out h-full"
     :class="[isOpen ? 'w-[280px]' : 'w-[68px] items-center']"
   >
     <div class="p-4 flex flex-col gap-4">

@@ -96,7 +96,7 @@ const handleSave = () => {
         <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="$emit('close')"></div>
 
         <div
-          class="relative w-full max-w-xs bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden"
+          class="relative w-full max-w-xs bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden transition-colors duration-300"
         >
           <!-- Header -->
           <div

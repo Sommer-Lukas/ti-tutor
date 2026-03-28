@@ -143,19 +143,71 @@ watch(
 
 watch(isDark, () => {
   if (cy) {
-    const currentZoom = cy.zoom()
-    const currentPan = cy.pan()
+    const nodeBgColor = isDark.value ? '#27272a' : '#fff'
+    const nodeBorderColor = isDark.value ? '#e4e4e7' : '#000'
+    const edgeColor = isDark.value ? '#e4e4e7' : '#000'
+    const labelColor = isDark.value ? '#e4e4e7' : '#000'
+    const textBgColor = isDark.value ? '#27272a' : '#fff'
+
+    cy.style([
+      {
+        selector: 'node',
+        style: {
+          'background-color': nodeBgColor,
+          'border-width': 2,
+          'border-color': nodeBorderColor,
+          color: labelColor,
+          label: 'data(label)',
+          width: 56,
+          height: 56,
+          'text-valign': 'center',
+          'text-halign': 'center',
+          'font-size': 12,
+          'font-family': 'monospace',
+          'font-weight': 'bold',
+        },
+      },
+      {
+        selector: 'node[?isStartMarker]',
+        style: {
+          width: 1,
+          height: 1,
+          'background-color': edgeColor,
+          'border-width': 0,
+          label: '',
+        },
+      },
+      {
+        selector: 'edge',
+        style: {
+          width: 2,
+          'line-color': edgeColor,
+          'target-arrow-color': edgeColor,
+          'target-arrow-shape': 'triangle',
+          'curve-style': 'bezier',
+          label: 'data(label)',
+          color: labelColor,
+          'font-size': 14,
+          'text-background-opacity': 1,
+          'text-background-color': textBgColor,
+          'text-background-padding': '3px',
+        },
+      },
+      {
+        selector: 'edge[?isStartEdge]',
+        style: {
+          width: 2.5,
+          'line-color': edgeColor,
+          'target-arrow-color': edgeColor,
+          'target-arrow-shape': 'triangle',
+          'curve-style': 'straight',
+          label: '',
+        },
+      },
+    ])
     
-    cy.destroy()
-    cy = null
-    initializeCytoscape()
-    
-    // Type assertion to let TS know initializeCytoscape() recreates the cy instance
-    const newCy = cy as Core | null
-    if (newCy) {
-      newCy.zoom(currentZoom)
-      newCy.pan(currentPan)
-    }
+    // Update individual state colors (especially required for error/warning highlights matching dark mode)
+    updateAllStyles()
   }
 })
 
