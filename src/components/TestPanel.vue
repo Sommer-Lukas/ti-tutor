@@ -22,6 +22,7 @@ import {
   ChevronRight,
   ChevronLeft,
   AlertCircle,
+  FileText,
 } from 'lucide-vue-next'
 import {
   currentProject,
@@ -207,7 +208,7 @@ const onStatusLeave = () => {
     <!-- Toggle Button -->
     <button
       @click="emit('update:visible', !visible)"
-      class="absolute top-1/2 -translate-y-1/2 -left-8 w-8 h-16 bg-white border border-zinc-200 shadow-md hover:bg-zinc-50 hover:shadow-lg transition-all duration-200 flex items-center justify-center z-50 rounded-l-lg"
+      class="absolute top-1/2 -translate-y-1/2 -left-8 w-8 h-16 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-md hover:bg-zinc-50 dark:hover:bg-zinc-700 hover:shadow-lg transition-all duration-200 flex items-center justify-center z-50 rounded-l-lg"
     >
       <ChevronLeft v-if="visible" class="w-5 h-5 text-zinc-600 transition-transform duration-200" />
       <ChevronRight v-else class="w-5 h-5 text-zinc-600 transition-transform duration-200" />
@@ -215,18 +216,18 @@ const onStatusLeave = () => {
 
     <!-- Panel Content -->
     <div
-      class="bg-zinc-50 border-l border-zinc-200 h-full transition-all duration-300 ease-in-out flex flex-col"
+      class="bg-zinc-50 dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 h-full transition-all duration-300 ease-in-out flex flex-col"
       :class="{ 'opacity-0': !visible, 'opacity-100': visible }"
     >
       <!-- Header -->
       <div
-        class="px-4 py-3 border-b border-zinc-200 flex items-center justify-between bg-white flex-shrink-0"
+        class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-zinc-950 flex-shrink-0"
       >
         <div class="flex items-center gap-2">
-          <h2 class="text-sm font-semibold text-zinc-900">Test Cases</h2>
+          <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Test Cases</h2>
           <span
             v-if="testCount > 0"
-            class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold"
+            class="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-bold"
           >
             {{ testCount }}
           </span>
@@ -234,33 +235,33 @@ const onStatusLeave = () => {
         <button
           v-if="!props.readonly"
           @click="handleAddTest"
-          class="p-1.5 rounded hover:bg-zinc-100 transition-colors"
+          class="p-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
           title="Add Test Case"
         >
-          <PlusCircle class="w-4 h-4 text-zinc-600" />
+          <PlusCircle class="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
         </button>
       </div>
 
       <!-- PDA configuration section -->
       <div
         v-if="displayedType === 'PDA' && !props.readonly"
-        class="px-4 py-3 border-b border-zinc-200 bg-gradient-to-br from-purple-50 to-indigo-50 flex-shrink-0"
+        class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 flex-shrink-0"
       >
         <div class="mb-2 flex items-center gap-2">
-          <span class="text-xs font-bold text-purple-900">PDA Configuration</span>
+          <span class="text-xs font-bold text-purple-900 dark:text-purple-300">PDA Configuration</span>
         </div>
 
         <div>
-          <label class="text-xs text-purple-700 font-semibold mb-1 block">
+          <label class="text-xs text-purple-700 dark:text-purple-400 font-semibold mb-1 block">
             Start stack symbol (Initial Stack)
           </label>
           <input
             v-model="pdaStartStackSymbol"
-            class="w-full px-3 py-2 text-sm bg-white border-2 border-purple-300 rounded-lg outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all font-mono font-bold text-purple-900"
+            class="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-950 border-2 border-purple-300 dark:border-purple-800/50 rounded-lg outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-900/40 transition-all font-mono font-bold text-purple-900 dark:text-purple-300"
             placeholder="$ or Z0"
             maxlength="3"
           />
-          <p class="text-[10px] text-purple-600 mt-1">Placed on the stack at the start of simulation</p>
+          <p class="text-[10px] text-purple-600 dark:text-purple-400 mt-1">Placed on the stack at the start of simulation</p>
         </div>
       </div>
 
@@ -270,12 +271,12 @@ const onStatusLeave = () => {
           v-for="tc in displayedTestCases"
           :key="tc.id"
           @click="handleSelectTest(tc.id)"
-          class="px-4 py-3 border-b border-zinc-200 hover:bg-white cursor-pointer transition-colors duration-150 group"
-          :class="selected === tc.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : 'bg-white'"
+          class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 hover:bg-white dark:hover:bg-zinc-800 cursor-pointer transition-colors duration-150 group"
+          :class="selected === tc.id ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500' : 'bg-white dark:bg-zinc-900'"
         >
           <!-- Header Row: Name + Status + Delete -->
           <div class="flex items-start justify-between gap-2 mb-2">
-            <div class="flex-1 text-sm font-medium text-zinc-900">
+            <div class="flex-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">
               Test {{ displayedTestCases.findIndex((t) => t.id === tc.id) + 1 }}
             </div>
 
@@ -305,7 +306,7 @@ const onStatusLeave = () => {
               <Teleport to="body">
                 <div
                   v-if="activeTooltipId === tc.id && getTestStatus(tc.id) === 'passed'"
-                  class="fixed w-80 p-3 bg-zinc-900 text-white text-xs rounded-lg shadow-2xl z-[9999] pointer-events-none"
+                  class="fixed w-80 p-3 bg-zinc-900 dark:bg-zinc-800 text-white text-xs rounded-lg shadow-2xl z-[9999] pointer-events-none"
                   :style="{
                     top: tooltipPosition.top + 'px',
                     left: tooltipPosition.left + 'px',
@@ -321,7 +322,7 @@ const onStatusLeave = () => {
                     v-if="displayedType === 'TM' && getTestResult(tc.id)?.finalTape"
                     class="p-2 bg-zinc-800 rounded border border-zinc-700"
                   >
-                    <div class="text-zinc-400 mb-1">📝 Final Tape:</div>
+                    <div class="text-zinc-400 mb-1 flex items-center gap-1"><FileText class="w-3 h-3" /> Final Tape:</div>
                     <div class="font-mono text-blue-300 break-all text-[11px]">
                       {{ displayTape(getTestResult(tc.id)?.finalTape) }}
                     </div>
@@ -333,7 +334,7 @@ const onStatusLeave = () => {
               <Teleport to="body">
                 <div
                   v-if="activeTooltipId === tc.id && getTestStatus(tc.id) === 'failed'"
-                  class="fixed w-80 p-3 bg-zinc-900 text-white text-xs rounded-lg shadow-2xl z-[9999] pointer-events-none"
+                  class="fixed w-80 p-3 bg-zinc-900 dark:bg-zinc-800 text-white text-xs rounded-lg shadow-2xl z-[9999] pointer-events-none"
                   :style="{
                     top: tooltipPosition.top + 'px',
                     left: tooltipPosition.left + 'px',
@@ -352,7 +353,7 @@ const onStatusLeave = () => {
                     v-if="displayedType === 'TM' && getTestResult(tc.id)?.finalTape"
                     class="mb-2 p-2 bg-zinc-800 rounded border border-zinc-700"
                   >
-                    <div class="text-zinc-400 mb-1">📝 Final Tape:</div>
+                    <div class="text-zinc-400 mb-1 flex items-center gap-1"><FileText class="w-3 h-3" /> Final Tape:</div>
                     <div class="font-mono text-blue-300 break-all">
                       {{ displayTape(getTestResult(tc.id)?.finalTape) }}
                     </div>
@@ -401,7 +402,7 @@ const onStatusLeave = () => {
             <input
               :value="tc.input"
               @input="(e) => updateInput(tc.id, (e.target as HTMLInputElement).value)"
-              class="w-full px-2 py-1 text-xs bg-zinc-50 border border-zinc-300 rounded outline-none focus:border-blue-500 focus:bg-white transition-colors font-mono"
+              class="w-full px-2 py-1 text-xs bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-zinc-900 transition-colors font-mono dark:text-zinc-300"
               :class="{ 'cursor-not-allowed opacity-70': props.readonly }"
               placeholder="z.B. 'aabb'"
               @click.stop
@@ -417,7 +418,7 @@ const onStatusLeave = () => {
               @change="
                 (e) => updateExpected(tc.id, (e.target as HTMLSelectElement).value === 'accept')
               "
-              class="w-full px-2 py-1 text-xs bg-zinc-50 border border-zinc-300 rounded outline-none focus:border-blue-500 focus:bg-white transition-colors font-medium"
+              class="w-full px-2 py-1 text-xs bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-zinc-900 transition-colors font-medium dark:text-zinc-300"
               :class="{ 'pointer-events-none opacity-70': props.readonly }"
               @click.stop
               :disabled="props.readonly"
@@ -433,7 +434,7 @@ const onStatusLeave = () => {
             <input
               :value="tc.expectedOutput ?? ''"
               @input="(e) => updateExpectedOutput(tc.id, (e.target as HTMLInputElement).value)"
-              class="w-full px-2 py-1 text-xs bg-zinc-50 border border-zinc-300 rounded outline-none focus:border-blue-500 focus:bg-white transition-colors font-mono"
+              class="w-full px-2 py-1 text-xs bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-zinc-900 transition-colors font-mono dark:text-zinc-300"
               placeholder="z.B. 1011"
               @click.stop
             />
@@ -446,7 +447,7 @@ const onStatusLeave = () => {
               @change="
                 (e) => updateTMHeadEnd(tc.id, (e.target as HTMLSelectElement).value as 'start' | 'end' | 'any')
               "
-              class="w-full px-2 py-1 text-xs bg-zinc-50 border border-zinc-300 rounded outline-none focus:border-blue-500 focus:bg-white transition-colors font-medium"
+              class="w-full px-2 py-1 text-xs bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-zinc-900 transition-colors font-medium dark:text-zinc-300"
               @click.stop
             >
               <option value="start">Am ersten Symbol</option>
@@ -458,12 +459,12 @@ const onStatusLeave = () => {
 
         <!-- Empty State -->
         <div v-if="displayedTestCases.length === 0" class="px-4 py-12 text-center">
-          <Clock class="w-12 h-12 text-zinc-300 mx-auto mb-3" />
-          <p class="text-sm font-semibold text-zinc-700 mb-1">No test cases for this project</p>
-          <p class="text-xs text-zinc-500 mb-3">{{ currentProject.name }}</p>
+          <Clock class="w-12 h-12 text-zinc-300 dark:text-zinc-700 mx-auto mb-3" />
+          <p class="text-sm font-semibold text-zinc-700 dark:text-zinc-200 mb-1">No test cases for this project</p>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-3">{{ currentProject.name }}</p>
           <button
             @click="handleAddTest"
-            class="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
+            class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors"
           >
             Create first test
           </button>
@@ -471,9 +472,9 @@ const onStatusLeave = () => {
       </div>
 
       <!-- Test Summary Footer -->
-      <div v-if="testSummary" class="px-4 py-3 border-t border-zinc-200 bg-white flex-shrink-0">
+      <div v-if="testSummary" class="px-4 py-3 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex-shrink-0">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-bold text-zinc-700">Test Results</span>
+          <span class="text-xs font-bold text-zinc-700 dark:text-zinc-200">Test Results</span>
           <span class="text-xs text-zinc-500">
             {{ testSummary.total }} test{{ testSummary.total > 1 ? 's' : '' }}
           </span>

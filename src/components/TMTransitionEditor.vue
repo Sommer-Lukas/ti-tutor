@@ -11,7 +11,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { X, Save } from 'lucide-vue-next'
+import { X, Save, Settings } from 'lucide-vue-next'
 import type { Transition } from '@/lib/automaton'
 
 const props = defineProps<{
@@ -96,20 +96,20 @@ const handleSave = () => {
         <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="$emit('close')"></div>
 
         <div
-          class="relative w-full max-w-xs bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden"
+          class="relative w-full max-w-xs bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden"
         >
           <!-- Header -->
           <div
-            class="px-5 py-4 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between"
+            class="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/50 flex items-center justify-between"
           >
-            <h3 class="font-bold text-zinc-900 text-sm flex items-center gap-2">
-              <span>⚙️</span> TM Transition
+            <h3 class="font-bold text-zinc-900 dark:text-zinc-100 text-sm flex items-center gap-2">
+              <Settings class="w-4 h-4" /> TM Transition
             </h3>
             <button
               @click="$emit('close')"
-              class="p-1.5 rounded-lg hover:bg-zinc-200 transition-colors"
+              class="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
             >
-              <X class="w-4 h-4 text-zinc-600" />
+              <X class="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
             </button>
           </div>
 
@@ -119,22 +119,22 @@ const handleSave = () => {
             <div class="flex items-center gap-3">
               <!-- Read Symbol -->
               <div class="flex-1 space-y-1.5">
-                <label class="text-xs font-bold text-zinc-500 uppercase tracking-wide">Lesen</label>
+                <label class="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Lesen</label>
                 <input
                   :value="tmRead"
                   @input="onReadInput"
                   maxlength="2"
                   placeholder="z.B. a"
-                  class="w-full px-3 py-3 border-2 border-zinc-300 rounded-lg font-mono text-2xl text-center focus:border-blue-500 focus:outline-none"
+                  class="w-full px-3 py-3 border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 rounded-lg font-mono text-2xl text-center focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none"
                 />
               </div>
 
               <!-- Separator -->
-              <div class="text-3xl font-mono font-bold text-zinc-400 mt-5">/</div>
+              <div class="text-3xl font-mono font-bold text-zinc-400 dark:text-zinc-600 mt-5">/</div>
 
               <!-- Action -->
               <div class="flex-1 space-y-1.5">
-                <label class="text-xs font-bold text-zinc-500 uppercase tracking-wide"
+                <label class="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide"
                   >Aktion</label
                 >
                 <input
@@ -142,13 +142,13 @@ const handleSave = () => {
                   @input="onActionInput"
                   maxlength="2"
                   placeholder="L, R, b..."
-                  class="w-full px-3 py-3 border-2 rounded-lg font-mono text-2xl text-center focus:outline-none transition-colors"
+                  class="w-full px-3 py-3 border-2 rounded-lg font-mono text-2xl text-center bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none transition-colors"
                   :class="
                     action === 'L' || action === 'R'
-                      ? 'border-blue-400 bg-blue-50 focus:border-blue-500'
+                      ? 'border-blue-400 dark:border-blue-500/50 bg-blue-50 dark:bg-blue-900/10 focus:border-blue-500'
                       : action
-                        ? 'border-orange-400 bg-orange-50 focus:border-orange-500'
-                        : 'border-zinc-300 focus:border-blue-500'
+                        ? 'border-orange-400 dark:border-orange-500/50 bg-orange-50 dark:bg-orange-900/10 focus:border-orange-500'
+                        : 'border-zinc-300 dark:border-zinc-700 focus:border-blue-500'
                   "
                 />
               </div>
@@ -160,27 +160,27 @@ const handleSave = () => {
               class="px-3 py-2 rounded-lg text-xs font-medium"
               :class="
                 action === 'L' || action === 'R'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'bg-orange-50 text-orange-700'
+                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                  : 'bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400'
               "
             >
               {{ actionHint }}
             </div>
 
             <!-- Preview -->
-            <div class="p-3 bg-zinc-50 rounded-lg border border-zinc-200 text-center">
-              <p class="text-[10px] text-zinc-400 font-semibold mb-1 uppercase tracking-wide">
+            <div class="p-3 bg-zinc-50 dark:bg-zinc-950/50 rounded-lg border border-zinc-200 dark:border-zinc-800 text-center">
+              <p class="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold mb-1 uppercase tracking-wide">
                 Kantenvorschau
               </p>
-              <code class="text-3xl font-mono font-bold text-zinc-900">{{ preview }}</code>
+              <code class="text-3xl font-mono font-bold text-zinc-900 dark:text-zinc-100">{{ preview }}</code>
             </div>
           </div>
 
           <!-- Footer -->
-          <div class="px-5 py-4 border-t border-zinc-200 bg-zinc-50 flex gap-3 justify-end">
+          <div class="px-5 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/50 flex gap-3 justify-end">
             <button
               @click="$emit('close')"
-              class="px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-200 rounded-lg transition-colors"
+              class="px-4 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-lg transition-colors"
             >
               Abbrechen
             </button>

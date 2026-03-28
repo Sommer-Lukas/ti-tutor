@@ -17,7 +17,7 @@
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
-import { Plus, Flag, CircleDot, ArrowRightCircle, Trash2, Lock } from 'lucide-vue-next'
+import { Plus, Flag, CircleDot, ArrowRightCircle, Trash2, Lock, Settings } from 'lucide-vue-next'
 import { currentProject, validationResult } from '@/lib/automatonStore'
 import { formatTransitionLabel, requiresModalEditor } from '@/lib/automatonTypes'
 import type { Transition } from '@/lib/automaton'
@@ -31,6 +31,8 @@ import {
 } from '@/lib/renameMode'
 import PDATransitionEditor from './PDATransitionEditor.vue'
 import TMTransitionEditor from './TMTransitionEditor.vue'
+
+import { isDark } from '@/lib/darkMode'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -139,6 +141,24 @@ watch(
   },
 )
 
+watch(isDark, () => {
+  if (cy) {
+    const currentZoom = cy.zoom()
+    const currentPan = cy.pan()
+    
+    cy.destroy()
+    cy = null
+    initializeCytoscape()
+    
+    // Type assertion to let TS know initializeCytoscape() recreates the cy instance
+    const newCy = cy as Core | null
+    if (newCy) {
+      newCy.zoom(currentZoom)
+      newCy.pan(currentPan)
+    }
+  }
+})
+
 /**
  * When simulation starts: deselect everything, lock nodes, disable box-select.
  * When simulation ends: restore interactivity.
@@ -212,34 +232,35 @@ const updateNodeStyles = () => {
       w.affectedElements.includes(nodeId),
     )
 
-    let borderColor = '#000'
-    let bgColor = '#fff'
+    let borderColor = isDark.value ? '#e4e4e7' : '#000'
+    let bgColor = isDark.value ? '#27272a' : '#fff'
     let borderWidth = state.isFinal ? 6 : 2
 
     if (hasError) {
       borderColor = '#dc2626'
-      bgColor = '#fee2e2'
+      bgColor = isDark.value ? '#450a0a' : '#fee2e2'
     } else if (hasWarning) {
       borderColor = '#f59e0b'
-      bgColor = '#fef3c7'
+      bgColor = isDark.value ? '#451a03' : '#fef3c7'
     }
 
     if (isSimulating) {
       borderColor = '#10b981'
-      bgColor = '#d1fae5'
+      bgColor = isDark.value ? '#064e3b' : '#d1fae5'
       borderWidth = 8
     } else if (isSelected) {
       borderColor = '#3b82f6'
       borderWidth = state.isFinal ? 10 : 6
       if (!hasError && !hasWarning) {
-        bgColor = '#dbeafe'
+        bgColor = isDark.value ? '#1e3a8a' : '#dbeafe'
       }
     } else if (isConnecting) {
       borderColor = '#06b6d4'
       if (!hasError && !hasWarning) {
-        bgColor = '#cffafe'
+        bgColor = isDark.value ? '#164e63' : '#cffafe'
       }
     }
+
 
     node.style({
       'background-color': bgColor,
@@ -265,7 +286,7 @@ const updateEdgeStyles = () => {
     const isSelected = selectedEdgeId.value === edgeId
     const hasError = validationResult.value.errors.some((e) => e.affectedElements.includes(edgeId))
 
-    const color = hasError ? '#dc2626' : isSelected ? '#3b82f6' : '#000'
+    const color = hasError ? '#dc2626' : isSelected ? '#3b82f6' : (isDark.value ? '#e4e4e7' : '#000')
 
     edge.style({
       'line-color': color,
@@ -627,15 +648,22 @@ const initializeCytoscape = () => {
 
   syncEdgeIdCounter()
 
+  const nodeBgColor = isDark.value ? '#27272a' : '#fff'
+  const nodeBorderColor = isDark.value ? '#e4e4e7' : '#000'
+  const edgeColor = isDark.value ? '#e4e4e7' : '#000'
+  const labelColor = isDark.value ? '#e4e4e7' : '#000'
+  const textBgColor = isDark.value ? '#27272a' : '#fff'
+
   cy = cytoscape({
     container: cyContainer.value,
     style: [
       {
         selector: 'node',
         style: {
-          'background-color': '#fff',
+          'background-color': nodeBgColor,
           'border-width': 2,
-          'border-color': '#000',
+          'border-color': nodeBorderColor,
+          color: labelColor,
           label: 'data(label)',
           width: 56,
           height: 56,
@@ -651,7 +679,7 @@ const initializeCytoscape = () => {
         style: {
           width: 1,
           height: 1,
-          'background-color': '#000',
+          'background-color': edgeColor,
           'border-width': 0,
           label: '',
         },
@@ -660,14 +688,15 @@ const initializeCytoscape = () => {
         selector: 'edge',
         style: {
           width: 2,
-          'line-color': '#000',
-          'target-arrow-color': '#000',
+          'line-color': edgeColor,
+          'target-arrow-color': edgeColor,
           'target-arrow-shape': 'triangle',
           'curve-style': 'bezier',
           label: 'data(label)',
+          color: labelColor,
           'font-size': 14,
           'text-background-opacity': 1,
-          'text-background-color': '#fff',
+          'text-background-color': textBgColor,
           'text-background-padding': '3px',
         },
       },
@@ -675,8 +704,8 @@ const initializeCytoscape = () => {
         selector: 'edge[?isStartEdge]',
         style: {
           width: 2.5,
-          'line-color': '#000',
-          'target-arrow-color': '#000',
+          'line-color': edgeColor,
+          'target-arrow-color': edgeColor,
           'target-arrow-shape': 'triangle',
           'curve-style': 'straight',
           label: '',
@@ -1208,20 +1237,20 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
 
     <!-- Toolbar -->
     <div
-      class="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur-md rounded-full shadow-xl border border-zinc-200/50 px-3 py-2.5 flex items-center gap-2"
+      class="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-full shadow-xl border border-zinc-200/50 dark:border-zinc-700/50 px-3 py-2.5 flex items-center gap-2"
     >
       <button
         @click="addNode"
         :disabled="isSimulating"
         class="p-2.5 rounded-full transition-colors"
         :class="
-          isSimulating ? 'text-zinc-300 cursor-not-allowed' : 'hover:bg-zinc-100 text-zinc-700'
+          isSimulating ? 'text-zinc-300 dark:text-zinc-600 cursor-not-allowed' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
         "
       >
         <Plus class="w-6 h-6" />
       </button>
 
-      <div class="w-px h-6 bg-zinc-200"></div>
+      <div class="w-px h-6 bg-zinc-200 dark:bg-zinc-700"></div>
 
       <button
         @click="setStartState"
@@ -1229,8 +1258,8 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
         class="p-2.5 rounded-full transition-colors"
         :class="
           selectedNodeIds.size > 0 && !isSimulating
-            ? 'hover:bg-green-50 text-green-600'
-            : 'text-zinc-300 cursor-not-allowed'
+            ? 'hover:bg-green-50 dark:hover:bg-green-900/30 text-green-600 dark:text-green-400'
+            : 'text-zinc-300 dark:text-zinc-600 cursor-not-allowed'
         "
       >
         <Flag class="w-6 h-6" />
@@ -1242,8 +1271,8 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
         class="p-2.5 rounded-full transition-colors"
         :class="
           selectedNodeIds.size > 0 && !isSimulating
-            ? 'hover:bg-purple-50 text-purple-600'
-            : 'text-zinc-300 cursor-not-allowed'
+            ? 'hover:bg-purple-50 dark:hover:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+            : 'text-zinc-300 dark:text-zinc-600 cursor-not-allowed'
         "
       >
         <CircleDot class="w-6 h-6" />
@@ -1255,14 +1284,14 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
         class="p-2.5 rounded-full transition-colors"
         :class="
           selectedNodeIds.size === 1 && !isSimulating
-            ? 'hover:bg-cyan-50 text-cyan-600'
-            : 'text-zinc-300 cursor-not-allowed'
+            ? 'hover:bg-cyan-50 dark:hover:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400'
+            : 'text-zinc-300 dark:text-zinc-600 cursor-not-allowed'
         "
       >
         <ArrowRightCircle class="w-6 h-6" />
       </button>
 
-      <div class="w-px h-6 bg-zinc-200"></div>
+      <div class="w-px h-6 bg-zinc-200 dark:bg-zinc-700"></div>
 
       <button
         @click="deleteSelected"
@@ -1270,8 +1299,8 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
         class="p-2.5 rounded-full transition-colors"
         :class="
           (selectedNodeIds.size > 0 || selectedEdgeId) && !isSimulating
-            ? 'hover:bg-red-50 text-red-600'
-            : 'text-zinc-300 cursor-not-allowed'
+            ? 'hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400'
+            : 'text-zinc-300 dark:text-zinc-600 cursor-not-allowed'
         "
       >
         <Trash2 class="w-6 h-6" />
@@ -1336,7 +1365,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
       class="absolute bottom-4 right-4 bg-blue-600 text-white px-4 py-3 rounded-xl shadow-2xl z-40 border-2 border-blue-400"
     >
       <div class="flex items-center gap-3">
-        <span class="text-xs font-semibold opacity-75">⚙️ TM Eingabe:</span>
+        <span class="text-xs font-semibold opacity-75 flex items-center gap-1"><Settings class="w-3 h-3" /> TM Eingabe:</span>
         <code class="text-lg font-mono font-bold bg-blue-700 px-3 py-1 rounded">
           {{ tmInputBuffer }}<span class="animate-pulse">|</span>
         </code>
@@ -1357,7 +1386,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
       "
       class="absolute bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg z-40 text-xs font-medium flex items-center gap-2"
     >
-      <span>⚙️</span>
+      <Settings class="w-4 h-4" />
       Tippen: c/L • c/d • w/R • Doppelklick für Editor
     </div>
 

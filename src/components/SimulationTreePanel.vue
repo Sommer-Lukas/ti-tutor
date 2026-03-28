@@ -128,24 +128,24 @@ const getTapeWindow = (
 
 <template>
   <aside
-    class="border-l bg-gradient-to-br from-zinc-50 to-zinc-100 flex flex-col overflow-hidden shadow-xl"
+    class="border-l border-zinc-200 dark:border-zinc-800 bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950 flex flex-col overflow-hidden shadow-xl"
     :class="isPDA || isTM ? 'w-[600px]' : 'w-[400px]'"
   >
     <!-- HEADER -->
-    <div class="px-6 py-4 border-b border-zinc-200 bg-white">
+    <div class="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50">
       <div class="flex items-center gap-3 mb-2">
-        <div class="p-2 rounded-lg bg-blue-100">
-          <GitBranch class="w-5 h-5 text-blue-600" />
+        <div class="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+          <GitBranch class="w-5 h-5 text-blue-600 dark:text-blue-400" />
         </div>
-        <h2 class="text-base font-bold text-zinc-900">Simulation Tree</h2>
+        <h2 class="text-base font-bold text-zinc-900 dark:text-zinc-100">Simulation Tree</h2>
 
         <!-- PDA Badge -->
         <div
           v-if="isPDA"
-          class="px-2 py-1 rounded-full bg-purple-100 border border-purple-300 flex items-center gap-1"
+          class="px-2 py-1 rounded-full bg-purple-100 dark:bg-purple-900/30 border border-purple-300 dark:border-purple-700 flex items-center gap-1"
         >
-          <Layers class="w-3 h-3 text-purple-700" />
-          <span class="text-[10px] font-bold text-purple-900 uppercase tracking-wide">PDA</span>
+          <Layers class="w-3 h-3 text-purple-700 dark:text-purple-300" />
+          <span class="text-[10px] font-bold text-purple-900 dark:text-purple-100 uppercase tracking-wide">PDA</span>
         </div>
 
         <!-- TM Badge -->
@@ -337,7 +337,7 @@ const getTapeWindow = (
               <!-- Right: Tape Visualization -->
               <div class="space-y-1">
                 <div class="flex items-center gap-1.5 mb-1">
-                  <span class="text-xs text-amber-700 font-bold">📊 Tape</span>
+                  <span class="text-xs text-amber-700 font-bold flex items-center gap-1"><Layers class="w-3 h-3" /> Tape</span>
                   <span class="text-[10px] text-amber-500"
                     >(Head @ {{ step.headPosition ?? 0 }})</span
                   >
@@ -476,16 +476,16 @@ const getTapeWindow = (
     </div>
 
     <!-- FOOTER (Final Result) -->
-    <div class="px-6 py-4 border-t border-zinc-200 bg-white">
+    <div class="px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50">
       <!-- PDA: Final Stack Info -->
       <!-- PDA: Final Stack Info -->
       <div
         v-if="isPDA && simulation.finalStack"
-        class="mb-3 p-3 bg-purple-50 rounded-lg border border-purple-200"
+        class="mb-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800"
       >
         <div class="flex items-center gap-2 mb-2">
-          <Layers class="w-4 h-4 text-purple-600" />
-          <span class="text-xs font-bold text-purple-900">Final Stack:</span>
+          <Layers class="w-4 h-4 text-purple-600 dark:text-purple-400" />
+          <span class="text-xs font-bold text-purple-900 dark:text-purple-100">Final Stack:</span>
         </div>
         <div class="flex flex-wrap gap-1.5">
           <template v-if="simulation.finalStack.length > 0">

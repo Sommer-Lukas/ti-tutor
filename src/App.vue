@@ -29,6 +29,8 @@ import {
   ArrowLeft,
   Trophy,
   FileText,
+  Lightbulb,
+  Settings,
 } from 'lucide-vue-next'
 
 // -- Child components ------------------------------------------------------
@@ -38,6 +40,7 @@ import TestPanel from '@/components/TestPanel.vue'
 import SimulationStepBar from '@/components/SimulationStepBar.vue'
 import SimulationTreePanel from '@/components/SimulationTreePanel.vue'
 import ExerciseListView from '@/components/ExerciseListView.vue'
+import DarkModeToggle from '@/components/DarkModeToggle.vue'
 
 // -- Store / library imports -----------------------------------------------
 import {
@@ -445,7 +448,7 @@ const triggerNewProject = () => {
 </script>
 
 <template>
-  <div class="flex h-screen w-full bg-zinc-50 text-zinc-900 overflow-hidden relative">
+  <div class="flex h-screen w-full bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden relative">
     <!-- ============================================================= -->
     <!-- LEFT SIDEBAR (hidden in exercise mode)                        -->
     <!-- ============================================================= -->
@@ -454,14 +457,14 @@ const triggerNewProject = () => {
     <!-- ============================================================= -->
     <!-- MAIN CONTENT AREA                                             -->
     <!-- ============================================================= -->
-    <main class="flex-1 flex flex-col h-full min-w-0 bg-white">
+    <main class="flex-1 flex flex-col h-full min-w-0 bg-white dark:bg-zinc-900">
       <!-- ----------------------------------------------------------- -->
       <!-- TOP BAR (hidden when browsing exercises – that view has its   -->
       <!-- own header)                                                  -->
       <!-- ----------------------------------------------------------- -->
       <header
         v-if="!(exerciseModeActive && exerciseBrowsing)"
-        class="flex h-14 items-center justify-between px-6 border-b z-50 bg-white flex-shrink-0 relative"
+        class="flex h-14 items-center justify-between px-6 border-b z-50 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 flex-shrink-0 relative"
       >
         <!-- Exercise Working Mode – back button + title + badges -->
         <div v-if="isExerciseWorking" class="flex items-center gap-3">
@@ -535,7 +538,7 @@ const triggerNewProject = () => {
 
         <!-- Normal Project Header – name + type badge + validation + help -->
         <div v-else-if="hasProjects && !exerciseModeActive" class="flex items-center gap-3">
-          <h1 class="text-lg font-semibold text-zinc-900">{{ currentProject.name }}</h1>
+          <h1 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{{ currentProject.name }}</h1>
 
           <!-- Automaton Type Badge -->
           <span
@@ -592,6 +595,10 @@ const triggerNewProject = () => {
           <FolderOpen class="w-5 h-5 text-zinc-400" />
           <h1 class="text-lg font-semibold text-zinc-500">Kein Projekt geöffnet</h1>
         </div>
+
+        <div class="ml-4 flex items-center">
+          <DarkModeToggle />
+        </div>
       </header>
 
       <!-- ----------------------------------------------------------- -->
@@ -606,18 +613,18 @@ const triggerNewProject = () => {
         <!-- EMPTY STATE (no projects and not exercising) -->
         <div
           v-else-if="!hasProjects && !isExerciseWorking"
-          class="flex-1 flex items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100"
+          class="flex-1 flex items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800"
         >
           <div class="text-center max-w-md px-8">
             <div
-              class="w-32 h-32 rounded-full bg-zinc-200 flex items-center justify-center mx-auto mb-6"
+              class="w-32 h-32 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center mx-auto mb-6"
             >
-              <FolderOpen class="w-16 h-16 text-zinc-400" />
+              <FolderOpen class="w-16 h-16 text-zinc-400 dark:text-zinc-500" />
             </div>
 
-            <h2 class="text-2xl font-bold text-zinc-900 mb-3">Willkommen! 👋</h2>
+            <h2 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-3">Willkommen!</h2>
 
-            <p class="text-zinc-600 mb-6 leading-relaxed">
+            <p class="text-zinc-600 dark:text-zinc-400 mb-6 leading-relaxed">
               Du hast noch keine Automaten erstellt. Erstelle deinen ersten Automaten, um mit der
               Arbeit zu beginnen.
             </p>
@@ -672,25 +679,25 @@ const triggerNewProject = () => {
             >
               <div
                 v-if="isExerciseWorking && showExerciseDescription"
-                class="absolute top-4 left-4 z-40 w-[420px] max-h-[70%] bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden"
+                class="absolute top-4 left-4 z-40 w-[420px] max-h-[70%] bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden"
               >
-                <div class="px-5 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-zinc-200 flex items-center justify-between">
+                <div class="px-5 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-900/30 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
                   <div class="flex items-center gap-2">
-                    <BookOpen class="w-4 h-4 text-indigo-600" />
-                    <h3 class="text-sm font-bold text-zinc-900">Aufgabenstellung</h3>
+                    <BookOpen class="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <h3 class="text-sm font-bold text-zinc-900 dark:text-zinc-100">Aufgabenstellung</h3>
                   </div>
                   <button
                     @click="showExerciseDescription = false"
-                    class="p-1 rounded-lg hover:bg-white/50 transition-colors"
+                    class="p-1 rounded-lg hover:bg-white/50 dark:hover:bg-zinc-700 transition-colors"
                   >
-                    <X class="w-4 h-4 text-zinc-500" />
+                    <X class="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
                   </button>
                 </div>
                 <div class="p-5 overflow-y-auto max-h-[calc(70vh-48px)]">
-                  <p class="text-sm text-zinc-700 whitespace-pre-line leading-relaxed">{{ activeExercise?.description }}</p>
-                  <div v-if="activeExercise?.hint" class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p class="text-xs font-bold text-amber-800 mb-1">💡 Hinweis</p>
-                    <p class="text-xs text-amber-700 leading-relaxed">{{ activeExercise.hint }}</p>
+                  <p class="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-line leading-relaxed">{{ activeExercise?.description }}</p>
+                  <div v-if="activeExercise?.hint" class="mt-4 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-lg">
+                    <p class="text-xs font-bold text-amber-800 dark:text-amber-400 mb-1 flex items-center gap-1.5"><Lightbulb class="w-3.5 h-3.5" /> Hinweis</p>
+                    <p class="text-xs text-amber-700 dark:text-amber-500/90 leading-relaxed">{{ activeExercise.hint }}</p>
                   </div>
                 </div>
               </div>
@@ -720,14 +727,14 @@ const triggerNewProject = () => {
           <!-- BOTTOM BAR – simulation controls + Run All Tests button   -->
           <!-- --------------------------------------------------------- -->
           <div
-            class="h-16 bg-white border-t border-zinc-200 flex items-center px-6 gap-4 shadow-lg flex-shrink-0 relative z-50"
+            class="h-16 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 flex items-center px-6 gap-4 shadow-lg flex-shrink-0 relative z-50"
           >
             <div class="flex items-center gap-2">
               <button
                 @click="startSimulation"
                 :disabled="!canStartSimulation"
                 class="p-3 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed relative group"
-                :class="canStartSimulation ? 'hover:bg-zinc-100' : ''"
+                :class="canStartSimulation ? 'hover:bg-zinc-100 dark:hover:bg-zinc-800' : ''"
                 title="Start (F5)"
               >
                 <Play
@@ -747,7 +754,7 @@ const triggerNewProject = () => {
                 @click="stepSimulation"
                 :disabled="!isSimulating"
                 class="p-3 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed relative group"
-                :class="isSimulating ? 'hover:bg-zinc-100' : ''"
+                :class="isSimulating ? 'hover:bg-zinc-100 dark:hover:bg-zinc-800' : ''"
                 :title="isAtEnd ? 'Step to close (F10)' : 'Step (F10)'"
               >
                 <StepForward class="w-5 h-5 text-blue-600" />
@@ -763,14 +770,14 @@ const triggerNewProject = () => {
               <button
                 @click="stopSimulation"
                 :disabled="!isSimulating"
-                class="p-3 rounded-lg hover:bg-zinc-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                class="p-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 title="Stop (Shift+F5)"
               >
                 <Square class="w-4 h-4 text-red-600" :class="{ 'fill-red-600': isSimulating }" />
               </button>
             </div>
 
-            <div class="w-px h-8 bg-zinc-300"></div>
+            <div class="w-px h-8 bg-zinc-300 dark:bg-zinc-700"></div>
 
             <button
               @click="runAllTests"
@@ -779,7 +786,7 @@ const triggerNewProject = () => {
               :class="
                 canRunTests
                   ? 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-lg'
-                  : 'bg-zinc-300 text-zinc-500 cursor-not-allowed'
+                  : 'bg-zinc-300 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-600 cursor-not-allowed'
               "
             >
               Run All Tests
@@ -929,24 +936,24 @@ const triggerNewProject = () => {
     >
       <div
         v-if="exerciseCompleteToast"
-        class="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40"
+        class="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
         @click.self="exerciseCompleteToast = false"
       >
-        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center relative">
+        <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center relative border border-zinc-200 dark:border-zinc-800">
           <button
             @click="exerciseCompleteToast = false"
-            class="absolute top-4 right-4 p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
+            class="absolute top-4 right-4 p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
           >
             <X class="w-4 h-4" />
           </button>
-          <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-            <Trophy class="w-8 h-8 text-green-600" />
+          <div class="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4">
+            <Trophy class="w-8 h-8 text-green-600 dark:text-green-400" />
           </div>
-          <h2 class="text-2xl font-bold text-zinc-900 mb-1">Geschafft!</h2>
-          <p class="text-sm text-zinc-500 mb-6">Alle Tests erfolgreich bestanden.</p>
+          <h2 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">Geschafft!</h2>
+          <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">Alle Tests erfolgreich bestanden.</p>
           <button
             @click="exerciseCompleteToast = false; backToExerciseList()"
-            class="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition-colors"
+            class="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-lg text-sm font-semibold transition-colors cursor-pointer"
           >
             Zurück zu den Aufgaben
           </button>
@@ -974,23 +981,23 @@ const triggerNewProject = () => {
         ></div>
 
         <div
-          class="relative w-full max-w-2xl bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden"
+          class="relative w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden"
         >
           <div
-            class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-zinc-50"
+            class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/30"
           >
             <div class="flex items-center gap-3">
-              <Check v-if="validationStatus === 'valid'" class="w-6 h-6 text-green-600" />
-              <X v-else-if="validationStatus === 'error'" class="w-6 h-6 text-red-600" />
-              <AlertTriangle v-else class="w-6 h-6 text-yellow-600" />
-              <h2 class="text-base font-bold text-zinc-900">Validierung</h2>
+              <Check v-if="validationStatus === 'valid'" class="w-6 h-6 text-green-600 dark:text-green-400" />
+              <X v-else-if="validationStatus === 'error'" class="w-6 h-6 text-red-600 dark:text-red-400" />
+              <AlertTriangle v-else class="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+              <h2 class="text-base font-bold text-zinc-900 dark:text-zinc-100">Validierung</h2>
             </div>
             <button
               @click="closeValidationModal"
-              class="p-2 rounded-lg hover:bg-zinc-200 transition-colors"
+              class="p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
             >
               <svg
-                class="w-5 h-5 text-zinc-600"
+                class="w-5 h-5 text-zinc-600 dark:text-zinc-500"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1008,11 +1015,11 @@ const triggerNewProject = () => {
           <div class="max-h-[60vh] overflow-y-auto">
             <div
               v-if="validationResult.errors.length > 0"
-              class="p-6 border-b border-zinc-200 bg-red-50"
+              class="p-6 border-b border-zinc-200 dark:border-zinc-800 bg-red-50 dark:bg-red-950/20"
             >
               <div class="flex items-center gap-2 mb-4">
-                <X class="w-5 h-5 text-red-600" />
-                <h3 class="text-sm font-bold text-red-900">
+                <X class="w-5 h-5 text-red-600 dark:text-red-400" />
+                <h3 class="text-sm font-bold text-red-900 dark:text-red-400">
                   {{ validationResult.errors.length }} Fehler
                 </h3>
               </div>
@@ -1021,12 +1028,12 @@ const triggerNewProject = () => {
                 <div
                   v-for="(error, idx) in validationResult.errors"
                   :key="idx"
-                  class="p-4 bg-white rounded-lg border border-red-200 shadow-sm"
+                  class="p-4 bg-white dark:bg-zinc-950 rounded-lg border border-red-200 dark:border-red-900/40 shadow-sm"
                 >
-                  <p class="text-sm font-medium text-red-900 leading-relaxed">
+                  <p class="text-sm font-medium text-red-900 dark:text-red-400/90 leading-relaxed">
                     {{ error.message }}
                   </p>
-                  <p v-if="error.affectedElements.length > 0" class="text-xs text-red-700 mt-2">
+                  <p v-if="error.affectedElements.length > 0" class="text-xs text-red-700 dark:text-red-500/80 mt-2">
                     <span class="font-semibold">Betroffen:</span>
                     {{ error.affectedElements.length }} Element(e)
                   </p>
@@ -1034,10 +1041,10 @@ const triggerNewProject = () => {
               </div>
             </div>
 
-            <div v-if="validationResult.warnings.length > 0" class="p-6 bg-yellow-50">
+            <div v-if="validationResult.warnings.length > 0" class="p-6 bg-yellow-50 dark:bg-yellow-950/20">
               <div class="flex items-center gap-2 mb-4">
-                <AlertTriangle class="w-5 h-5 text-yellow-600" />
-                <h3 class="text-sm font-bold text-yellow-900">
+                <AlertTriangle class="w-5 h-5 text-yellow-600 dark:text-yellow-500" />
+                <h3 class="text-sm font-bold text-yellow-900 dark:text-yellow-500">
                   {{ validationResult.warnings.length }} Warnung{{
                     validationResult.warnings.length > 1 ? 'en' : ''
                   }}
@@ -1048,9 +1055,9 @@ const triggerNewProject = () => {
                 <div
                   v-for="(warning, idx) in validationResult.warnings"
                   :key="idx"
-                  class="p-4 bg-white rounded-lg border border-yellow-200 shadow-sm"
+                  class="p-4 bg-white dark:bg-zinc-950 rounded-lg border border-yellow-200 dark:border-yellow-900/40 shadow-sm"
                 >
-                  <p class="text-sm font-medium text-yellow-900 leading-relaxed">
+                  <p class="text-sm font-medium text-yellow-900 dark:text-yellow-500/90 leading-relaxed">
                     {{ warning.message }}
                   </p>
                 </div>
@@ -1062,16 +1069,16 @@ const triggerNewProject = () => {
               class="p-8 text-center"
             >
               <div
-                class="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4"
+                class="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4"
               >
-                <Check class="w-10 h-10 text-green-600" />
+                <Check class="w-10 h-10 text-green-600 dark:text-green-400" />
               </div>
-              <h3 class="text-lg font-bold text-zinc-900 mb-2">Perfekt!</h3>
-              <p class="text-sm text-zinc-600">Keine Fehler oder Warnungen gefunden.</p>
+              <h3 class="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-2">Perfekt!</h3>
+              <p class="text-sm text-zinc-600 dark:text-zinc-400">Keine Fehler oder Warnungen gefunden.</p>
             </div>
           </div>
 
-          <div class="px-6 py-4 border-t border-zinc-200 bg-zinc-50 flex justify-end">
+          <div class="px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40 flex justify-end">
             <button
               @click="closeValidationModal"
               class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
@@ -1103,26 +1110,26 @@ const triggerNewProject = () => {
         ></div>
 
         <div
-          class="relative w-full max-w-3xl bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden"
+          class="relative w-full max-w-3xl bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden"
         >
           <div
-            class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-gradient-to-r from-blue-50 to-indigo-50"
+            class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-zinc-800 dark:to-zinc-800"
           >
             <div class="flex items-center gap-3">
-              <HelpCircle class="w-6 h-6 text-blue-600" />
+              <HelpCircle class="w-6 h-6 text-blue-600 dark:text-blue-400" />
               <div>
-                <h2 class="text-base font-bold text-zinc-900">Tastenkombinationen & Bedienung</h2>
-                <p class="text-xs text-zinc-600">
+                <h2 class="text-base font-bold text-zinc-900 dark:text-zinc-100">Tastenkombinationen & Bedienung</h2>
+                <p class="text-xs text-zinc-600 dark:text-zinc-400">
                   {{ AUTOMATON_TYPES[currentProject.type].shortName }} - {{ currentProject.name }}
                 </p>
               </div>
             </div>
             <button
               @click="closeGuideModal"
-              class="p-2 rounded-lg hover:bg-white/50 transition-colors"
+              class="p-2 rounded-lg hover:bg-white/50 dark:hover:bg-zinc-700 transition-colors"
             >
               <svg
-                class="w-5 h-5 text-zinc-600"
+                class="w-5 h-5 text-zinc-600 dark:text-zinc-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1139,187 +1146,181 @@ const triggerNewProject = () => {
 
           <div class="max-h-[70vh] overflow-y-auto p-6 space-y-6">
             <!-- Canvas Bedienung -->
-            <div class="bg-zinc-50 rounded-lg p-4 border border-zinc-200">
-              <h3 class="text-sm font-bold text-zinc-900 mb-3 flex items-center gap-2">
+            <div class="bg-zinc-50 dark:bg-zinc-950/50 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800">
+              <h3 class="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
                 <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">1</span>
                 Canvas Bedienung
               </h3>
               <div class="space-y-2">
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-zinc-700">Neuer Zustand erstellen</span>
-                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Doppelklick auf Canvas</kbd>
+                  <span class="text-zinc-700 dark:text-zinc-300">Neuer Zustand erstellen</span>
+                  <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-xs font-mono dark:text-zinc-200">Doppelklick</kbd>
                 </div>
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-zinc-700">Zustand verschieben</span>
-                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Drag & Drop</kbd>
+                  <span class="text-zinc-700 dark:text-zinc-300">Zustand verschieben</span>
+                  <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-xs font-mono dark:text-zinc-200">Drag & Drop</kbd>
                 </div>
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-zinc-700">Mehrere Zustände auswählen</span>
-                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Box-Selection oder SHIFT+Click</kbd>
+                  <span class="text-zinc-700 dark:text-zinc-300">Mehrere Zustände auswählen</span>
+                  <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-xs font-mono dark:text-zinc-200">Box-Selection oder SHIFT+Click</kbd>
                 </div>
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-zinc-700">Mehrere Zustände verschieben</span>
-                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Auswählen + Drag</kbd>
+                  <span class="text-zinc-700 dark:text-zinc-300">Mehrere Zustände verschieben</span>
+                  <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-xs font-mono dark:text-zinc-200">Auswählen + Drag</kbd>
                 </div>
               </div>
             </div>
 
             <!-- Zustände bearbeiten -->
-            <div class="bg-zinc-50 rounded-lg p-4 border border-zinc-200">
-              <h3 class="text-sm font-bold text-zinc-900 mb-3 flex items-center gap-2">
+            <div class="bg-zinc-50 dark:bg-zinc-950/50 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800">
+              <h3 class="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
                 <span class="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold">2</span>
                 Zustände bearbeiten
               </h3>
               <div class="space-y-2">
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-zinc-700">Startzustand markieren</span>
-                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Toolbar: Flag-Icon</kbd>
+                  <span class="text-zinc-700 dark:text-zinc-300">Startzustand markieren</span>
+                  <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-xs font-mono dark:text-zinc-200">Toolbar: Flag-Icon</kbd>
                 </div>
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-zinc-700">Finalzustand markieren</span>
-                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Doppelklick auf Zustand</kbd>
+                  <span class="text-zinc-700 dark:text-zinc-300">Finalzustand markieren</span>
+                  <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-xs font-mono dark:text-zinc-200">Doppelklick</kbd>
                 </div>
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-zinc-700">Zustand umbenennen</span>
-                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Zustand auswählen + Tippen</kbd>
+                  <span class="text-zinc-700 dark:text-zinc-300">Zustand umbenennen</span>
+                  <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-xs font-mono dark:text-zinc-200">Zustand auswählen + Tippen</kbd>
                 </div>
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-zinc-700">Zustand löschen</span>
-                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">DEL</kbd>
+                  <span class="text-zinc-700 dark:text-zinc-300">Zustand löschen</span>
+                  <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-xs font-mono dark:text-zinc-200">DEL</kbd>
                 </div>
               </div>
             </div>
 
             <!-- Transitionen erstellen -->
-            <div class="bg-zinc-50 rounded-lg p-4 border border-zinc-200">
-              <h3 class="text-sm font-bold text-zinc-900 mb-3 flex items-center gap-2">
+            <div class="bg-zinc-50 dark:bg-zinc-950/50 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800">
+              <h3 class="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
                 <span class="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-bold">3</span>
                 Transitionen erstellen
               </h3>
               <div class="space-y-2">
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-zinc-700">Neue Transition erstellen</span>
-                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Rechtsklick auf Quelle → Click auf Ziel</kbd>
+                  <span class="text-zinc-700 dark:text-zinc-300">Neue Transition</span>
+                  <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-xs font-mono dark:text-zinc-200">Rechtsklick + Klick</kbd>
                 </div>
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-zinc-700">Oder: Toolbar verwenden</span>
-                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">Quelle wählen → Arrow-Icon → Ziel</kbd>
+                  <span class="text-zinc-700 dark:text-zinc-300">Oder: Toolbar</span>
+                  <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-xs font-mono dark:text-zinc-200">Arrow-Icon verwenden</kbd>
                 </div>
               </div>
             </div>
 
             <!-- Transitionen bearbeiten (DFA/NFA) -->
-            <div v-if="isDFA || isNFA" class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
-              <h3 class="text-sm font-bold text-blue-900 mb-3 flex items-center gap-2">
+            <div v-if="isDFA || isNFA" class="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-lg p-4 border border-blue-200 dark:border-blue-900/30">
+              <h3 class="text-sm font-bold text-blue-900 dark:text-blue-400 mb-3 flex items-center gap-2">
                 <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">4</span>
                 Transitionen bearbeiten ({{ AUTOMATON_TYPES[currentProject.type].shortName }})
               </h3>
               <div class="space-y-2">
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-blue-900">Transition auswählen</span>
-                  <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Click auf Kante</kbd>
+                  <span class="text-blue-900 dark:text-blue-200">Transition auswählen</span>
+                  <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-blue-300 dark:border-blue-800 rounded text-xs font-mono dark:text-blue-100">Klick</kbd>
                 </div>
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-blue-900">Symbol ändern</span>
-                  <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Kante auswählen + Taste drücken</kbd>
+                  <span class="text-blue-900 dark:text-blue-200">Symbol ändern</span>
+                  <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-blue-300 dark:border-blue-800 rounded text-xs font-mono dark:text-blue-100">Tippen</kbd>
                 </div>
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-blue-900">Symbol löschen</span>
-                  <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Kante auswählen + Backspace</kbd>
+                  <span class="text-blue-900 dark:text-blue-200">Symbol löschen</span>
+                  <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-blue-300 dark:border-blue-800 rounded text-xs font-mono dark:text-blue-100">Backspace</kbd>
                 </div>
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-blue-900">Transition löschen</span>
-                  <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Kante auswählen + DEL</kbd>
+                  <span class="text-blue-900 dark:text-blue-200">Transition löschen</span>
+                  <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-blue-300 dark:border-blue-800 rounded text-xs font-mono dark:text-blue-100">DEL</kbd>
                 </div>
               </div>
             </div>
 
             <!-- Transitionen bearbeiten (PDA) -->
-            <div v-if="isPDA" class="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-4 border border-emerald-200">
-              <h3 class="text-sm font-bold text-emerald-900 mb-3 flex items-center gap-2">
+            <div v-if="isPDA" class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/10 dark:to-green-900/10 rounded-lg p-4 border border-emerald-200 dark:border-emerald-900/30">
+              <h3 class="text-sm font-bold text-emerald-900 dark:text-emerald-400 mb-3 flex items-center gap-2">
                 <span class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">4</span>
                 Transitionen bearbeiten (PDA)
               </h3>
               <div class="space-y-3">
-                <div class="bg-white rounded p-3 border border-emerald-200">
-                  <p class="text-xs font-bold text-emerald-900 mb-2">📝 Format: input,stackTop/stackPush</p>
-                  <p class="text-xs text-emerald-800">Beispiel: a,$/a$ (lese 'a', stack top '$', pushe 'a$')</p>
-                  <p class="text-xs text-emerald-700 mt-1">Verwende ε (epsilon) für leere Eingaben</p>
+                <div class="bg-white dark:bg-zinc-900 rounded p-3 border border-emerald-200 dark:border-emerald-800">
+                  <p class="text-xs font-bold text-emerald-900 dark:text-emerald-300 mb-2 flex items-center gap-1.5"><FileText class="w-3.5 h-3.5" /> Format: input,stackTop/stackPush</p>
+                  <p class="text-xs text-emerald-800 dark:text-emerald-400">Beispiel: a,$/a$</p>
+                  <p class="text-xs text-emerald-700 dark:text-emerald-500 mt-1">Verwende ε für leere Eingaben</p>
                 </div>
                 <div class="space-y-2">
                   <div class="flex items-center justify-between text-sm">
-                    <span class="text-emerald-900">Transition bearbeiten (Schnell)</span>
-                    <kbd class="px-2 py-1 bg-white border border-emerald-300 rounded text-xs font-mono">Kante auswählen + Tippen</kbd>
+                    <span class="text-emerald-900 dark:text-emerald-200">Bearbeiten (Schnell)</span>
+                    <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-emerald-300 dark:border-emerald-800 rounded text-xs font-mono dark:text-emerald-100">Kante + Tippen</kbd>
                   </div>
                   <div class="flex items-center justify-between text-sm">
-                    <span class="text-emerald-900">Transition bearbeiten (Editor)</span>
-                    <kbd class="px-2 py-1 bg-white border border-emerald-300 rounded text-xs font-mono">Doppelklick auf Kante</kbd>
+                    <span class="text-emerald-900 dark:text-emerald-200">Editor öffnen</span>
+                    <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-emerald-300 dark:border-emerald-800 rounded text-xs font-mono dark:text-emerald-100">Doppelklick</kbd>
                   </div>
                   <div class="flex items-center justify-between text-sm">
-                    <span class="text-emerald-900">Eingabe bestätigen</span>
-                    <kbd class="px-2 py-1 bg-white border border-emerald-300 rounded text-xs font-mono">Enter</kbd>
+                    <span class="text-emerald-900 dark:text-emerald-200">Bestätigen</span>
+                    <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-emerald-300 dark:border-emerald-800 rounded text-xs font-mono dark:text-emerald-100">Enter</kbd>
                   </div>
                 </div>
               </div>
             </div>
 
             <!-- Transitionen bearbeiten (TM) -->
-            <div v-if="isTM" class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-4 border border-blue-200">
-              <h3 class="text-sm font-bold text-blue-900 mb-3 flex items-center gap-2">
+            <div v-if="isTM" class="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/10 dark:to-cyan-900/10 rounded-lg p-4 border border-blue-200 dark:border-blue-900/30">
+              <h3 class="text-sm font-bold text-blue-900 dark:text-blue-400 mb-3 flex items-center gap-2">
                 <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">4</span>
                 Transitionen bearbeiten (TM)
               </h3>
               <div class="space-y-3">
-                <div class="bg-white rounded p-3 border border-blue-200">
-                  <p class="text-xs font-bold text-blue-900 mb-2">⚙️ Format: read/action</p>
-                  <p class="text-xs text-blue-800">Beispiele:</p>
-                  <ul class="text-xs text-blue-700 mt-1 space-y-1 list-disc list-inside">
-                    <li>c/L (lese 'c', bewege nach links)</li>
-                    <li>c/d (lese 'c', schreibe 'd')</li>
-                    <li>w/R (lese 'w', bewege nach rechts)</li>
+                <div class="bg-white dark:bg-zinc-900 rounded p-3 border border-blue-200 dark:border-blue-800">
+                  <p class="text-xs font-bold text-blue-900 dark:text-blue-300 mb-2 flex items-center gap-1.5"><Settings class="w-3.5 h-3.5" /> Format: read/action</p>
+                  <p class="text-xs text-blue-800 dark:text-blue-400">Beispiele:</p>
+                  <ul class="text-xs text-blue-700 dark:text-blue-500 mt-1 space-y-1 list-disc list-inside">
+                    <li>c/L, c/d, w/R</li>
                   </ul>
                 </div>
                 <div class="space-y-2">
                   <div class="flex items-center justify-between text-sm">
-                    <span class="text-blue-900">Transition bearbeiten (Schnell)</span>
-                    <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Kante auswählen + c/L tippen</kbd>
+                    <span class="text-blue-900 dark:text-blue-200">Bearbeiten (Schnell)</span>
+                    <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-blue-300 dark:border-blue-800 rounded text-xs font-mono dark:text-blue-100">Kante + Tippen</kbd>
                   </div>
                   <div class="flex items-center justify-between text-sm">
-                    <span class="text-blue-900">Transition bearbeiten (Editor)</span>
-                    <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Doppelklick auf Kante</kbd>
-                  </div>
-                  <div class="flex items-center justify-between text-sm">
-                    <span class="text-blue-900">Auto-Übernehmen</span>
-                    <kbd class="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Nach 3 Zeichen automatisch</kbd>
+                    <span class="text-blue-900 dark:text-blue-200">Editor öffnen</span>
+                    <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-blue-300 dark:border-blue-800 rounded text-xs font-mono dark:text-blue-100">Doppelklick</kbd>
                   </div>
                 </div>
               </div>
             </div>
 
             <!-- Simulation -->
-            <div class="bg-zinc-50 rounded-lg p-4 border border-zinc-200">
-              <h3 class="text-sm font-bold text-zinc-900 mb-3 flex items-center gap-2">
+            <div class="bg-zinc-50 dark:bg-zinc-950/50 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800">
+              <h3 class="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
                 <span class="w-6 h-6 rounded-full bg-orange-600 text-white flex items-center justify-center text-xs font-bold">5</span>
                 Simulation
               </h3>
               <div class="space-y-2">
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-zinc-700">Simulation starten</span>
-                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">F5</kbd>
+                  <span class="text-zinc-700 dark:text-zinc-300">Simulation starten</span>
+                  <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-xs font-mono dark:text-zinc-200">F5</kbd>
                 </div>
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-zinc-700">Schritt vorwärts</span>
-                  <kbd class="px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-mono">F10</kbd>
+                  <span class="text-zinc-700 dark:text-zinc-300">Schritt vorwärts</span>
+                  <kbd class="px-2 py-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-xs font-mono dark:text-zinc-200">F10</kbd>
                 </div>
               </div>
             </div>
 
             <!-- Weitere Tipps -->
-            <div class="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-lg p-4 border-2 border-amber-300">
-              <h3 class="text-sm font-bold text-amber-900 mb-2 flex items-center gap-2">
-                💡 Tipps
+            <div class="bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/10 dark:to-yellow-900/10 rounded-lg p-4 border-2 border-amber-300 dark:border-amber-700/50">
+              <h3 class="text-sm font-bold text-amber-900 dark:text-amber-500 mb-2 flex items-center gap-2">
+                <Lightbulb class="w-4 h-4" /> Tipps
               </h3>
-              <ul class="space-y-1 text-xs text-amber-900">
+              <ul class="space-y-1 text-xs text-amber-900 dark:text-amber-600">
                 <li>• ESC abbrechen bei Transition-Erstellung</li>
                 <li>• Validierungs-Badge anklicken um Fehler anzuzeigen</li>
                 <li>• Testfälle erstellen im rechten Panel</li>
@@ -1328,7 +1329,7 @@ const triggerNewProject = () => {
             </div>
           </div>
 
-          <div class="px-6 py-4 border-t border-zinc-200 bg-zinc-50 flex justify-end">
+          <div class="px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/30 flex justify-end">
             <button
               @click="closeGuideModal"
               class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"

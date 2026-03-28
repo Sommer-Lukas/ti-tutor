@@ -91,15 +91,15 @@ const handleInput = () => {
 
       <!-- Dialog -->
       <div
-        class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-zinc-200 overflow-hidden"
+        class="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden"
       >
         <!-- Header -->
         <div
-          class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-gradient-to-r from-blue-50 to-purple-50"
+          class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20"
         >
-          <h2 class="text-lg font-bold text-zinc-900">Neuer Automat</h2>
-          <button @click="handleClose" class="p-2 rounded-lg hover:bg-white/50 transition-colors">
-            <X class="w-5 h-5 text-zinc-600" />
+          <h2 class="text-lg font-bold text-zinc-900 dark:text-zinc-100">Neuer Automat</h2>
+          <button @click="handleClose" class="p-2 rounded-lg hover:bg-white/50 dark:hover:bg-black/20 transition-colors">
+            <X class="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
           </button>
         </div>
 
@@ -107,18 +107,18 @@ const handleInput = () => {
         <div class="p-6 space-y-4">
           <!-- Name Input -->
           <div>
-            <label class="block text-sm font-semibold text-zinc-700 mb-2"> Name </label>
+            <label class="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2"> Name </label>
             <div class="relative">
               <input
                 v-model="name"
                 @input="handleInput"
                 type="text"
                 placeholder="z.B. 'Mein DFA'"
-                class="w-full px-4 py-3 bg-zinc-50 border-2 rounded-lg outline-none transition-all text-sm"
+                class="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-950/50 text-zinc-900 dark:text-zinc-100 border-2 rounded-lg outline-none transition-all text-sm placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
                 :class="
                   showError
-                    ? 'border-red-500 bg-red-50 focus:border-red-600 focus:bg-red-50 shake'
-                    : 'border-zinc-300 focus:border-blue-500 focus:bg-white'
+                    ? 'border-red-500 bg-red-50 dark:bg-red-900/10 focus:border-red-600 focus:bg-red-50 dark:focus:bg-red-900/20 shake'
+                    : 'border-zinc-300 dark:border-zinc-700 focus:border-blue-500 dark:focus:border-blue-500 focus:bg-white dark:focus:bg-zinc-900'
                 "
                 @keydown.enter="handleCreate"
                 autofocus
@@ -134,7 +134,7 @@ const handleInput = () => {
                 leave-to-class="opacity-0 scale-0"
               >
                 <div v-if="showError" class="absolute right-3 top-1/2 -translate-y-1/2">
-                  <AlertCircle class="w-5 h-5 text-red-500" />
+                  <AlertCircle class="w-5 h-5 text-red-500 dark:text-red-400" />
                 </div>
               </Transition>
             </div>
@@ -150,7 +150,7 @@ const handleInput = () => {
             >
               <div
                 v-if="showError"
-                class="flex items-center gap-2 mt-2 text-xs text-red-600 font-medium"
+                class="flex items-center gap-2 mt-2 text-xs text-red-600 dark:text-red-400 font-medium"
               >
                 <AlertCircle class="w-3.5 h-3.5 flex-shrink-0" />
                 <span>{{ errorMessage }}</span>
@@ -160,7 +160,7 @@ const handleInput = () => {
 
           <!-- Type Selection -->
           <div>
-            <label class="block text-sm font-semibold text-zinc-700 mb-2"> Automatentyp </label>
+            <label class="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2"> Automatentyp </label>
             <div class="grid grid-cols-2 gap-3">
               <button
                 v-for="(type, key) in AUTOMATON_TYPES"
@@ -169,17 +169,17 @@ const handleInput = () => {
                 class="p-4 rounded-xl border-2 transition-all hover:shadow-md"
                 :class="
                   selectedType === key
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-zinc-200 bg-white hover:border-zinc-300'
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500/50'
+                    : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-600'
                 "
               >
                 <div
                   class="font-bold text-sm mb-1"
-                  :class="selectedType === key ? 'text-blue-700' : 'text-zinc-900'"
+                  :class="selectedType === key ? 'text-blue-700 dark:text-blue-400' : 'text-zinc-900 dark:text-zinc-100'"
                 >
                   {{ type.shortName }}
                 </div>
-                <div class="text-xs text-zinc-500">
+                <div class="text-xs text-zinc-500 dark:text-zinc-400">
                   {{ type.name }}
                 </div>
               </button>
@@ -188,10 +188,10 @@ const handleInput = () => {
         </div>
 
         <!-- Footer -->
-        <div class="px-6 py-4 border-t border-zinc-200 bg-zinc-50 flex justify-end gap-3">
+        <div class="px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/50 flex justify-end gap-3">
           <button
             @click="handleClose"
-            class="px-4 py-2 rounded-lg text-sm font-semibold text-zinc-700 hover:bg-zinc-200 transition-colors"
+            class="px-4 py-2 rounded-lg text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
           >
             Abbrechen
           </button>

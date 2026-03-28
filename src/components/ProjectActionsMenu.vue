@@ -143,10 +143,10 @@ onUnmounted(() => {
     <!-- Three Dots Button -->
     <button
       @click.stop="toggleMenu"
-      class="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-zinc-300 transition-all"
-      :class="{ 'opacity-100 bg-zinc-300': isThisMenuOpen() }"
+      class="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all cursor-pointer"
+      :class="{ 'opacity-100 bg-zinc-300 dark:bg-zinc-700': isThisMenuOpen() }"
     >
-      <MoreVertical class="w-4 h-4 text-zinc-600" />
+      <MoreVertical class="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
     </button>
 
     <!-- Dropdown Menu -->
@@ -160,29 +160,29 @@ onUnmounted(() => {
     >
       <div
         v-if="isThisMenuOpen()"
-        class="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-xl border border-zinc-200 py-1 z-50"
+        class="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 py-1 z-50 overflow-hidden"
       >
         <button
           @click.stop="handleRename"
-          class="w-full px-4 py-2 text-left text-sm hover:bg-zinc-100 transition-colors flex items-center gap-3"
+          class="w-full px-4 py-2 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-3 text-zinc-900 dark:text-zinc-200"
         >
-          <Edit class="w-4 h-4 text-zinc-600" />
+          <Edit class="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
           <span>Umbenennen</span>
         </button>
 
         <button
           @click.stop="handleDuplicate"
-          class="w-full px-4 py-2 text-left text-sm hover:bg-zinc-100 transition-colors flex items-center gap-3"
+          class="w-full px-4 py-2 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-3 text-zinc-900 dark:text-zinc-200"
         >
-          <Copy class="w-4 h-4 text-zinc-600" />
+          <Copy class="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
           <span>Duplizieren</span>
         </button>
 
-        <div class="h-px bg-zinc-200 my-1"></div>
+        <div class="h-px bg-zinc-200 dark:bg-zinc-800 my-1"></div>
 
         <button
           @click.stop="handleDelete"
-          class="w-full px-4 py-2 text-left text-sm hover:bg-red-50 transition-colors flex items-center gap-3 text-red-600"
+          class="w-full px-4 py-2 text-left text-sm hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors flex items-center gap-3 text-red-600 dark:text-red-400"
         >
           <Trash2 class="w-4 h-4" />
           <span>Löschen</span>
@@ -209,29 +209,29 @@ onUnmounted(() => {
 
         <!-- Dialog -->
         <div
-          class="relative w-full max-w-md bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden"
+          class="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden"
         >
           <!-- Header -->
           <div
-            class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-gradient-to-r from-blue-50 to-indigo-50"
+            class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-zinc-800 dark:to-zinc-800"
           >
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                <Edit class="w-5 h-5 text-blue-600" />
+              <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+                <Edit class="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
-              <h2 class="text-base font-bold text-zinc-900">Projekt umbenennen</h2>
+              <h2 class="text-base font-bold text-zinc-900 dark:text-zinc-100">Projekt umbenennen</h2>
             </div>
             <button
               @click="cancelRename"
-              class="p-2 rounded-lg hover:bg-blue-100 transition-colors"
+              class="p-2 rounded-lg hover:bg-blue-100 dark:hover:bg-zinc-700 transition-colors"
             >
-              <X class="w-5 h-5 text-zinc-600" />
+              <X class="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
             </button>
           </div>
 
           <!-- Content -->
           <div class="p-6">
-            <label class="block text-sm font-semibold text-zinc-700 mb-2"> Neuer Name </label>
+            <label class="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2"> Neuer Name </label>
             <div class="relative">
               <input
                 ref="renameInputRef"
@@ -241,11 +241,11 @@ onUnmounted(() => {
                 @keydown.esc="cancelRename"
                 type="text"
                 placeholder="Projektname eingeben..."
-                class="w-full px-4 py-3 bg-zinc-50 border-2 rounded-lg outline-none transition-all text-sm"
+                class="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-950 border-2 rounded-lg outline-none transition-all text-sm dark:text-zinc-200"
                 :class="
                   renameError
-                    ? 'border-red-500 bg-red-50 focus:border-red-600 focus:bg-red-50 shake'
-                    : 'border-zinc-300 focus:border-blue-500 focus:bg-white'
+                    ? 'border-red-500 bg-red-50 dark:bg-red-900/20 focus:border-red-600 focus:bg-red-50 dark:focus:bg-red-900/20 shake'
+                    : 'border-zinc-300 dark:border-zinc-700 focus:border-blue-500 dark:focus:border-blue-500 focus:bg-white dark:focus:bg-zinc-900'
                 "
               />
 
@@ -283,14 +283,14 @@ onUnmounted(() => {
             </Transition>
 
             <!-- Hint -->
-            <p class="text-xs text-zinc-500 mt-2">
+            <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-2">
               <kbd
-                class="px-1.5 py-0.5 bg-zinc-100 rounded text-[10px] font-mono border border-zinc-300"
+                class="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-[10px] font-mono border border-zinc-300 dark:border-zinc-700"
                 >Enter</kbd
               >
               zum Speichern,
               <kbd
-                class="px-1.5 py-0.5 bg-zinc-100 rounded text-[10px] font-mono border border-zinc-300"
+                class="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-[10px] font-mono border border-zinc-300 dark:border-zinc-700"
                 >Esc</kbd
               >
               zum Abbrechen
@@ -298,10 +298,10 @@ onUnmounted(() => {
           </div>
 
           <!-- Footer -->
-          <div class="px-6 py-4 bg-zinc-50 border-t border-zinc-200 flex justify-end gap-3">
+          <div class="px-6 py-4 bg-zinc-50 dark:bg-zinc-900/50 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-3">
             <button
               @click="cancelRename"
-              class="px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-200 rounded-lg transition-colors"
+              class="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-lg transition-colors"
             >
               Abbrechen
             </button>
@@ -336,39 +336,39 @@ onUnmounted(() => {
 
         <!-- Dialog -->
         <div
-          class="relative w-full max-w-md bg-white rounded-xl shadow-2xl border border-zinc-200 overflow-hidden"
+          class="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden"
         >
           <!-- Header -->
           <div
-            class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-red-50"
+            class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-red-50 dark:bg-red-950/30"
           >
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                <Trash2 class="w-5 h-5 text-red-600" />
+              <div class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
+                <Trash2 class="w-5 h-5 text-red-600 dark:text-red-400" />
               </div>
-              <h2 class="text-base font-bold text-red-900">Projekt löschen?</h2>
+              <h2 class="text-base font-bold text-red-900 dark:text-red-100">Projekt löschen?</h2>
             </div>
-            <button @click="cancelDelete" class="p-2 rounded-lg hover:bg-red-100 transition-colors">
-              <X class="w-5 h-5 text-red-600" />
+            <button @click="cancelDelete" class="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors">
+              <X class="w-5 h-5 text-red-600 dark:text-red-400" />
             </button>
           </div>
 
           <!-- Content -->
           <div class="p-6">
-            <p class="text-sm text-zinc-700 mb-2">
+            <p class="text-sm text-zinc-700 dark:text-zinc-300 mb-2">
               Möchtest du <span class="font-bold">{{ projectName }}</span> wirklich löschen?
             </p>
-            <p class="text-xs text-zinc-500">
+            <p class="text-xs text-zinc-500 dark:text-zinc-400">
               Diese Aktion kann nicht rückgängig gemacht werden. Alle Zustände, Übergänge und Test
               Cases werden permanent gelöscht.
             </p>
           </div>
 
           <!-- Footer -->
-          <div class="px-6 py-4 bg-zinc-50 border-t border-zinc-200 flex justify-end gap-3">
+          <div class="px-6 py-4 bg-zinc-50 dark:bg-zinc-900/50 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-3">
             <button
               @click="cancelDelete"
-              class="px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-200 rounded-lg transition-colors"
+              class="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-lg transition-colors"
             >
               Abbrechen
             </button>

@@ -13,7 +13,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { X, AlertCircle, Zap, ChevronDown, ChevronUp, CheckCircle, XCircle } from 'lucide-vue-next'
+import { X, AlertCircle, Zap, ChevronDown, ChevronUp, CheckCircle, XCircle, Settings } from 'lucide-vue-next'
 import type { Transition } from '@/lib/automaton'
 
 const props = defineProps<{
@@ -389,23 +389,23 @@ watch(
       >
         <div
           v-if="visible"
-          class="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-zinc-200 overflow-hidden"
+          class="relative w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden"
         >
           <!-- Header -->
           <div
-            class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-gradient-to-r from-emerald-50 to-teal-50"
+            class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20"
           >
             <div class="flex items-center gap-3">
               <div
                 class="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xl shadow-lg"
               >
-                PDA Configuration
+                <Settings class="w-5 h-5" />
               </div>
               <div>
-                <h2 class="text-base font-bold text-zinc-900">PDA Transition Editor</h2>
-                <p class="text-xs text-zinc-600">
+                <h2 class="text-base font-bold text-zinc-900 dark:text-zinc-100">PDA Transition Editor</h2>
+                <p class="text-xs text-zinc-600 dark:text-zinc-400">
                   Format:
-                  <code class="bg-white px-1.5 py-0.5 rounded font-mono text-emerald-700"
+                  <code class="bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded font-mono text-emerald-700 dark:text-emerald-400"
                     >(input, stackTop) / stackPush</code
                   >
                 </p>
@@ -413,22 +413,22 @@ watch(
             </div>
             <button
               @click="handleClose"
-              class="p-2 rounded-lg hover:bg-emerald-100 transition-colors group"
+              class="p-2 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors group"
             >
-              <X class="w-5 h-5 text-zinc-600 group-hover:text-zinc-900" />
+              <X class="w-5 h-5 text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-200" />
             </button>
           </div>
 
           <!-- Content -->
           <div class="p-6 space-y-5">
-            <!-- ✨ QUICK INPUT MODE (POWER USER) -->
+            <!-- QUICK INPUT MODE (POWER USER) -->
             <div class="space-y-3">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                  <Zap class="w-4 h-4 text-emerald-600" />
-                  <label class="text-sm font-bold text-emerald-700"> Quick Input </label>
+                  <Zap class="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
+                  <label class="text-sm font-bold text-emerald-700 dark:text-emerald-500"> Quick Input </label>
                 </div>
-                <span class="text-xs text-zinc-500 bg-zinc-100 px-2 py-1 rounded-full font-mono">
+                <span class="text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-full font-mono">
                   Format: a,$/aa
                 </span>
               </div>
@@ -439,11 +439,11 @@ watch(
                   type="text"
                   placeholder="z.B. a,$/aa"
                   autofocus
-                  class="w-full px-4 py-3 border-2 rounded-lg focus:ring-4 focus:outline-none font-mono text-xl transition-all shadow-sm"
+                  class="w-full px-4 py-3 border-2 rounded-lg focus:ring-4 focus:outline-none font-mono text-xl transition-all shadow-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
                   :class="[
                     quickInputError
-                      ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200'
-                      : 'border-emerald-300 bg-emerald-50 focus:border-emerald-500 focus:ring-emerald-200',
+                      ? 'border-red-300 dark:border-red-500/50 bg-red-50 dark:bg-red-900/10 focus:border-red-500'
+                      : 'border-emerald-300 dark:border-emerald-500/50 bg-emerald-50 dark:bg-emerald-900/10 focus:border-emerald-500 focus:ring-emerald-200 dark:focus:ring-emerald-900/30',
                   ]"
                 />
                 <!-- Validation Badge -->
@@ -461,10 +461,10 @@ watch(
               <!-- Error Message -->
               <div
                 v-if="quickInputError"
-                class="p-2 bg-red-50 rounded-lg border border-red-200 flex items-start gap-2 animate-shake"
+                class="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800/50 flex items-start gap-2 animate-shake"
               >
-                <AlertCircle class="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
-                <p class="text-xs text-red-900">
+                <AlertCircle class="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                <p class="text-xs text-red-900 dark:text-red-300">
                   {{ quickInputError }}
                 </p>
               </div>
@@ -473,48 +473,48 @@ watch(
               <div class="flex gap-2 flex-wrap">
                 <button
                   @click="applyTemplate('a,$/aa')"
-                  class="px-2 py-1 bg-zinc-100 hover:bg-emerald-100 rounded text-xs font-mono text-zinc-700 hover:text-emerald-700 transition-colors"
+                  class="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded text-xs font-mono text-zinc-700 dark:text-zinc-300 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors"
                 >
                   a,$/aa
                 </button>
                 <button
                   @click="applyTemplate('ε,a/ε')"
-                  class="px-2 py-1 bg-zinc-100 hover:bg-emerald-100 rounded text-xs font-mono text-zinc-700 hover:text-emerald-700 transition-colors"
+                  class="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded text-xs font-mono text-zinc-700 dark:text-zinc-300 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors"
                 >
                   ε,a/ε
                 </button>
                 <button
                   @click="applyTemplate('b,$/ba$')"
-                  class="px-2 py-1 bg-zinc-100 hover:bg-emerald-100 rounded text-xs font-mono text-zinc-700 hover:text-emerald-700 transition-colors"
+                  class="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded text-xs font-mono text-zinc-700 dark:text-zinc-300 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors"
                 >
                   b,$/ba$
                 </button>
                 <button
                   @click="quickInput = ''; clearAllErrors()"
-                  class="px-2 py-1 bg-red-50 hover:bg-red-100 rounded text-xs font-mono text-red-600 transition-colors"
+                  class="px-2 py-1 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded text-xs font-mono text-red-600 dark:text-red-400 transition-colors"
                 >
                   Clear
                 </button>
               </div>
 
-              <p class="text-xs text-zinc-500 flex items-center gap-1.5">
+              <p class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
                 <AlertCircle class="w-3 h-3" />
                 Verwende ε-Symbol für Epsilon • Keine Leerzeichen • Max 1 Zeichen für Input/StackTop
               </p>
             </div>
 
             <!-- Separator -->
-            <div class="border-t border-zinc-200 relative">
+            <div class="border-t border-zinc-200 dark:border-zinc-800 relative">
               <button
                 @click="showAdvancedMode = !showAdvancedMode"
-                class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-3 py-1 bg-white border border-zinc-200 rounded-full text-xs text-zinc-600 hover:text-zinc-900 hover:border-zinc-300 transition-colors flex items-center gap-1"
+                class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-3 py-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-full text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors flex items-center gap-1"
               >
                 <component :is="showAdvancedMode ? ChevronUp : ChevronDown" class="w-3 h-3" />
                 {{ showAdvancedMode ? 'Erweitert ausblenden' : 'Erweitert anzeigen' }}
               </button>
             </div>
 
-            <!-- ✨ ADVANCED MODE (BEGINNER FRIENDLY) -->
+            <!-- ADVANCED MODE (BEGINNER FRIENDLY) -->
             <Transition
               enter-active-class="transition-all duration-300 ease-out"
               leave-active-class="transition-all duration-200 ease-in"
@@ -526,9 +526,9 @@ watch(
               <div v-if="showAdvancedMode" class="space-y-4 pt-4">
                 <!-- Input Symbol -->
                 <div class="space-y-2">
-                  <label class="block text-sm font-semibold text-zinc-700 flex items-center gap-2">
+                  <label class="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
                     Input Symbol
-                    <span class="text-zinc-400 font-normal">(von Band gelesen)</span>
+                    <span class="text-zinc-400 dark:text-zinc-500 font-normal">(von Band gelesen)</span>
                     <component
                       :is="
                         inputStatus === 'success'
@@ -550,33 +550,33 @@ watch(
                       type="text"
                       maxlength="1"
                       placeholder="z.B. a"
-                      class="flex-1 px-4 py-2.5 border-2 rounded-lg focus:ring-2 focus:outline-none font-mono text-lg transition-all"
+                      class="flex-1 px-4 py-2.5 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border-2 rounded-lg focus:ring-2 focus:outline-none font-mono text-lg transition-all"
                       :class="[
                         inputError
-                          ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/10 focus:border-red-500'
                           : input.length > 0
-                            ? 'bg-emerald-50 border-emerald-300 focus:border-emerald-500 focus:ring-emerald-200'
-                            : 'border-zinc-200 focus:border-emerald-500 focus:ring-emerald-200',
+                            ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-300 dark:border-emerald-700 focus:border-emerald-500'
+                            : 'border-zinc-200 dark:border-zinc-700 focus:border-emerald-500',
                       ]"
                     />
                     <button
                       @click="insertEpsilon('input')"
-                      class="px-4 py-2.5 bg-zinc-100 hover:bg-emerald-100 rounded-lg font-bold text-zinc-700 hover:text-emerald-700 transition-colors border-2 border-transparent hover:border-emerald-300"
+                      class="px-4 py-2.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded-lg font-bold text-zinc-700 dark:text-zinc-300 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors border-2 border-transparent hover:border-emerald-300 dark:hover:border-emerald-700"
                     >
                       ε
                     </button>
                     <button
                       v-if="input.length > 0"
                       @click="clearField('input')"
-                      class="px-3 py-2.5 bg-red-50 hover:bg-red-100 rounded-lg text-red-600 transition-colors"
+                      class="px-3 py-2.5 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg text-red-600 dark:text-red-400 transition-colors"
                     >
                       <X class="w-5 h-5" />
                     </button>
                   </div>
-                  <p v-if="inputError" class="text-xs text-red-600 font-semibold animate-shake">
+                  <p v-if="inputError" class="text-xs text-red-600 dark:text-red-400 font-semibold animate-shake">
                     {{ inputError }}
                   </p>
-                  <p v-else class="text-xs text-zinc-500 flex items-center gap-1.5">
+                  <p v-else class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
                     <AlertCircle class="w-3 h-3" />
                     Max. 1 Zeichen oder ε (Epsilon)
                   </p>
@@ -584,9 +584,9 @@ watch(
 
                 <!-- Stack Top -->
                 <div class="space-y-2">
-                  <label class="block text-sm font-semibold text-zinc-700 flex items-center gap-2">
+                  <label class="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
                     Stack Top
-                    <span class="text-zinc-400 font-normal">(muss oben im Keller sein)</span>
+                    <span class="text-zinc-400 dark:text-zinc-500 font-normal">(muss oben im Keller sein)</span>
                     <component
                       :is="
                         stackTopStatus === 'success'
@@ -608,33 +608,33 @@ watch(
                       type="text"
                       maxlength="1"
                       placeholder="z.B. $"
-                      class="flex-1 px-4 py-2.5 border-2 rounded-lg focus:ring-2 focus:outline-none font-mono text-lg transition-all"
+                      class="flex-1 px-4 py-2.5 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border-2 rounded-lg focus:ring-2 focus:outline-none font-mono text-lg transition-all"
                       :class="[
                         stackTopError
-                          ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/10 focus:border-red-500'
                           : stackTop.length > 0
-                            ? 'bg-purple-50 border-purple-300 focus:border-purple-500 focus:ring-purple-200'
-                            : 'border-zinc-200 focus:border-emerald-500 focus:ring-emerald-200',
+                            ? 'bg-purple-50 dark:bg-purple-900/10 border-purple-300 dark:border-purple-700 focus:border-purple-500'
+                            : 'border-zinc-200 dark:border-zinc-700 focus:border-emerald-500',
                       ]"
                     />
                     <button
                       @click="insertEpsilon('stackTop')"
-                      class="px-4 py-2.5 bg-zinc-100 hover:bg-purple-100 rounded-lg font-bold text-zinc-700 hover:text-purple-700 transition-colors border-2 border-transparent hover:border-purple-300"
+                      class="px-4 py-2.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-lg font-bold text-zinc-700 dark:text-zinc-300 hover:text-purple-700 dark:hover:text-purple-400 transition-colors border-2 border-transparent hover:border-purple-300 dark:hover:border-purple-700"
                     >
                       ε
                     </button>
                     <button
                       v-if="stackTop.length > 0"
                       @click="clearField('stackTop')"
-                      class="px-3 py-2.5 bg-red-50 hover:bg-red-100 rounded-lg text-red-600 transition-colors"
+                      class="px-3 py-2.5 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg text-red-600 dark:text-red-400 transition-colors"
                     >
                       <X class="w-5 h-5" />
                     </button>
                   </div>
-                  <p v-if="stackTopError" class="text-xs text-red-600 font-semibold animate-shake">
+                  <p v-if="stackTopError" class="text-xs text-red-600 dark:text-red-400 font-semibold animate-shake">
                     {{ stackTopError }}
                   </p>
-                  <p v-else class="text-xs text-zinc-500 flex items-center gap-1.5">
+                  <p v-else class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
                     <AlertCircle class="w-3 h-3" />
                     Max. 1 Zeichen oder ε
                   </p>
@@ -642,9 +642,9 @@ watch(
 
                 <!-- Stack Push -->
                 <div class="space-y-2">
-                  <label class="block text-sm font-semibold text-zinc-700 flex items-center gap-2">
+                  <label class="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
                     Stack Push
-                    <span class="text-zinc-400 font-normal">(wird auf Keller gelegt)</span>
+                    <span class="text-zinc-400 dark:text-zinc-500 font-normal">(wird auf Keller gelegt)</span>
                     <component
                       :is="
                         stackPushStatus === 'success'
@@ -665,33 +665,33 @@ watch(
                       v-model="stackPush"
                       type="text"
                       placeholder="z.B. aa oder ε"
-                      class="flex-1 px-4 py-2.5 border-2 rounded-lg focus:ring-2 focus:outline-none font-mono text-lg transition-all"
+                      class="flex-1 px-4 py-2.5 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border-2 rounded-lg focus:ring-2 focus:outline-none font-mono text-lg transition-all"
                       :class="[
                         stackPushError
-                          ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/10 focus:border-red-500'
                           : stackPush.length > 0
-                            ? 'bg-blue-50 border-blue-300 focus:border-blue-500 focus:ring-blue-200'
-                            : 'border-zinc-200 focus:border-emerald-500 focus:ring-emerald-200',
+                            ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-300 dark:border-blue-700 focus:border-blue-500'
+                            : 'border-zinc-200 dark:border-zinc-700 focus:border-emerald-500',
                       ]"
                     />
                     <button
                       @click="insertEpsilon('stackPush')"
-                      class="px-4 py-2.5 bg-zinc-100 hover:bg-blue-100 rounded-lg font-bold text-zinc-700 hover:text-blue-700 transition-colors border-2 border-transparent hover:border-blue-300"
+                      class="px-4 py-2.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg font-bold text-zinc-700 dark:text-zinc-300 hover:text-blue-700 dark:hover:text-blue-400 transition-colors border-2 border-transparent hover:border-blue-300 dark:hover:border-blue-700"
                     >
                       ε
                     </button>
                     <button
                       v-if="stackPush.length > 0"
                       @click="clearField('stackPush')"
-                      class="px-3 py-2.5 bg-red-50 hover:bg-red-100 rounded-lg text-red-600 transition-colors"
+                      class="px-3 py-2.5 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg text-red-600 dark:text-red-400 transition-colors"
                     >
                       <X class="w-5 h-5" />
                     </button>
                   </div>
-                  <p v-if="stackPushError" class="text-xs text-red-600 font-semibold animate-shake">
+                  <p v-if="stackPushError" class="text-xs text-red-600 dark:text-red-400 font-semibold animate-shake">
                     {{ stackPushError }}
                   </p>
-                  <p v-else class="text-xs text-zinc-500 flex items-center gap-1.5">
+                  <p v-else class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
                     <AlertCircle class="w-3 h-3" />
                     Beliebig viele Zeichen oder ε (keine Leerzeichen)
                   </p>
@@ -701,13 +701,13 @@ watch(
 
             <!-- Preview -->
             <div
-              class="p-4 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border-2 border-emerald-200 shadow-inner"
+              class="p-4 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl border-2 border-emerald-200 dark:border-emerald-800/50 shadow-inner"
             >
-              <p class="text-xs font-semibold text-emerald-700 mb-2 flex items-center gap-2">
+              <p class="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 Live Preview:
               </p>
-              <p class="text-3xl font-mono font-bold text-emerald-900 text-center tracking-tight">
+              <p class="text-3xl font-mono font-bold text-emerald-900 dark:text-emerald-100 text-center tracking-tight">
                 {{ preview }}
               </p>
             </div>
@@ -715,10 +715,10 @@ watch(
             <!-- Validation Error -->
             <div
               v-if="!isValid"
-              class="p-3 bg-orange-50 rounded-lg border border-orange-200 flex items-start gap-2"
+              class="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800/50 flex items-start gap-2"
             >
-              <AlertCircle class="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
-              <p class="text-xs text-orange-900">
+              <AlertCircle class="w-4 h-4 text-orange-600 dark:text-orange-400 mt-0.5 flex-shrink-0" />
+              <p class="text-xs text-orange-900 dark:text-orange-300">
                 Mindestens ein Feld muss ausgefüllt sein und alle Fehler behoben!
               </p>
             </div>
@@ -726,26 +726,26 @@ watch(
 
           <!-- Footer -->
           <div
-            class="px-6 py-4 border-t border-zinc-200 bg-zinc-50 flex justify-between items-center"
+            class="px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/50 flex justify-between items-center"
           >
-            <p class="text-xs text-zinc-500">
+            <p class="text-xs text-zinc-500 dark:text-zinc-400">
               Tip: Instead of repeating, you can push "AB" to push multiple symbols
-              <kbd class="px-1.5 py-0.5 bg-white rounded border text-[10px] font-mono">ESC</kbd> zum
+              <kbd class="px-1.5 py-0.5 bg-white dark:bg-zinc-900 rounded border dark:border-zinc-700 text-[10px] font-mono">ESC</kbd> zum
               Schließen •
-              <kbd class="px-1.5 py-0.5 bg-white rounded border text-[10px] font-mono">⌘+Enter</kbd>
+              <kbd class="px-1.5 py-0.5 bg-white dark:bg-zinc-900 rounded border dark:border-zinc-700 text-[10px] font-mono">⌘+Enter</kbd>
               zum Speichern
             </p>
             <div class="flex gap-2">
               <button
                 @click="handleClose"
-                class="px-4 py-2 bg-zinc-200 hover:bg-zinc-300 text-zinc-700 text-sm font-semibold rounded-lg transition-colors"
+                class="px-4 py-2 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-sm font-semibold rounded-lg transition-colors"
               >
                 Abbrechen
               </button>
               <button
                 @click="handleSave"
                 :disabled="!isValid"
-                class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors shadow-lg hover:shadow-xl disabled:shadow-none"
+                class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors shadow-lg hover:shadow-xl disabled:shadow-none"
               >
                 Speichern
               </button>

@@ -37,12 +37,12 @@ onUnmounted(() => {
 
 <template>
   <aside
-    class="flex flex-col border-r bg-zinc-100 transition-all duration-300 ease-in-out h-full"
+    class="flex flex-col border-r bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 transition-all duration-300 ease-in-out h-full"
     :class="[isOpen ? 'w-[280px]' : 'w-[68px] items-center']"
   >
     <div class="p-4 flex flex-col gap-4">
       <div class="flex items-center" :class="{ 'justify-center': !isOpen }">
-        <Button variant="ghost" size="icon" @click="isOpen = !isOpen" class="text-zinc-500">
+        <Button variant="ghost" size="icon" @click="isOpen = !isOpen" class="text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800">
           <PanelLeftClose v-if="isOpen" />
           <PanelLeftOpen v-else />
         </Button>
@@ -52,7 +52,7 @@ onUnmounted(() => {
       <Button
         @click="enterExerciseMode()"
         variant="outline"
-        class="justify-start gap-2 rounded-full border-none font-medium h-12 transition-all bg-zinc-200 hover:bg-zinc-300 text-zinc-700"
+        class="justify-start gap-2 rounded-full border-none font-medium h-12 transition-all bg-zinc-200 hover:bg-zinc-300 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300"
         :class="{ 'px-2 justify-center w-10 h-10': !isOpen }"
       >
         <BookOpen class="h-5 w-5" />
@@ -60,7 +60,7 @@ onUnmounted(() => {
           Aufgaben
           <span
             v-if="getCompletionStats().completed > 0"
-            class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-zinc-300 text-zinc-600"
+            class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-zinc-300 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
           >
             {{ getCompletionStats().completed }}/{{ getCompletionStats().total }}
           </span>
@@ -70,7 +70,7 @@ onUnmounted(() => {
       <Button
         @click="showNewDialog = true"
         variant="outline"
-        class="justify-start gap-2 rounded-full bg-zinc-200 border-none hover:bg-zinc-300 text-zinc-700 font-medium h-12"
+        class="justify-start gap-2 rounded-full bg-zinc-200 border-none hover:bg-zinc-300 text-zinc-700 font-medium h-12 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300"
         :class="{ 'px-2 justify-center w-10 h-10': !isOpen }"
       >
         <Plus class="h-5 w-5" />
@@ -80,7 +80,7 @@ onUnmounted(() => {
 
     <!-- Project List -->
     <div class="flex-1 overflow-y-auto px-2">
-      <div v-if="isOpen" class="text-xs text-zinc-500 px-3 py-2 font-semibold">Projekte</div>
+      <div v-if="isOpen" class="text-xs text-zinc-500 dark:text-zinc-400 px-3 py-2 font-semibold">Projekte</div>
 
       <div class="space-y-1">
         <div v-for="project in projects" :key="project.id" class="relative group">
@@ -89,8 +89,8 @@ onUnmounted(() => {
             class="w-full px-3 py-2 rounded-lg text-left transition-colors"
             :class="
               currentProject?.id === project.id
-                ? 'bg-blue-100 text-blue-900'
-                : 'hover:bg-zinc-200 text-zinc-700'
+                ? 'bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-200'
+                : 'hover:bg-zinc-200 text-zinc-700 dark:hover:bg-zinc-800 dark:text-zinc-300'
             "
           >
             <div class="flex items-center gap-2">
@@ -111,7 +111,7 @@ onUnmounted(() => {
 
       <!-- Empty State -->
       <div v-if="projects.length === 0 && isOpen" class="px-3 py-8 text-center">
-        <p class="text-xs text-zinc-500 mb-2">Keine Projekte</p>
+        <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Keine Projekte</p>
         <button
           @click="showNewDialog = true"
           class="text-xs text-blue-600 hover:text-blue-700 font-medium"
