@@ -2,6 +2,10 @@
 
 A visual automata workbench for building, simulating, and testing DFA, NFA, PDA, and Turing Machines in the browser. Built as a focused tool for theoretical CS practice and as a portfolio artifact.
 
+## Live demo
+
+Deployed on Azure Static Web Apps: https://www.stateflow.top
+
 ## Highlights
 
 - Interactive canvas editor for states and transitions
@@ -63,11 +67,3 @@ npm run preview
 - Designed clear visualizations for stack and tape based machines
 - Implemented validation rules to catch structural errors early
 - Wrote unit tests for the simulator and stores
-
-## Screenshots
-
-Add images to a screenshots/ folder and link them here.
-
-## License
-
-MIT (add a LICENSE file if you want to open source this project)
