@@ -1004,10 +1004,12 @@ export class AutomatonSimulator {
         expectedOutput: test.expectedOutput,
         tmHeadEnd: test.tmHeadEnd,
       })
+      const isPda = this.type === 'PDA'
       return {
         ...result,
         expected: test.expected,
-        passed: result.accepted === test.expected && !result.isStuckDueToMissingTransition,
+        passed:
+          result.accepted === test.expected && (isPda || !result.isStuckDueToMissingTransition),
       }
     })
   }
