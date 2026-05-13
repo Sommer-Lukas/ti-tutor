@@ -1,54 +1,73 @@
-# ti-tutor
+# TI Tutor
 
-This template should help get you started developing with Vue 3 in Vite.
+A visual automata workbench for building, simulating, and testing DFA, NFA, PDA, and Turing Machines in the browser. Built as a focused tool for theoretical CS practice and as a portfolio artifact.
 
-## Recommended IDE Setup
+## Highlights
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- Interactive canvas editor for states and transitions
+- Step-by-step simulation with trace view, PDA stack visualization, and TM tape window
+- Batch test runner with expected accept/reject, plus TM output and head position checks
+- Rule-based validator for structural mistakes and unreachable states
+- Local persistence in browser storage
+- Optional exercise mode for guided tasks
 
-## Recommended Browser Setup
+## Tech stack
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+- Vue 3 + TypeScript + Vite
+- Tailwind CSS for UI styling
+- Pinia + Vue Router for app state and routing
+- Vitest for unit testing, ESLint and Prettier for code quality
 
-## Type Support for `.vue` Imports in TS
+## Architecture at a glance
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+```
+UI (Vue components)
+  -> Stores (project, tests, exercise state)
+  -> Simulator + Validator (core logic)
+  -> Results rendered in panels
+```
 
-## Customize configuration
+Key modules:
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+- src/lib/automatonSimulator.ts: simulation engine for DFA, NFA, PDA, TM
+- src/lib/automatonValidator.ts: rule checks and reachability analysis
+- src/components/TestPanel.vue: test management and pass/fail summaries
+- src/components/SimulationTreePanel.vue: step-by-step trace UI
 
-## Project Setup
+## Getting started
+
+Node version:
+
+- Node ^20.19.0 or >=22.12.0
+
+Install and run:
 
 ```sh
 npm install
-```
-
-### Compile and Hot-Reload for Development
-
-```sh
 npm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
-
-```sh
-npm run build
-```
-
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+Other scripts:
 
 ```sh
 npm run test:unit
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
 npm run lint
+npm run format
+npm run build
+npm run preview
 ```
+
+## Portfolio notes
+
+- Built an algorithmic simulation core with deterministic and nondeterministic models
+- Designed clear visualizations for stack and tape based machines
+- Implemented validation rules to catch structural errors early
+- Wrote unit tests for the simulator and stores
+
+## Screenshots
+
+Add images to a screenshots/ folder and link them here.
+
+## License
+
+MIT (add a LICENSE file if you want to open source this project)
