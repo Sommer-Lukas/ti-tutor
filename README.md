@@ -1,4 +1,4 @@
-# TI Tutor
+# Stateflow
 
 A visual automata workbench for building, simulating, and testing DFA, NFA, PDA, and Turing Machines in the browser. Built as a focused tool for theoretical CS practice and as a portfolio artifact.
 
